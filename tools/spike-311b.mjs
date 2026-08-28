@@ -209,6 +209,59 @@ for (const s of summary) {
   if (s.note) { say(`${s.type} — ${s.note}`); continue; }
   say(`${s.type} | ${s.n} | ${s.p50Fast.toFixed(3)} | ${s.p50Slow.toFixed(3)} | ${s.absGap.toFixed(3)} | ${s.p90EndpointRatio.toFixed(2)} | ${s.p90RangeRatio.toFixed(2)} | ${s.sameSecondPct.toFixed(1)}%`);
 }
+// ---------------------------------------------------------------------------
+// WARD VOLUME ANOMALY CHECK (facility-address stamping)
+// Step-0 found wards 28/41 with ~30x normal volume. Cause: some types stamp a
+// facility's address (311/OEMC call center, O'Hare) instead of the requester's
+// location. Detect it generically: any high-volume type whose rows concentrate
+// >50% in a single ward is suspect; drill into its top address and show the
+// ward's total with and without that type.
+const CONC_THRESHOLD = 0.5;
+say('');
+say('='.repeat(78));
+say('WARD VOLUME ANOMALY CHECK (facility-address stamping)');
+say('='.repeat(78));
+const topTypes = await q({
+  $select: 'sr_type, count(1) as c', $where: Y,
+  $group: 'sr_type', $order: 'count(1) DESC', $limit: '5',
+}, 'anomaly:topTypes');
+for (const t of topTypes || []) {
+  const type = t.sr_type, total = Number(t.c);
+  const wards = await q({
+    $select: 'ward, count(1) as c',
+    $where: `${Y} AND sr_type='${esc(type)}' AND ward IS NOT NULL`,
+    $group: 'ward', $order: 'count(1) DESC', $limit: '2',
+  }, `anomaly:${type}:wards`);
+  if (!wards || !wards.length) continue;
+  const [w1, w2] = wards;
+  const share = Number(w1.c) / total;
+  if (share < CONC_THRESHOLD) {
+    say(`OK       ${type}: ${total} rows, top ward ${w1.ward} holds ${(100 * share).toFixed(1)}% — no concentration.`);
+    continue;
+  }
+  say('');
+  say(`FLAGGED  ${type}: ${Number(w1.c)} of ${total} rows (${(100 * share).toFixed(2)}%) sit in ward ${w1.ward}; next ward ${w2 ? `${w2.ward} has ${Number(w2.c)}` : 'n/a'}.`);
+  const addrs = await q({
+    $select: 'street_address, count(1) as c',
+    $where: `${Y} AND sr_type='${esc(type)}' AND ward=${Number(w1.ward)}`,
+    $group: 'street_address', $order: 'count(1) DESC', $limit: '2',
+  }, `anomaly:${type}:addr`);
+  if (addrs && addrs.length) {
+    say(`         top address in ward ${w1.ward}: "${addrs[0].street_address}" with ${Number(addrs[0].c)} rows${addrs[1] ? ` (next: "${addrs[1].street_address}" with ${Number(addrs[1].c)})` : ''} — a single facility, not resident demand.`);
+  }
+  const wtot = await q({
+    $select: 'count(1) as c', $where: `${Y} AND ward=${Number(w1.ward)}`,
+  }, `anomaly:${type}:wardTotal`);
+  if (wtot) {
+    const wt = Number(wtot[0].c);
+    say(`         ward ${w1.ward} 2025 total: ${wt}; excluding this type: ${wt - Number(w1.c)} (a typical ward is ~20k).`);
+  }
+}
+say('');
+say('>> Consequence: per-ward VOLUME metrics must exclude the flagged facility-stamped');
+say('>> types (or restrict to actionable sr_types). Response-time figures above are');
+say('>> unaffected: flagged types are non-actionable and already excluded from timing.');
+
 say('');
 say(`HTTP attempts: ${calls} (retries ${retries}, timeouts ${timeouts}); non-200: ${nonOk.length}`);
 say(`Wall clock: ${((Date.now() - T0) / 1000).toFixed(1)}s`);
