@@ -60,6 +60,13 @@ const TYPES = process.argv.slice(2).length
   ? process.argv.slice(2)
   : ['Abandoned Vehicle Complaint', 'Garbage Cart Maintenance'];
 
+// Headline thresholds. A ward median near zero makes a ratio meaningless, and a
+// ward with few rows makes any percentile unstable — both matter most at the
+// leaderboard's endpoints, which is exactly where readers look.
+const MIN_DENOM_DAYS = 0.05;   // ~72 min; below this a median ratio divides by ~0
+const MIN_WARD_N = 200;        // endpoints are drawn only from wards at/above this
+const isCompleted = (st) => /^completed/i.test(String(st || ''));
+
 const summary = [];
 
 for (const type of TYPES) {
@@ -94,9 +101,18 @@ for (const type of TYPES) {
 
   const byWard = new Map();
   const all = [];
-  let dropNoWard = 0, dropBadDate = 0, dropNeg = 0;
-  let sameSecond = 0, midnightCreated = 0, dupRows = 0;
+  let dropNoWard = 0, dropBadDate = 0, dropNeg = 0, dropNotCompleted = 0;
+  let sameSecond = 0, midnightCreated = 0, dupRows = 0, timedRows = 0;
+  const droppedStatuses = new Map();
   for (const r of rows) {
+    // A cancelled request is not a completed service call; its closed_date measures
+    // an administrative close, not work done. Timing stats use completions only.
+    if (!isCompleted(r.status)) {
+      dropNotCompleted++;
+      droppedStatuses.set(r.status, (droppedStatuses.get(r.status) || 0) + 1);
+      continue;
+    }
+    timedRows++;
     if (r.duplicate === true || r.duplicate === 'true') dupRows++;
     if (/T00:00:00/.test(r.created_date || '')) midnightCreated++;
     const c = Date.parse(r.created_date), d = Date.parse(r.closed_date);
@@ -110,14 +126,15 @@ for (const type of TYPES) {
     if (!byWard.has(w)) byWard.set(w, []);
     byWard.get(w).push(days);
   }
-  say(`EXCLUSIONS: null/zero ward=${dropNoWard}; unparseable dates=${dropBadDate}; negative durations=${dropNeg}. No ward excluded for low volume.`);
+  say(`EXCLUSIONS: not-completed status=${dropNotCompleted}${droppedStatuses.size ? ' (' + [...droppedStatuses].map(([k, v]) => `${k}=${v}`).join(', ') + ')' : ''}; null/zero ward=${dropNoWard}; unparseable dates=${dropBadDate}; negative durations=${dropNeg}.`);
+  say(`Rows used for timing: ${timedRows} of ${rows.length} fetched. No ward excluded from the table for low volume.`);
 
   // DIAGNOSTIC A: is closed_date a real completion timestamp, or an artifact?
   say('');
-  say('-- timestamp sanity --');
-  say(`closed_date identical to created_date (same second): ${sameSecond} (${(100 * sameSecond / rows.length).toFixed(2)}%)`);
-  say(`created_date at exactly T00:00:00 (date-only granularity): ${midnightCreated} (${(100 * midnightCreated / rows.length).toFixed(2)}%)`);
-  say(`rows flagged duplicate: ${dupRows} (${(100 * dupRows / rows.length).toFixed(2)}%)`);
+  say('-- timestamp sanity (completed rows only) --');
+  say(`closed_date identical to created_date (same second): ${sameSecond} (${(100 * sameSecond / timedRows).toFixed(2)}%)`);
+  say(`created_date at exactly T00:00:00 (date-only granularity): ${midnightCreated} (${(100 * midnightCreated / timedRows).toFixed(2)}%)`);
+  say(`rows flagged duplicate: ${dupRows} (${(100 * dupRows / timedRows).toFixed(2)}%)`);
 
   // DIAGNOSTIC B: the whole distribution, not just median/p90.
   const sortedAll = all.slice().sort((a, b) => a - b);
@@ -144,39 +161,53 @@ for (const type of TYPES) {
   }).sort((a, b) => a.p50 - b.p50);
 
   say('');
-  say('ward |     n |     p50 |     p75 |     p90');
+  say(`ward |     n |     p50 |     p75 |     p90   ("!" = n < ${MIN_WARD_N}, percentiles unstable)`);
   for (const s of stats) {
-    say(`${String(s.ward).padStart(4)} | ${String(s.n).padStart(5)} | ${s.p50.toFixed(3).padStart(7)} | ${s.p75.toFixed(3).padStart(7)} | ${s.p90.toFixed(3).padStart(7)}`);
+    say(`${String(s.ward).padStart(4)} | ${String(s.n).padStart(5)} | ${s.p50.toFixed(3).padStart(7)} | ${s.p75.toFixed(3).padStart(7)} | ${s.p90.toFixed(3).padStart(7)} ${s.n < MIN_WARD_N ? '!' : ''}`);
   }
 
   // DIAGNOSTIC C: spread reported in ways a near-zero median cannot distort.
-  const f = stats[0], sl = stats[stats.length - 1];
-  const medRatio = sl.p50 / f.p50;
+  // Endpoints come from wards with enough rows to support a percentile. The full
+  // table above still shows every ward; nothing is hidden, only the headline is guarded.
+  const eligible = stats.filter(s => s.n >= MIN_WARD_N);
+  const thin = stats.length - eligible.length;
+  const pool = eligible.length >= 2 ? eligible : stats;
+  const f = pool[0], sl = pool[pool.length - 1];
+  const medRatio = f.p50 >= MIN_DENOM_DAYS ? sl.p50 / f.p50 : NaN;
   const absGap = sl.p50 - f.p50;
-  const p90Ratio = sl.p90 / f.p90;
+  const p90EndpointRatio = sl.p90 / f.p90;
   say('');
+  if (eligible.length >= 2) {
+    say(`Endpoints drawn from the ${eligible.length} wards with n >= ${MIN_WARD_N}; ${thin} thinner ward(s) shown in the table but not used as headline fastest/slowest.`);
+  } else {
+    say(`WARNING: fewer than 2 wards reach n >= ${MIN_WARD_N}; endpoints fall back to all wards and are unstable.`);
+  }
   say(`fastest ward ${f.ward}: p50=${f.p50.toFixed(3)}  p90=${f.p90.toFixed(3)} (n=${f.n})`);
   say(`slowest ward ${sl.ward}: p50=${sl.p50.toFixed(3)}  p90=${sl.p90.toFixed(3)} (n=${sl.n})`);
-  say(`median ratio: ${Number.isFinite(medRatio) ? medRatio.toFixed(2) : 'undefined'}  <-- UNRELIABLE when the faster median is near zero`);
+  say(`median ratio (slowest/fastest p50): ${Number.isFinite(medRatio)
+    ? medRatio.toFixed(2)
+    : `not meaningful — fastest p50 ${f.p50.toFixed(3)} d is below the ${MIN_DENOM_DAYS} d floor, so this would divide by ~0`}`);
   say(`median ABSOLUTE gap: ${absGap.toFixed(3)} days (${(absGap * 24).toFixed(1)} hours)  <-- the honest headline number`);
-  const p90s = stats.map(s => s.p90).sort((a, b) => a - b);
-  say(`p90 spread across wards: ${p90s[0].toFixed(2)} to ${p90s[p90s.length - 1].toFixed(2)} days (ratio ${(p90s[p90s.length - 1] / p90s[0]).toFixed(2)})`);
+  const p90s = eligible.length >= 2 ? eligible.map(s => s.p90).sort((a, b) => a - b) : stats.map(s => s.p90).sort((a, b) => a - b);
+  const p90RangeRatio = p90s[p90s.length - 1] / p90s[0];
+  say(`p90 ENDPOINT ratio (slowest-ward p90 / fastest-ward p90, both by median): ${p90EndpointRatio.toFixed(2)}`);
+  say(`p90 RANGE  ratio (max p90 / min p90 across wards): ${p90s[0].toFixed(2)} to ${p90s[p90s.length - 1].toFixed(2)} days = ${p90RangeRatio.toFixed(2)}`);
   say('');
   say(absGap < 1
     ? '>> The entire ward spread is under 24 hours. A "days to close" leaderboard on this type is not a real story regardless of ratio.'
     : `>> Ward spread is ${absGap.toFixed(1)} days end to end — large enough for a reader to care about.`);
 
-  summary.push({ type, n: all.length, p50Fast: f.p50, p50Slow: sl.p50, absGap, p90Ratio, sameSecondPct: 100 * sameSecond / rows.length });
+  summary.push({ type, n: all.length, p50Fast: f.p50, p50Slow: sl.p50, absGap, p90EndpointRatio, p90RangeRatio, thin, sameSecondPct: 100 * sameSecond / timedRows });
 }
 
 say('');
 say('='.repeat(78));
 say('CROSS-TYPE SUMMARY');
 say('='.repeat(78));
-say('type | rows | fastest p50 | slowest p50 | abs gap (days) | p90 ratio | same-second closes');
+say('type | completed rows | fastest p50 | slowest p50 | abs gap (days) | p90 endpoint ratio | p90 range ratio | same-second closes');
 for (const s of summary) {
   if (s.note) { say(`${s.type} — ${s.note}`); continue; }
-  say(`${s.type} | ${s.n} | ${s.p50Fast.toFixed(3)} | ${s.p50Slow.toFixed(3)} | ${s.absGap.toFixed(3)} | ${s.p90Ratio.toFixed(2)} | ${s.sameSecondPct.toFixed(1)}%`);
+  say(`${s.type} | ${s.n} | ${s.p50Fast.toFixed(3)} | ${s.p50Slow.toFixed(3)} | ${s.absGap.toFixed(3)} | ${s.p90EndpointRatio.toFixed(2)} | ${s.p90RangeRatio.toFixed(2)} | ${s.sameSecondPct.toFixed(1)}%`);
 }
 say('');
 say(`HTTP attempts: ${calls} (retries ${retries}, timeouts ${timeouts}); non-200: ${nonOk.length}`);
