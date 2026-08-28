@@ -157,7 +157,13 @@ say('');
 say('='.repeat(78));
 say('STEP 5: RESPONSE TIME BY WARD (highest-volume actionable type, 2025)');
 say('='.repeat(78));
-let ratio = NaN, chosen = null, wardStats = [];
+let ratio = NaN, medianGapDays = NaN, p90Ratio = NaN, hasSpread = null, chosen = null, wardStats = [];
+// A median of 0 days is common (bulk/same-timestamp closures), so slowest/fastest
+// blows up to a meaningless number. Only trust the ratio when the denominator is
+// meaningfully above zero; otherwise judge spread on the absolute gap and on p90,
+// which stays well clear of zero.
+const MIN_DENOM_DAYS = 0.05;   // ~72 minutes
+const MIN_GAP_DAYS = 0.5;
 chosen = actionable[0] || null;
 if (!chosen) {
   say('!! No actionable type identified from the live top-25. Cannot proceed to step 5.');
@@ -199,7 +205,11 @@ if (!chosen) {
     say(`Wards with data: ${wardStats.length}`);
     say(`FASTEST ward: ${f.ward}  median ${f.median.toFixed(2)} days (n=${f.n})`);
     say(`SLOWEST ward: ${sl.ward}  median ${sl.median.toFixed(2)} days (n=${sl.n})`);
-    ratio = sl.median / f.median;
+    medianGapDays = sl.median - f.median;
+    const p90s = wardStats.map(x => x.p90).filter(Number.isFinite).sort((a, b) => a - b);
+    if (p90s.length && p90s[0] > 0) p90Ratio = p90s[p90s.length - 1] / p90s[0];
+    if (f.median >= MIN_DENOM_DAYS) ratio = sl.median / f.median;
+    hasSpread = medianGapDays >= MIN_GAP_DAYS || (Number.isFinite(p90Ratio) && p90Ratio >= 1.5);
   }
 }
 
@@ -207,12 +217,18 @@ say('');
 say('='.repeat(78));
 say('STEP 6: SPREAD CHECK');
 say('='.repeat(78));
-if (Number.isFinite(ratio)) {
-  say(`slowest_median / fastest_median = ${ratio.toFixed(2)}`);
-  say(ratio < 1.5
-    ? '>> Ratio under 1.5: there is NO STORY. A ranked leaderboard on this type would be boring.'
-    : '>> Ratio >= 1.5: meaningful spread between wards; a ranked leaderboard has signal.');
-} else say('Ratio not computable (step 5 produced no medians).');
+if (hasSpread === null) {
+  say('Spread not computable (step 5 produced no medians).');
+} else {
+  say(`median gap (slowest - fastest): ${medianGapDays.toFixed(2)} days`);
+  say(`slowest_median / fastest_median: ${Number.isFinite(ratio)
+    ? ratio.toFixed(2)
+    : `not meaningful (fastest median ${wardStats[0].median.toFixed(2)} d is below the ${MIN_DENOM_DAYS} d floor; a ratio here divides by ~0)`}`);
+  say(`p90 spread (max/min across wards): ${Number.isFinite(p90Ratio) ? p90Ratio.toFixed(2) : 'n/a'}`);
+  say(hasSpread
+    ? `>> Meaningful spread: gap >= ${MIN_GAP_DAYS} d or p90 spread >= 1.5. A ranked leaderboard has signal.`
+    : `>> Gap under ${MIN_GAP_DAYS} d and p90 spread under 1.5: there is NO STORY. A ranked leaderboard would be boring.`);
+}
 
 const WALL = ((Date.now() - T0) / 1000);
 say('');
@@ -227,10 +243,10 @@ say(`Pagination past first page required: ${paginated ? 'YES' : 'NO'}`);
 say(`No app token used; no 429 observed: ${nonOk.some(s => s.includes('429')) ? 'FALSE' : 'TRUE'}`);
 
 // ---- findings file ----
-const verdict = !Number.isFinite(ratio)
+const verdict = hasSpread === null
   ? 'INCONCLUSIVE - response-time spread could not be computed.'
   : (closurePct < 60 ? 'WEAK - closure rate under 60%.'
-    : ratio < 1.5 ? 'SURVIVES TECHNICALLY BUT IS BORING - ward medians are too close to rank meaningfully.'
+    : !hasSpread ? 'SURVIVES TECHNICALLY BUT IS BORING - ward medians are too close to rank meaningfully.'
     : 'SURVIVES - closure coverage and ward spread both support a ranked leaderboard.');
 
 const md = `# Chicago 311 (v6vf-nfxy) — Step 0 discovery findings
@@ -284,8 +300,10 @@ ${wardStats.length ? `- Fastest: ward ${wardStats[0].ward} @ ${wardStats[0].medi
 Exclusions are printed explicitly in stdout Step 5. No ward was dropped for low volume.
 
 ## 6. Spread check
-- slowest/fastest median ratio: ${Number.isFinite(ratio) ? ratio.toFixed(2) : 'n/a'}
-- ${Number.isFinite(ratio) ? (ratio < 1.5 ? '**Under 1.5 — no story; the leaderboard is boring.**' : 'At or above 1.5 — real spread, the ranking carries signal.') : 'not computable'}
+- median gap (slowest - fastest): ${Number.isFinite(medianGapDays) ? medianGapDays.toFixed(2) + ' days' : 'n/a'}
+- slowest/fastest median ratio: ${Number.isFinite(ratio) ? ratio.toFixed(2) : `not meaningful — the fastest ward's median is ~0 days, so this ratio divides by ~0 and is omitted rather than reported as a large number`}
+- p90 spread (max/min across wards): ${Number.isFinite(p90Ratio) ? p90Ratio.toFixed(2) : 'n/a'}
+- ${hasSpread === null ? 'not computable' : hasSpread ? 'Real spread — the ranking carries signal.' : '**No story; the leaderboard is boring.**'}
 
 ## 7. API behaviour
 - Calls: ${calls}; non-200: ${nonOk.length}${nonOk.length ? ` (${nonOk.join(' | ')})` : ''}

@@ -1,63 +1,22 @@
 # Chicago 311 (v6vf-nfxy) — Step 0 discovery findings
 
-Run: live queries only, 2026-08-28T22:55:55.531Z → wall clock 101.8s.
+Run: live queries only, 2026-08-28T23:00:47.866Z → wall clock 619.7s.
 Every number below came from an HTTP response in this run. Nothing is remembered or estimated.
 
 ## 1. Field inventory
-Fields returned (42): :@computed_region_43wa_7qmu, :@computed_region_6mkv_f3dw, :@computed_region_bdys_3d7i, :@computed_region_du4m_ji7t, :@computed_region_rpca_8um6, :@computed_region_vrxf_vc4k, city, closed_date, community_area, created_date, created_day_of_week, created_department, created_hour, created_month, duplicate, electrical_district, electricity_grid, last_modified_date, latitude, legacy_record, location, longitude, origin, owner_department, police_beat, police_district, police_sector, precinct, sr_number, sr_short_code, sr_type, state, status, street_address, street_direction, street_name, street_number, street_type, ward, x_coordinate, y_coordinate, zip_code
+Fields returned (0): 
 
 Sample row:
 ```
-:@computed_region_43wa_7qmu = undefined
-:@computed_region_6mkv_f3dw = undefined
-:@computed_region_bdys_3d7i = undefined
-:@computed_region_du4m_ji7t = undefined
-:@computed_region_rpca_8um6 = undefined
-:@computed_region_vrxf_vc4k = undefined
-city = "Chicago"
-closed_date = "2026-08-28T15:14:43.000"
-community_area = undefined
-created_date = "2026-08-28T15:14:43.000"
-created_day_of_week = "6"
-created_department = undefined
-created_hour = "15"
-created_month = "8"
-duplicate = false
-electrical_district = undefined
-electricity_grid = undefined
-last_modified_date = "2026-08-28T15:14:44.000"
-latitude = undefined
-legacy_record = false
-location = undefined
-longitude = undefined
-origin = "Internet"
-owner_department = "Aviation"
-police_beat = undefined
-police_district = undefined
-police_sector = undefined
-precinct = undefined
-sr_number = "SR26-01753319"
-sr_short_code = "AVN"
-sr_type = "Aircraft Noise Complaint"
-state = "Illinois"
-status = "Completed"
-street_address = "10510 W ZEMKE RD"
-street_direction = "W"
-street_name = "ZEMKE"
-street_number = "10510"
-street_type = "RD"
-ward = undefined
-x_coordinate = undefined
-y_coordinate = undefined
-zip_code = "60666"
+
 ```
 Required fields — present/populated in the 5-row sample:
-- created_date: present=true, populated 5/5
-- closed_date: present=true, populated 2/5
-- status: present=true, populated 5/5
-- sr_type: present=true, populated 5/5
-- ward: present=true, populated 3/5
-- community_area: present=true, populated 3/5
+- created_date: present=false, populated ?/5
+- closed_date: present=false, populated ?/5
+- status: present=false, populated ?/5
+- sr_type: present=false, populated ?/5
+- ward: present=false, populated ?/5
+- community_area: present=false, populated ?/5
 
 ## 2. Closure completeness (2025)
 - Total rows: 1960595
@@ -151,7 +110,7 @@ ward | n | median_days | p90_days
 11 | 4191 | 0.68 | 2.06
 24 | 1454 | 0.71 | 2.60
 12 | 5608 | 0.73 | 2.49
-49 | 1345 | 0.73 | 2.59
+49 | 1344 | 0.73 | 2.59
 3 | 739 | 0.74 | 2.27
 22 | 2671 | 0.74 | 2.72
 6 | 318 | 0.75 | 2.61
@@ -160,11 +119,11 @@ ward | n | median_days | p90_days
 13 | 829 | 0.75 | 2.54
 35 | 3420 | 0.76 | 2.76
 21 | 182 | 0.76 | 2.05
-25 | 4614 | 0.76 | 3.07
+25 | 4613 | 0.76 | 3.07
 23 | 3214 | 0.76 | 2.67
 46 | 1409 | 0.78 | 3.05
-4 | 980 | 0.79 | 2.92
 33 | 1735 | 0.79 | 2.99
+4 | 981 | 0.79 | 2.91
 15 | 3032 | 0.79 | 2.29
 48 | 1071 | 0.79 | 2.87
 16 | 1833 | 0.79 | 2.14
@@ -173,7 +132,7 @@ ward | n | median_days | p90_days
 32 | 4164 | 0.81 | 2.94
 2 | 1234 | 0.81 | 2.90
 5 | 187 | 0.81 | 2.67
-43 | 3036 | 0.81 | 3.34
+43 | 3037 | 0.81 | 3.33
 1 | 5583 | 0.82 | 2.88
 20 | 959 | 0.83 | 2.48
 8 | 240 | 0.85 | 2.84
@@ -191,12 +150,14 @@ ward | n | median_days | p90_days
 Exclusions are printed explicitly in stdout Step 5. No ward was dropped for low volume.
 
 ## 6. Spread check
-- slowest/fastest median ratio: 4935.00
-- At or above 1.5 — real spread, the ranking carries signal.
+- median gap (slowest - fastest): 0.97 days
+- slowest/fastest median ratio: not meaningful — the fastest ward's median is ~0 days, so this ratio divides by ~0 and is omitted rather than reported as a large number
+- p90 spread (max/min across wards): 2.00
+- Real spread — the ranking carries signal.
 
 ## 7. API behaviour
-- Calls: 9; non-200: 0
-- Wall clock: 101.8s; no app token used
+- Calls: 13; non-200: 1 (step1: exhausted 5 attempts (timeout/5xx) https://data.cityofchicago.org/resource/v6vf-nfxy.json?%24limit=5)
+- Wall clock: 619.7s; no app token used
 - $limit raised above the 1000 default (max used: 25000); pagination past page 1 required: yes
 
 ## Verdict
