@@ -185,3 +185,37 @@ Garbage Cart Maintenance | 49074 | 17.811 | 29.931 | 12.120 | 1.30 | 1.30 | 0.0%
 HTTP attempts: 9 (retries 0, timeouts 0); non-200: 0
 Wall clock: 18.3s
 ```
+
+## Addendum: ward 28/41 volume anomaly (resolved)
+
+Ad-hoc live SoQL queries, 2026-08-28 (6 calls, all HTTP 200). Spike A's step 3
+showed ward 28 with 686,424 rows and ward 41 with 382,774 for 2025, vs a
+typical ward's ~20k. Cause found — facility-address stamping, one type and one
+address per ward:
+
+| | Ward 28 | Ward 41 |
+|---|---|---|
+| Dominant type | 311 INFORMATION ONLY CALL | Aircraft Noise Complaint |
+| Rows of that type in that ward | 662,333 of 662,343 citywide (99.998%) | 364,901 citywide share 99.99% |
+| At a single street address | 662,321 at 2111 W Lexington ST | 364,900 at 10510 W Zemke RD |
+| Next-highest ward for that type | 1,370 rows | 4 rows |
+
+2111 W Lexington St is the City's 311/OEMC call center (informational calls are
+logged at the call center's own address, which is in ward 28). 10510 W Zemke Rd
+is O'Hare / Dept. of Aviation, in ward 41 — matching spike A's sample row
+(owner_department = "Aviation", same address).
+
+Excluding the stamped type, both wards are ordinary:
+- ward 28: 686,424 − 662,333 = 24,091
+- ward 41: 382,774 − 364,901 = 17,873
+
+Consequences for the leaderboard:
+- Response-time figures above are unaffected: both stamped types are
+  non-actionable and already excluded; Abandoned Vehicle and Garbage Cart show
+  no comparable address concentration.
+- Any per-ward VOLUME metric must exclude these two types (or restrict to
+  actionable sr_types) or wards 28 and 41 appear to carry ~30x normal demand.
+
+Note: this addendum was produced by ad-hoc queries, not by tools/spike-311b.mjs;
+re-running that script regenerates the file and will drop this section unless
+the script is extended to reproduce it.
