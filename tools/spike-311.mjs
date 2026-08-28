@@ -7,22 +7,46 @@ let calls = 0, nonOk = [], maxLimitUsed = 0, paginated = false;
 
 function say(s = '') { console.log(s); out.push(s); }
 
+const REQ_TIMEOUT_MS = 90000;   // Socrata is slow/flaky on this resource; one attempt took 170s
+const MAX_ATTEMPTS = 5;
+let retries = 0, timeouts = 0;
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 async function q(params, label) {
   const url = BASE + '?' + new URLSearchParams(params).toString();
   if (params.$limit) maxLimitUsed = Math.max(maxLimitUsed, Number(params.$limit));
-  calls++;
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    nonOk.push(`${label}: HTTP ${res.status} ${url} :: ${body.slice(0, 300)}`);
-    say(`  !! QUERY FAILED [${label}] HTTP ${res.status}: ${body.slice(0, 300)}`);
-    return null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    calls++;
+    if (attempt > 1) retries++;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(REQ_TIMEOUT_MS) });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        // 4xx other than 429 will not improve on retry
+        if (res.status !== 429 && res.status < 500) {
+          nonOk.push(`${label}: HTTP ${res.status} ${url} :: ${body.slice(0, 300)}`);
+          say(`  !! QUERY FAILED [${label}] HTTP ${res.status}: ${body.slice(0, 300)}`);
+          return null;
+        }
+        say(`  .. [${label}] HTTP ${res.status} on attempt ${attempt}/${MAX_ATTEMPTS}, retrying`);
+      } else {
+        return res.json();
+      }
+    } catch (e) {
+      const isTimeout = /timeout|aborted|TimeoutError/i.test(String(e?.name) + String(e?.message) + String(e?.cause?.code || ''));
+      if (isTimeout) timeouts++;
+      say(`  .. [${label}] ${e?.cause?.code || e?.name || 'error'} on attempt ${attempt}/${MAX_ATTEMPTS}, retrying`);
+    }
+    if (attempt < MAX_ATTEMPTS) await sleep(Math.min(2000 * 2 ** (attempt - 1), 30000));
   }
-  return res.json();
+  nonOk.push(`${label}: exhausted ${MAX_ATTEMPTS} attempts (timeout/5xx) ${url}`);
+  say(`  !! QUERY FAILED [${label}]: exhausted ${MAX_ATTEMPTS} attempts`);
+  return null;
 }
 
 // paginate a select of raw rows
-async function fetchAll(params, label, pageSize = 50000, hardCap = 400000) {
+async function fetchAll(params, label, pageSize = 25000, hardCap = 400000) {
   const rows = [];
   for (let off = 0; ; off += pageSize) {
     const page = await q({ ...params, $limit: String(pageSize), $offset: String(off) }, `${label}#${off}`);
@@ -195,7 +219,7 @@ say('');
 say('='.repeat(78));
 say('STEP 7: RATE LIMITS AND VOLUME');
 say('='.repeat(78));
-say(`API calls made:        ${calls}`);
+say(`HTTP attempts made:    ${calls} (including ${retries} retries; ${timeouts} timed out)`);
 say(`Non-200 responses:     ${nonOk.length}${nonOk.length ? ' -> ' + nonOk.join(' | ') : ''}`);
 say(`Wall clock:            ${WALL.toFixed(1)} s`);
 say(`Highest $limit used:   ${maxLimitUsed} (Socrata default is 1000; raised explicitly)`);
