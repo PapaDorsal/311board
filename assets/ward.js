@@ -1,6 +1,8 @@
 // Ward report card: one ward, every type on the board. Same snapshot as the front page.
 (async function () {
   const D = await (await fetch('data/leaderboard.json')).json();
+  const nbRes = await fetch('data/ward-neighborhoods.json').catch(() => null);
+  const NB = nbRes && nbRes.ok ? (await nbRes.json()).wards : {};
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n).toLocaleString('en-US');
@@ -32,7 +34,9 @@
   setMeta('meta[name="twitter:description"]', 'content', wDesc);
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
-  $('ward-sub').innerHTML = (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
+  const wHoods = ((NB[ward] || {}).names || []).join(', ');
+  $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
+    (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
     ` &middot; ${D.year} numbers`;
 
   // Full office block, so anyone reading a number can act on it without a second search.

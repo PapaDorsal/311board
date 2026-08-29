@@ -2,10 +2,14 @@
 // and ward map (data/wards.geojson). Every figure comes from the snapshot; the only
 // live network call is the optional address lookup, against the same public dataset.
 (async function () {
-  const [dataRes, geoRes] = await Promise.all([fetch('data/leaderboard.json'), fetch('data/wards.geojson')]);
+  const [dataRes, geoRes, nbRes] = await Promise.all([
+    fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json')]);
   if (!dataRes.ok || !geoRes.ok) return;
   const D = await dataRes.json();
   const GEO = await geoRes.json();
+  // Neighbourhood context is a nicety; the board still works without it.
+  const NB = nbRes.ok ? (await nbRes.json()).wards : {};
+  const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -147,7 +151,9 @@
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
         ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, slowest 10% over <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
-        : `<strong>Ward ${t.dataset.ward}</strong> - no data`) + (aldName ? `<br>${esc(aldName)}` : '') +
+        : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
+        (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
+        (aldName ? `<br>${esc(aldName)}` : '') +
         `<br><span class="tip-cta">Source: City of Chicago 311 records. Click for the rows behind this.</span>`;
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
@@ -175,7 +181,9 @@
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank">${w.thin ? '–' : ++rank}</td>
-        <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
+        <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}` +
+        `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
+        `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${w.p50}</span></div></td>
         <td class="c-num">${w.p90}</td>
         <td class="c-num">${fmt(w.n)}</td>
@@ -217,7 +225,8 @@
     const w = T.wards.find((x) => x.ward === myWard);
     const ald = (D.aldermen || {})[myWard];
     // "Your ward" only when we actually located them; a map click is just browsing.
-    const heading = note ? `Your ward: ${myWard}` : `Ward ${myWard}`;
+    const heading = (note ? `Your ward: ${myWard}` : `Ward ${myWard}`) +
+      (hoods(myWard) ? ` <span class="hood-inline">${esc(hoods(myWard))}</span>` : '');
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
       ` &middot; <a href="ward.html?w=${myWard}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
