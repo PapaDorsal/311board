@@ -70,25 +70,36 @@ const WHERE = [
   'street_name IS NOT NULL',
   'latitude IS NOT NULL',
   'street_number IS NOT NULL',
-  'length(street_number) BETWEEN 3 AND 5',
   `substring(street_number,length(street_number),1) IN (${DIGITS})`,
-  `substring(street_number,length(street_number)-1,1) IN (${DIGITS})`,
 ].join(' AND ');
+
+// Two passes, because the block is taken by trimming the last two characters and
+// that trim is invalid for a house number shorter than three. Everything under
+// 100 - which is most of the Loop, "46 E Chicago", "2 W Grand" - is the 0 block.
+// Asking the portal for a negative substring length returns a 500, so the short
+// numbers are fetched separately rather than special-cased inside one query.
+const PASSES = [
+  { where: `${WHERE} AND length(street_number) BETWEEN 3 AND 5`,
+    block: 'substring(street_number,1,length(street_number)-2)' },
+  { where: `${WHERE} AND length(street_number) BETWEEN 1 AND 2`, block: "'0'" },
+];
 
 const PAGE = 50000;
 const rows = [];
-for (let off = 0; ; off += PAGE) {
-  const q = new URLSearchParams({
-    $query: `SELECT street_direction AS d, street_name AS n, street_type AS t, ` +
-      `substring(street_number,1,length(street_number)-2) AS b, ` +
-      `substring(street_number,length(street_number),1) IN ('1','3','5','7','9') AS odd, ` +
-      `median(latitude) AS la, median(longitude) AS lo, count(1) AS c ` +
-      `WHERE ${WHERE} GROUP BY d,n,t,b,odd ORDER BY d,n,t,b,odd LIMIT ${PAGE} OFFSET ${off}`,
-  });
-  const page = await get(`${BASE}?${q}`, `blocks@${off}`);
-  rows.push(...page);
-  process.stdout.write(`\rfetched ${rows.length} block/ward groups`);
-  if (page.length < PAGE) break;
+for (const pass of PASSES) {
+  for (let off = 0; ; off += PAGE) {
+    const q = new URLSearchParams({
+      $query: `SELECT street_direction AS d, street_name AS n, street_type AS t, ` +
+        `${pass.block} AS b, ` +
+        `substring(street_number,length(street_number),1) IN ('1','3','5','7','9') AS odd, ` +
+        `median(latitude) AS la, median(longitude) AS lo, count(1) AS c ` +
+        `WHERE ${pass.where} GROUP BY d,n,t,b,odd ORDER BY d,n,t,b,odd LIMIT ${PAGE} OFFSET ${off}`,
+    });
+    const page = await get(`${BASE}?${q}`, `blocks@${off}`);
+    rows.push(...page);
+    process.stdout.write(`\rfetched ${rows.length} block sides`);
+    if (page.length < PAGE) break;
+  }
 }
 console.log('');
 
@@ -114,7 +125,11 @@ const streets = new Map();  // "D|NAME|T|PARITY" -> [[blockStart, ward], ...]
 let thin = 0, outside = 0, kept = 0;
 for (const r of rows) {
   if (Number(r.c) < MIN_BLOCK_N) { thin++; continue; }
-  const b = Number(r.b), la = Number(r.la), lo = Number(r.lo);
+  // A house number under 100 leaves nothing in front of its last two digits,
+  // which is the 0 block ("46 E Chicago") - not a missing value.
+  const raw = r.b === undefined || r.b === '' ? '0' : String(r.b);
+  const b = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  const la = Number(r.la), lo = Number(r.lo);
   if (!Number.isFinite(b) || !Number.isFinite(la) || !Number.isFinite(lo)) { outside++; continue; }
   const w = wardAt(lo, la);
   if (!w) { outside++; continue; }   // median landed off the ward map entirely

@@ -160,7 +160,7 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, slowest 10% over <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
+        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, 9 in 10 within <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
@@ -248,6 +248,9 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
+  // Two decimals everywhere so the column aligns on the point: a bare "6" beside
+  // "5.02" reads as a different kind of number.
+  const d2 = (v) => (v === null || v === undefined ? '-' : Number(v).toFixed(2));
   function renderTable(T) {
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
@@ -265,8 +268,8 @@
         <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
-        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${w.p50}</span></div></td>
-        <td class="c-num">${w.p90}</td>
+        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
+        <td class="c-num c-tail">${d2(w.p90)}</td>
         <td class="c-num">${fmt(w.n)}</td>
       </tr>`;
     }).join('');

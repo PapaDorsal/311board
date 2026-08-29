@@ -51,10 +51,6 @@
   <section id="hook" class="hook" hidden>
     <p class="hook-line" id="hook-line"></p>
     <p class="hook-sub" id="hook-sub"></p>
-    <div class="ward-actions">
-      <button type="button" id="share" class="share-btn">Share this</button>
-      <span class="share-done" id="share-done" hidden>Link copied.</span>
-    </div>
   </section>
 
   <section id="board" hidden>
@@ -93,14 +89,18 @@
                 <th class="c-rank" scope="col">#</th>
                 <th class="c-ward" scope="col">Ward</th>
                 <th class="c-bar" scope="col">Typical days</th>
-                <th class="c-num" scope="col">Slowest 10%</th>
+                <th class="c-num c-tail" scope="col">9 in 10 within</th>
                 <th class="c-num" scope="col">Requests</th>
               </tr>
             </thead>
             <tbody id="lb-body"></tbody>
           </table>
         </div>
-        <p class="table-gloss">Typical days = the middle request: half of them close faster, half slower. Slowest 10% = only one request in ten takes longer than this. Click any ward for the records behind its numbers.</p>
+        <p class="table-gloss">Typical days = the middle request: half close faster, half slower. 9 in 10 within = nine of every ten requests were closed by this many days. Click any ward for the records behind its numbers.</p>
+        <div class="ward-actions">
+          <button type="button" id="share" class="share-btn">Share this</button>
+          <span class="share-done" id="share-done" hidden>Link copied.</span>
+        </div>
       </div>
     </div>
   </section>

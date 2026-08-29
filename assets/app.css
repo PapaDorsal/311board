@@ -301,6 +301,39 @@ td.c-ward a:hover { color: var(--accent); }
   paint-order: stroke; stroke: var(--surface); stroke-width: 2.2px; stroke-linejoin: round;
 }
 #map .st-grid { opacity: 0.72; font-size: 0.86em; }
+
+/* On a phone the five columns need 569px inside a 348px box, so the table
+   scrolled sideways and you could never see a ward and its number at once.
+   The tail column is the one to drop: it is the least urgent of the five and
+   it is still on the ward's own card. What is left fits with no scrolling. */
+@media (max-width: 560px) {
+  .c-tail { display: none; }
+  /* Percent widths cannot hold a table that is already wider than its box, so
+     the remaining four columns are given fixed shares and the text wraps into
+     them rather than pushing the table sideways. */
+  /* the 480px floor and the bar's 150px floor are what actually held the
+     table open; both are desktop comfort sizes, not requirements */
+  #lb { table-layout: fixed; width: 100%; min-width: 0; }
+  .barcell { min-width: 0; gap: 6px; }
+  #lb th, #lb td { padding-left: 7px; padding-right: 7px; }
+  /* all four fixed: mixing a percentage with fixed columns under
+     table-layout:fixed overflowed by exactly the width of the fixed ones */
+  .c-rank { width: 22px; }
+  .c-bar  { width: 62px; }
+  .c-num  { width: 72px; }
+  /* REQUESTS is the widest header and was clipping; the heads shrink rather
+     than the numbers, which are what the column is for */
+  #lb th { font-size: 10.5px; letter-spacing: 0.02em; }
+  td.c-ward > a { max-width: none; white-space: normal; }
+  td.c-ward .row-hood, td.c-ward .row-sub { white-space: normal; }
+  /* The bar is proportional, so in a column this narrow the fast wards render
+     as a 12px nub that reads as nothing. Its width is better spent on the ward
+     name, which was wrapping to three lines. The rows are already sorted
+     fastest first and the number is right there. */
+  td.c-bar .bar { display: none; }
+  td.c-bar .barcell { gap: 0; }
+  td.c-bar .bar-val { font-size: 13px; }
+}
 /* label size is set per-label in JS from how large the map is actually drawn;
    here we only thicken the halo so small type stays readable over the fills. */
 @media (max-width: 820px) { #map .st-line { opacity: 0.22; } #map .st-label { stroke-width: 3px; } }
