@@ -373,6 +373,15 @@ td.c-ward a:hover { color: var(--accent); }
 /* label size is set per-label in JS from how large the map is actually drawn;
    here we only thicken the halo so small type stays readable over the fills. */
 @media (max-width: 820px) { #map .st-line { opacity: 0.22; } #map .st-label { stroke-width: 3px; } }
+/* window selector: quieter than the type pills - a modifier, not the subject */
+.windows { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.windows button {
+  font: 500 12px var(--sans); cursor: pointer; border-radius: 999px; padding: 5px 12px;
+  background: transparent; color: var(--muted); border: 1px solid var(--border);
+}
+.windows button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.windows button:hover:not([aria-pressed="true"]) { color: var(--ink); border-color: var(--ink-2); }
+
 /* board head: title left, share right, one line */
 .board-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .board-head .ward-actions { margin-top: 0; }

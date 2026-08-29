@@ -6,16 +6,32 @@
     fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json'),
     fetch('data/streets.geojson')]);
   if (!dataRes.ok || !geoRes.ok) return;
-  const D = await dataRes.json();
   const GEO = await geoRes.json();
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
   // Street context is optional garnish; the map still works if it fails to load.
   const ST = stRes.ok ? (await stRes.json()).features : [];
   const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
-  // The board covers a rolling window, not a calendar year; say so wherever a period is named.
-  const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
-  const PERIOD = WIN.label;
+
+  // Windows the board can show. Rolling is the default; the two calendar years
+  // are the only complete years that sit entirely inside the current (May 2023)
+  // ward map - earlier years would compare different areas under the same ward
+  // numbers, so they are not offered.
+  const WINDOWS = [
+    { key: 'rolling', pill: 'Last 12 months', file: 'data/leaderboard.json' },
+    { key: '2024', pill: '2024', file: 'data/leaderboard-2024.json' },
+    { key: '2025', pill: '2025', file: 'data/leaderboard-2025.json' },
+  ];
+  const winCache = new Map([['rolling', await dataRes.json()]]);
+  let winKey = 'rolling';
+  // D is the active snapshot; every renderer reads through these three.
+  let D, WIN, PERIOD;
+  function adoptData(d) {
+    D = d;
+    WIN = d.window || { from: `${d.year}-01-01`, to: `${d.year + 1}-01-01`, label: String(d.year) };
+    PERIOD = WIN.label;
+  }
+  adoptData(winCache.get('rolling'));
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -87,8 +103,13 @@
   }
 
   // ---- state ----
+  // Hash carries both facets: #pothole is the rolling default, #pothole-2025
+  // pins the window, so a shared link reproduces what the sender saw.
   let typeKey = (location.hash || '').slice(1);
+  const hm = /^(.*)-(\d{4})$/.exec(typeKey);
+  if (hm && WINDOWS.some((w) => w.key === hm[2])) { typeKey = hm[1]; winKey = hm[2]; }
   if (!D.types.some((t) => t.key === typeKey)) typeKey = D.featured;
+  const hashFor = () => (winKey === 'rolling' ? `#${typeKey}` : `#${typeKey}-${winKey}`);
   let myWard = null;
 
   function type() { return D.types.find((t) => t.key === typeKey); }
@@ -96,9 +117,17 @@
   function renderHook(T) {
     const h = T.headline;
     if (!h) { $('hook').hidden = true; return; }
+    const past = winKey !== 'rolling';
     if (h.slowest.p50 < 1.5) {
-      $('hook-line').textContent = `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Typical times run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+      $('hook-line').textContent = past
+        ? `In ${winKey}, every ward cleared ${T.plain} in about a day.`
+        : `Every ward clears ${T.plain} in about a day.`;
+      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+    } else if (past) {
+      $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
+        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
+        `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
@@ -112,6 +141,9 @@
     $('types').innerHTML = D.types.map((t) =>
       `<button type="button" data-key="${t.key}" aria-pressed="${t.key === typeKey}">${esc(t.plain)}</button>`).join('');
     $('types').hidden = false;
+    $('windows').innerHTML = WINDOWS.map((w) =>
+      `<button type="button" data-win="${w.key}" aria-pressed="${w.key === winKey}">${esc(w.pill)}</button>`).join('');
+    $('windows').hidden = false;
   }
 
   function bins(T) {
@@ -531,14 +563,44 @@
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     typeKey = b.dataset.key;
-    history.replaceState(null, '', `#${typeKey}`);
+    history.replaceState(null, '', hashFor());
+    renderAll();
+  });
+
+  $('windows').addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b || b.dataset.win === winKey) return;
+    const w = WINDOWS.find((x) => x.key === b.dataset.win);
+    if (!winCache.has(w.key)) {
+      try {
+        const r = await fetch(w.file);
+        if (!r.ok) throw new Error(String(r.status));
+        winCache.set(w.key, await r.json());
+      } catch { $('board-note').textContent = 'That year failed to load - try again.'; return; }
+    }
+    winKey = w.key;
+    adoptData(winCache.get(w.key));
+    history.replaceState(null, '', hashFor());
+    renderFoot();
     renderAll();
   });
 
   // Footer
-  $('foot-line').innerHTML = `Covering ${PERIOD}, a rolling 12 months. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;
-  $('foot-portal').href = D.source.portal;
-  $('foot').hidden = false;
+  function renderFoot() {
+    $('foot-line').innerHTML = `Covering ${PERIOD}${winKey === 'rolling' ? ', a rolling 12 months' : ''}. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;
+    $('foot-portal').href = D.source.portal;
+    $('foot').hidden = false;
+  }
+  renderFoot();
+
+  // A deep link like #pothole-2025 needs that year's file before first paint.
+  if (winKey !== 'rolling') {
+    const w = WINDOWS.find((x) => x.key === winKey);
+    try {
+      const r = await fetch(w.file);
+      if (r.ok) { winCache.set(w.key, await r.json()); adoptData(winCache.get(w.key)); renderFoot(); }
+      else winKey = 'rolling';
+    } catch { winKey = 'rolling'; }
+  }
 
   renderAll();
 })();
