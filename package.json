@@ -1,0 +1,20 @@
+{
+  "name": "chiwardboard",
+  "version": "1.0.0",
+  "description": "Chicago ward 311 service request leaderboard",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Static site - no build step required'"
+  },
+  "keywords": [
+    "chicago",
+    "311",
+    "ward",
+    "service-requests"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
+  }
+}
