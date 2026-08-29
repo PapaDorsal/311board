@@ -29,6 +29,7 @@
     'rodent': 'to bait a rat complaint', 'graffiti': 'to remove graffiti',
     'garbage-cart': 'to fix a garbage cart', 'street-light': 'to fix a street light',
     'tree-debris': 'to clear tree debris', 'sanitation': 'to close a sanitation violation',
+    'fly-dumping': 'to clear an illegally dumped pile', 'missed-pickup': 'to come back for a missed pickup',
   };
   // Sequential blue ramp (light steps 100..600 of the validated palette).
   const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#2a78d6', '#184f95'];
