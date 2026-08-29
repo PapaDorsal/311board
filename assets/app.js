@@ -282,15 +282,19 @@
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
       `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests. ` +
-      `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded` +
-      `${T.totals.duplicates > 0 ? '' : ' (none for this type)'}; ` +
-      `<span class="fig">${fmt(dg.rowsTimed)}</span> completed, non-duplicate ones are timed here` +
+      `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
+      `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
-      `Days to close is the time from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records). Requests closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
-      `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
-      `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
-      `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own Open311 tooling.`,
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is worked out from the records themselves, not taken from a summary we did not check.`,
+      `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
+      // Zero-count diagnostics are noise; a drop is only worth a sentence when it happened.
+      `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
+      `${ex.negativeDurations > 0 ? ` Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>.` : ''}` +
+      `${ex.nullOrZeroWard > 0 ? ` Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.` : ''}`,
+      // The rationale bullet only earns its place when this type actually had duplicates.
+      ...(T.totals.duplicates > 0 ? [
+        `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
+      ] : []),
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }
@@ -532,7 +536,7 @@
   });
 
   // Footer
-  $('foot-line').innerHTML = `Covering ${PERIOD}, a rolling 12 months. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)} from live API responses.`;
+  $('foot-line').innerHTML = `Covering ${PERIOD}, a rolling 12 months. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;
   $('foot-portal').href = D.source.portal;
   $('foot').hidden = false;
 
