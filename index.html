@@ -79,7 +79,7 @@
         <h2 class="pane-title" id="map-title"></h2>
         <p class="board-note" id="map-hint"></p>
         <div class="map-box">
-          <svg id="map" viewBox="0 0 400 520" role="img" aria-label="Chicago ward map colored by median days to close"></svg>
+          <svg id="map" viewBox="0 0 400 520" role="img" aria-label="Chicago ward map coloured by typical days to close"></svg>
           <div id="map-tip" class="map-tip" hidden></div>
         </div>
         <div class="legend" id="legend"></div>
@@ -93,7 +93,7 @@
               <tr>
                 <th class="c-rank" scope="col">#</th>
                 <th class="c-ward" scope="col">Ward</th>
-                <th class="c-bar" scope="col">Median days</th>
+                <th class="c-bar" scope="col">Typical days</th>
                 <th class="c-num" scope="col">Slowest 10%</th>
                 <th class="c-num" scope="col">Requests</th>
               </tr>
@@ -101,7 +101,7 @@
             <tbody id="lb-body"></tbody>
           </table>
         </div>
-        <p class="table-gloss">Median days = the middle request: half close faster, half slower. Slowest 10% = only one request in ten takes longer than this. Click any ward for the records behind its numbers.</p>
+        <p class="table-gloss">Typical days = the middle request: half of them close faster, half slower. Slowest 10% = only one request in ten takes longer than this. Click any ward for the records behind its numbers.</p>
       </div>
     </div>
   </section>
