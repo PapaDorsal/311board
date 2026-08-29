@@ -28,6 +28,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/app.css">
+<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
 </head>
 <body>
 <main class="wrap narrow">
@@ -89,8 +90,9 @@
   <section class="method">
     <h2>Analytics</h2>
     <ul>
-      <li><strong>No analytics script runs on this site.</strong> We confirmed this two ways: there is no analytics code, package, or tag anywhere in the source, and the page as actually served loads exactly one script, which is our own chart and table code.</li>
-      <li><strong>Our host&rsquo;s built-in analytics is not running either.</strong> When Vercel Web Analytics is switched on for a site, it injects its own tracking script into every page it serves. We checked the pages as actually delivered to a browser: no such script is injected, and no cookies are set. Nothing is measuring you here. (Vercel still keeps ordinary server logs, described below, as every host does.)</li>
+      <li><strong>Privacy-respecting web analytics.</strong> This site uses Vercel Web Analytics, a privacy-focused analytics service that collects aggregate usage data (page views, referrers, browser types) without using cookies or tracking individual users. The analytics script runs in your browser but does not store any personal information or create user profiles.</li>
+      <li><strong>What analytics collects.</strong> Vercel Web Analytics tracks basic metrics like which pages are visited, where visitors came from, and what browsers and devices are used. This helps us understand how the site is used so we can improve it. The analytics data is aggregated and anonymous - it cannot be used to identify you personally.</li>
+      <li><strong>No cookies, no cross-site tracking.</strong> Vercel Web Analytics does not set cookies, does not use localStorage or other client-side storage, and does not track you across websites. Each page view is recorded independently without building a profile of your activity.</li>
       <li><strong>Server logs exist regardless.</strong> Like every website, requests reach a hosting provider (Vercel) that records standard technical information such as IP address, user agent, and the page requested, in order to serve the page. Google Fonts receives a similar request because the site loads a typeface from it.</li>
     </ul>
   </section>
