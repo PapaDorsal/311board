@@ -50,11 +50,19 @@
 
   <section id="card" hidden>
     <p class="crumb"><a href="./">&larr; All wards</a></p>
-    <h2 class="ward-title" id="ward-title"></h2>
-    <p class="ward-sub" id="ward-sub"></p>
-    <div class="ward-actions">
-      <button type="button" id="share" class="share-btn">Share this report card</button>
-      <span class="share-done" id="share-done" hidden>Link copied.</span>
+    <div class="ward-head">
+      <div class="ward-head-text">
+        <h2 class="ward-title" id="ward-title"></h2>
+        <p class="ward-sub" id="ward-sub"></p>
+        <div class="ward-actions">
+          <button type="button" id="share" class="share-btn">Share this report card</button>
+          <span class="share-done" id="share-done" hidden>Link copied.</span>
+        </div>
+      </div>
+      <figure class="locator" id="locator" hidden>
+        <svg id="loc-map" role="img" aria-label=""></svg>
+        <figcaption id="loc-cap"></figcaption>
+      </figure>
     </div>
 
     <section class="office" id="office" hidden>

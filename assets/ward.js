@@ -41,6 +41,62 @@
     (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
     ` &middot; ${PERIOD}`;
 
+  // ---- locator map: this ward's own shape, in context ----
+  // A rank tells you how the ward did; it does not tell you which ward this is.
+  // The front page map answers that only if you already know where to look, so
+  // the card carries its own: this ward filled, its neighbours outlined, framed
+  // to the ward rather than to the city.
+  try {
+    const geo = await (await fetch('data/wards.geojson')).json();
+    const me = geo.features.find((f) => Number(f.properties.ward) === ward);
+    if (me) {
+      const kx = Math.cos(41.85 * Math.PI / 180);
+      // Frame on this ward's bounds, then pad generously so the neighbours that
+      // give it context are actually in shot.
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (const poly of me.geometry.coordinates) for (const ring of poly) for (const [lon, lat] of ring) {
+        const x = lon * kx; if (x < x0) x0 = x; if (x > x1) x1 = x;
+        if (lat < y0) y0 = lat; if (lat > y1) y1 = lat;
+      }
+      const padX = (x1 - x0) * 0.55, padY = (y1 - y0) * 0.55;
+      x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+      // Square frame: a long thin ward would otherwise render as a sliver.
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, half = Math.max(x1 - x0, y1 - y0) / 2;
+      x0 = cx - half; x1 = cx + half; y0 = cy - half; y1 = cy + half;
+      const S = 220, scale = S / (2 * half);
+      const PX = (lon) => (lon * kx - x0) * scale;
+      const PY = (lat) => S - (lat - y0) * scale;
+      const pathFor = (f) => f.geometry.coordinates.map((poly) => poly.map((ring) => {
+        let d = '';
+        for (let i = 0; i < ring.length; i++) {
+          const [lon, lat] = ring[i];
+          d += (i ? 'L' : 'M') + PX(lon).toFixed(1) + ',' + PY(lat).toFixed(1);
+        }
+        return d + 'Z';
+      }).join('')).join('');
+      // Only draw neighbours that actually intersect the frame.
+      const inFrame = (f) => f.geometry.coordinates.some((poly) => poly.some((ring) =>
+        ring.some(([lon, lat]) => lon * kx >= x0 && lon * kx <= x1 && lat >= y0 && lat <= y1)));
+      const others = geo.features.filter((f) => Number(f.properties.ward) !== ward && inFrame(f));
+      const svg = $('loc-map');
+      svg.setAttribute('viewBox', `0 0 ${S} ${S}`);
+      svg.style.aspectRatio = '1 / 1';
+      svg.setAttribute('aria-label', `Map showing the shape and location of Ward ${ward} within Chicago`);
+      svg.innerHTML =
+        others.map((f) => `<path class="loc-other" d="${pathFor(f)}"></path>`).join('') +
+        `<path class="loc-me" d="${pathFor(me)}"></path>` +
+        others.map((f) => {
+          // Number a neighbour only where its visible piece can hold the digits.
+          const lab = f.properties.label; if (!lab) return '';
+          const lx = PX(lab[0]), ly = PY(lab[1]);
+          if (lx < 12 || lx > S - 12 || ly < 12 || ly > S - 12) return '';
+          return `<text class="loc-num" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">${f.properties.ward}</text>`;
+        }).join('');
+      $('loc-cap').textContent = wHoods ? `Ward ${ward} - ${wHoods.split(', ')[0]}` : `Ward ${ward}`;
+      $('locator').hidden = false;
+    }
+  } catch { /* the card stands on its own without the map */ }
+
   // Full office block, so anyone reading a number can act on it without a second search.
   if (ald) {
     const tel = (n) => `tel:${String(n).replace(/[^0-9+]/g, '').slice(0, 11)}`;

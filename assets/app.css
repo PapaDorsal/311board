@@ -265,6 +265,21 @@ td.c-ward a:hover { color: var(--accent); }
   .hook-line { font-size: 27px; }
 }
 
+/* ward card head: title and the locator side by side */
+.ward-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.ward-head-text { min-width: 0; }
+.locator { margin: 6px 0 0; flex: none; width: 190px; }
+.locator svg { width: 100%; height: auto; display: block; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; }
+.locator figcaption { font: 500 11.5px var(--sans); color: var(--muted); margin-top: 6px; text-align: center; }
+#loc-map .loc-other { fill: var(--map-empty); stroke: var(--surface); stroke-width: 1; }
+#loc-map .loc-me { fill: var(--accent); stroke: var(--surface); stroke-width: 1.4; }
+#loc-map .loc-num { font: 500 9px var(--sans); fill: var(--muted); }
+@media (max-width: 620px) {
+  .ward-head { flex-direction: column; align-items: stretch; gap: 16px; }
+  .locator { width: 150px; align-self: flex-start; margin: 0; }
+}
+
 /* ward office contact block */
 .office {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
