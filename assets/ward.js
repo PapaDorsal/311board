@@ -7,7 +7,7 @@
   const ward = Number(new URLSearchParams(location.search).get('w'));
   if (!Number.isInteger(ward) || ward < 1 || ward > 50) { $('missing').hidden = false; return; }
 
-  document.title = `Ward ${ward} report card — chiwardboard`;
+  document.title = `Ward ${ward} report card - chiwardboard`;
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
   $('ward-sub').innerHTML = (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
@@ -29,11 +29,11 @@
     const eligible = T.wards.filter((x) => !x.thin);
     const idx = w && !w.thin ? eligible.findIndex((x) => x.ward === ward) : -1;
     if (idx >= 0) { ranked++; if (w.p50 <= T.citywide.p50) wins++; }
-    const rank = idx >= 0 ? `${idx + 1}/${eligible.length}` : (w ? 'unranked' : '—');
+    const rank = idx >= 0 ? `${idx + 1}/${eligible.length}` : (w ? 'unranked' : ' - ');
     const delta = w ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '';
     return `<tr>
       <td><a href="./#${T.key}" style="text-decoration:none"><strong>${esc(T.plain)}</strong></a><div class="row-sub">${delta}</div></td>
-      <td class="c-num">${w ? w.p50 : '—'}</td>
+      <td class="c-num">${w ? w.p50 : ' - '}</td>
       <td class="c-num">${T.citywide.p50}</td>
       <td class="c-num">${rank}</td>
       <td class="c-num">${w ? fmt(w.n) : '0'}</td>
@@ -47,7 +47,7 @@
 
   $('share').onclick = async () => {
     const url = location.href;
-    const text = `Ward ${ward}'s 311 report card — chiwardboard`;
+    const text = `Ward ${ward}'s 311 report card - chiwardboard`;
     try {
       if (navigator.share) { await navigator.share({ title: text, url }); return; }
       await navigator.clipboard.writeText(url);

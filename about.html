@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About — chiwardboard</title>
+<title>About - chiwardboard</title>
 <meta name="description" content="What chiwardboard is, how the numbers are computed, and what we do (and don't do) with your data.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z' fill='%23e4002b'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,9 +34,9 @@
 
   <section class="method">
     <h2>About</h2>
-    <p>chiwardboard ranks Chicago&rsquo;s 50 wards by how fast the city closes 311 service requests filed in them &mdash; towing an abandoned car, filling a pothole, baiting an alley. The records are public. The comparison, somehow, was not. Now it is.</p>
+    <p>chiwardboard ranks Chicago&rsquo;s 50 wards by how fast the city closes 311 service requests filed in them - towing an abandoned car, filling a pothole, baiting an alley. The records are public. The comparison, somehow, was not. Now it is.</p>
     <p>We take the record seriously as data and refuse to take its language seriously. &ldquo;Aggressive rodent mitigation response protocol&rdquo; is not a sentence a neighbor says; &ldquo;rat complaint&rdquo; is. The official term is always one hover away, so anyone can check our work against the source.</p>
-    <p>The joke, where there is one, is the process &mdash; never the people in it. A ward superintendent should be able to send this page to a colleague.</p>
+    <p>The joke, where there is one, is the process - never the people in it. A ward superintendent should be able to send this page to a colleague.</p>
   </section>
 
   <section class="method">
@@ -45,7 +45,7 @@
       <li><strong>Source.</strong> The City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a> and the city&rsquo;s 2023 ward boundaries. Numbers are computed from the rows themselves at build time and published as a dated snapshot; the exact snapshot behind this page is <a href="data/leaderboard.json">readable here</a>, and every ward&rsquo;s number links to the live rows behind it.</li>
       <li><strong>&ldquo;Closed&rdquo; means Completed.</strong> A cancelled request is an administrative close, not a service delivered, and is excluded from timing.</li>
       <li><strong>Days to close</strong> is the closed timestamp minus the created timestamp. Negative durations and rows with no ward are dropped, and the counts of everything dropped are printed with the claim they affect.</li>
-      <li><strong>Ranking floor.</strong> Headline fastest/slowest and rank positions come only from wards with at least 200 completed requests of that type. Thinner wards are shown, flagged, and unranked &mdash; excluded from nothing, trusted for less.</li>
+      <li><strong>Ranking floor.</strong> Headline fastest/slowest and rank positions come only from wards with at least 200 completed requests of that type. Thinner wards are shown, flagged, and unranked - excluded from nothing, trusted for less.</li>
       <li><strong>Gaps over ratios.</strong> Ward differences are stated in absolute days. When the fastest ward&rsquo;s median is near zero a ratio inflates into a number nobody should print, so we don&rsquo;t print it.</li>
       <li><strong>What&rsquo;s off the board.</strong> Informational calls and aircraft noise complaints are logged at city facilities (the 311 call center in Ward 28; O&rsquo;Hare in Ward 41), so they describe a building, not a neighborhood. Types that close almost instantly citywide stay on the board with that fact stated.</li>
     </ul>
@@ -70,12 +70,13 @@
     <h2>Terms</h2>
     <ul>
       <li>chiwardboard is an independent project and is <strong>not affiliated with the City of Chicago</strong>.</li>
-      <li>The numbers describe how requests were recorded, which is not always how work happened. Provided as-is, for information, with no warranty. Check the receipts before you quote us at a community meeting &mdash; that&rsquo;s what they&rsquo;re for.</li>
+      <li>The numbers describe how requests were recorded, which is not always how work happened. Provided as-is, for information, with no warranty. Check the receipts before you quote us at a community meeting - that&rsquo;s what they&rsquo;re for.</li>
       <li>Underlying records are public data provided by the City of Chicago under its <a href="https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html">data terms</a>.</li>
     </ul>
   </section>
 
   <footer class="foot">
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a></p>
     <p>Made in Chicago. The data is public; the potholes are personal.</p>
   </footer>
 </main>

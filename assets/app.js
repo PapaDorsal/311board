@@ -74,11 +74,11 @@
     if (!h) { $('hook').hidden = true; return; }
     if (h.slowest.p50 < 1.5) {
       $('hook-line').textContent = `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Medians run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards in ${D.year}. This one is not a race — but it is a record.`;
+      $('hook-sub').innerHTML = `Medians run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards in ${D.year}. This one is not a race - but it is a record.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Median days to close, ${D.year}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} — a gap of <span class="fig">${h.gapDays}</span> days. ` +
+        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
         `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     }
     $('hook').hidden = false;
@@ -126,8 +126,8 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> — median <span class="fig">${w.p50}</span> d, p90 <span class="fig">${w.p90}</span> d, <span class="fig">${fmt(w.n)}</span> requests`
-        : `<strong>Ward ${t.dataset.ward}</strong> — no data`) + (aldName ? `<br>${esc(aldName)}` : '');
+        ? `<strong>Ward ${w.ward}</strong> - median <span class="fig">${w.p50}</span> d, p90 <span class="fig">${w.p90}</span> d, <span class="fig">${fmt(w.n)}</span> requests`
+        : `<strong>Ward ${t.dataset.ward}</strong> - no data`) + (aldName ? `<br>${esc(aldName)}` : '');
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
       tip.style.top = (e.clientY - r.top + 14) + 'px';
@@ -144,7 +144,7 @@
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
     $('board-note').innerHTML = `Fastest first. ` + (thin
-      ? `Rank is withheld from the ${word(thin)} ward${thin > 1 ? 's' : ''} with fewer than <span class="fig">${D.minWardN}</span> completed requests — too few to trust a percentile, too many to hide.`
+      ? `Rank is withheld from the ${word(thin)} ward${thin > 1 ? 's' : ''} with fewer than <span class="fig">${D.minWardN}</span> completed requests - too few to trust a percentile, too many to hide.`
       : `Every ward clears the <span class="fig">${D.minWardN}</span>-request bar for this type.`);
     const maxP50 = Math.max(...T.wards.map((w) => w.p50));
     let rank = 0;
@@ -172,7 +172,7 @@
       `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
       `Days to close is closed_date minus created_date. Same-second closures, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
-      `${dg.sameSecondCloses > 0 ? ' — read this type&rsquo;s fast wards accordingly' : ''}. ` +
+      `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
       `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
       `Rows the city flags as duplicates: <span class="fig">${fmt(dg.duplicateFlagged)}</span>, currently included.`,
       `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days; nine in ten within <span class="fig">${T.citywide.p90}</span>. Medians are computed from the rows, not from an aggregate we didn&rsquo;t check.`,
@@ -199,7 +199,7 @@
     box.innerHTML = `<h3>Your ward: ${myWard}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)} &middot; <a href="ward.html?w=${myWard}">full report card &rarr;</a></p>` : `<p><a href="ward.html?w=${myWard}">full report card &rarr;</a></p>`) + (w
       ? `<p>For ${esc(T.plain)}: median <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
-        (idx >= 0 ? ` — <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` — too few requests to rank.`) + `</p>`
+        (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No ${D.year} data for this type in Ward ${myWard}.</p>`);
     box.hidden = false;
     const row = document.getElementById(`wrow-${myWard}`);
@@ -236,7 +236,7 @@
         if (w) setMyWard(w, 'from your location');
         else finderErr('That location is outside the Chicago ward map.');
       },
-      () => finderErr('Location was blocked — try the address box instead.'),
+      () => finderErr('Location was blocked - try the address box instead.'),
       { timeout: 12000 });
   };
 
@@ -262,7 +262,7 @@
       } else {
         finderErr('No 311 record matches that address. Try just the number and street name, like "1060 W ADDISON".');
       }
-    } catch { finderErr('The city data portal did not answer — try again, or use your location.'); }
+    } catch { finderErr('The city data portal did not answer - try again, or use your location.'); }
   };
 
   $('share').onclick = async () => {
@@ -270,8 +270,8 @@
     const url = `${location.origin}${location.pathname}#${T.key}`;
     const h = T.headline;
     const text = h && h.slowest.p50 >= 1.5
-      ? `Ward ${h.slowest.ward} takes ${h.slowest.p50} days on ${T.plain}. Ward ${h.fastest.ward}: ${h.fastest.p50}. — chiwardboard`
-      : `Chicago's ${T.plain}, ranked by ward — chiwardboard`;
+      ? `Ward ${h.slowest.ward} takes ${h.slowest.p50} days on ${T.plain}. Ward ${h.fastest.ward}: ${h.fastest.p50}. - chiwardboard`
+      : `Chicago's ${T.plain}, ranked by ward - chiwardboard`;
     try {
       if (navigator.share) { await navigator.share({ title: 'chiwardboard', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
