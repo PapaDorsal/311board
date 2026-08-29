@@ -6,16 +6,32 @@
     fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json'),
     fetch('data/streets.geojson')]);
   if (!dataRes.ok || !geoRes.ok) return;
-  const D = await dataRes.json();
   const GEO = await geoRes.json();
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
   // Street context is optional garnish; the map still works if it fails to load.
   const ST = stRes.ok ? (await stRes.json()).features : [];
   const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
-  // The board covers a rolling window, not a calendar year; say so wherever a period is named.
-  const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
-  const PERIOD = WIN.label;
+
+  // Windows the board can show. Rolling is the default; the two calendar years
+  // are the only complete years that sit entirely inside the current (May 2023)
+  // ward map - earlier years would compare different areas under the same ward
+  // numbers, so they are not offered.
+  const WINDOWS = [
+    { key: 'rolling', pill: 'Last 12 months', file: 'data/leaderboard.json' },
+    { key: '2024', pill: '2024', file: 'data/leaderboard-2024.json' },
+    { key: '2025', pill: '2025', file: 'data/leaderboard-2025.json' },
+  ];
+  const winCache = new Map([['rolling', await dataRes.json()]]);
+  let winKey = 'rolling';
+  // D is the active snapshot; every renderer reads through these three.
+  let D, WIN, PERIOD;
+  function adoptData(d) {
+    D = d;
+    WIN = d.window || { from: `${d.year}-01-01`, to: `${d.year + 1}-01-01`, label: String(d.year) };
+    PERIOD = WIN.label;
+  }
+  adoptData(winCache.get('rolling'));
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -29,6 +45,7 @@
     'rodent': 'to bait a rat complaint', 'graffiti': 'to remove graffiti',
     'garbage-cart': 'to fix a garbage cart', 'street-light': 'to fix a street light',
     'tree-debris': 'to clear tree debris', 'sanitation': 'to close a sanitation violation',
+    'fly-dumping': 'to clear an illegally dumped pile', 'missed-pickup': 'to come back for a missed pickup',
   };
   // Sequential blue ramp (light steps 100..600 of the validated palette).
   const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#2a78d6', '#184f95'];
@@ -86,8 +103,13 @@
   }
 
   // ---- state ----
+  // Hash carries both facets: #pothole is the rolling default, #pothole-2025
+  // pins the window, so a shared link reproduces what the sender saw.
   let typeKey = (location.hash || '').slice(1);
+  const hm = /^(.*)-(\d{4})$/.exec(typeKey);
+  if (hm && WINDOWS.some((w) => w.key === hm[2])) { typeKey = hm[1]; winKey = hm[2]; }
   if (!D.types.some((t) => t.key === typeKey)) typeKey = D.featured;
+  const hashFor = () => (winKey === 'rolling' ? `#${typeKey}` : `#${typeKey}-${winKey}`);
   let myWard = null;
 
   function type() { return D.types.find((t) => t.key === typeKey); }
@@ -95,9 +117,17 @@
   function renderHook(T) {
     const h = T.headline;
     if (!h) { $('hook').hidden = true; return; }
+    const past = winKey !== 'rolling';
     if (h.slowest.p50 < 1.5) {
-      $('hook-line').textContent = `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Typical times run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+      $('hook-line').textContent = past
+        ? `In ${winKey}, every ward cleared ${T.plain} in about a day.`
+        : `Every ward clears ${T.plain} in about a day.`;
+      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+    } else if (past) {
+      $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
+        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
+        `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
@@ -111,6 +141,9 @@
     $('types').innerHTML = D.types.map((t) =>
       `<button type="button" data-key="${t.key}" aria-pressed="${t.key === typeKey}">${esc(t.plain)}</button>`).join('');
     $('types').hidden = false;
+    $('windows').innerHTML = WINDOWS.map((w) =>
+      `<button type="button" data-win="${w.key}" aria-pressed="${w.key === winKey}">${esc(w.pill)}</button>`).join('');
+    $('windows').hidden = false;
   }
 
   function bins(T) {
@@ -146,6 +179,26 @@
       placedWardBoxes.push({ x0: lx - halfW, x1: lx + halfW, y0: ly - 10, y1: ly + 3 });
       return `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">${ward}</text>`;
     }).join('') + streetLayer(placedWardBoxes);
+    // Reconcile with rendered truth: the placement above works from estimated
+    // text boxes, and an estimate that runs a few pixels tight puts a street
+    // name on top of a ward number. Measure what the browser actually drew and
+    // hide any label that collides - expressways keep their spot first.
+    requestAnimationFrame(() => {
+      const svg = $('map');
+      const nums = [...svg.querySelectorAll('text:not(.st-label)')].map((e) => e.getBoundingClientRect());
+      const labs = [...svg.querySelectorAll('.st-label')]
+        .sort((a, b) => b.classList.contains('x-label') - a.classList.contains('x-label'));
+      const kept = [];
+      const clash = (A, B) => A.left < B.right && B.left < A.right && A.top < B.bottom && B.top < A.bottom;
+      const seen = new Set();
+      for (const el of labs) {
+        const name = el.dataset.tent;
+        const r = el.getBoundingClientRect();
+        if ((name && seen.has(name)) || nums.some((n) => clash(r, n)) || kept.some((k) => clash(r, k))) { el.remove(); continue; }
+        kept.push(r);
+        if (name) seen.add(name);
+      }
+    });
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
     $('legend').innerHTML =
       RAMP.map((c, i) => {
@@ -195,10 +248,14 @@
     const SF = Math.max(1, 10 / (6.4 * drawn));
     const taken = (wardBoxes || []).slice();
     const hits = (b) => taken.some((t) => b.x0 < t.x1 && b.x1 > t.x0 && b.y0 < t.y1 && b.y1 > t.y0);
-    for (const f of ST) {
+    // Expressways place their labels first: the brief names three of them, and
+    // letting a surface street claim the space first left only Kennedy labelled.
+    const ORDERED = [...ST].sort((a, b) => (b.properties.kind === 'xway') - (a.properties.kind === 'xway'));
+    for (const f of ORDERED) {
+      const xway = f.properties.kind === 'xway';
       for (const seg of f.geometry.coordinates) {
         const pts = seg.map(([lon, lat]) => [px(lon), py(lat)]);
-        lines.push(`<path class="st-line" d="M${pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}"/>`);
+        lines.push(`<path class="${xway ? 'x-line' : 'st-line'}" d="M${pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}"/>`);
       }
       // Label near the end of the longest run rather than its midpoint: the middle of
       // the city is where the ward numbers live, and midpoint labels collided with them.
@@ -219,7 +276,9 @@
       // Walk along the street and take the first spot that clears the ward numbers
       // and the labels already placed. A street with nowhere clear goes unlabelled -
       // the line still orients you, and a collided label helps nobody.
-      const text = `${f.properties.name} ${f.properties.grid}`;
+      const xway2 = f.properties.kind === 'xway';
+      if (!f.properties.name) continue;   // Stevenson and Edens: line only, no label
+      const text = f.properties.grid ? `${f.properties.name} ${f.properties.grid}` : f.properties.name;
       const halfLen = (text.length * 1.7 + 3) * SF, halfThick = 5 * SF;
       const PADX = 24, PADY = 12;
       const ang = vertical ? -90 : 0;
@@ -230,20 +289,41 @@
       for (const rot of vertical ? [true, false] : [false]) {
         for (const frac of [0.14, 0.06, 0.24, 0.34, 0.86, 0.76, 0.66, 0.5, 0.94]) {
           const at = ordered[Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * frac)))];
-          const x = Math.min(Math.max(at[0], PADX), usedW - PADX);
-          const y = Math.min(Math.max(at[1], PADY), usedH - PADY);
-          const box = rot
-            ? { x0: x - halfThick, x1: x + halfThick, y0: y - halfLen, y1: y + halfLen }
-            : { x0: x - halfLen, x1: x + halfLen, y0: y - halfThick, y1: y + halfThick };
-          if (!hits(box)) { placed = { x, y, box, rot }; break outer; }
+          // Expressways run straight through the densest ward-number territory,
+          // so their labels may also try sitting just off the line.
+          const offs = xway2 ? [0, 9, -9, 15, -15, 21, -21] : [0];
+          for (const off of offs) {
+            const x = Math.min(Math.max(at[0] + (rot ? off : 0), PADX), usedW - PADX);
+            const y = Math.min(Math.max(at[1] + (rot ? 0 : off), PADY), usedH - PADY);
+            let box = rot
+              ? { x0: x - halfThick, x1: x + halfThick, y0: y - halfLen, y1: y + halfLen }
+              : { x0: x - halfLen, x1: x + halfLen, y0: y - halfThick, y1: y + halfThick };
+            // The estimate runs a shade tight for the bold expressway names; a
+            // margin here is what keeps them clear of ward numbers in practice.
+            if (xway2) box = { x0: box.x0 - 1, x1: box.x1 + 1, y0: box.y0 - 1, y1: box.y1 + 1 };
+            if (!hits(box)) { placed = { x, y, box, rot }; break outer; }
+          }
         }
       }
-      if (!placed) continue;
-      taken.push(placed.box);
-      const { x, y } = placed;
-      labels.push(`<text class="st-label" style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
-        `transform="rotate(${placed.rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
-        `${esc(f.properties.name)} <tspan class="st-grid">${esc(f.properties.grid)}</tspan></text>`);
+      const emit = (x, y, rot, tentative) => labels.push(
+        `<text class="st-label${xway2 ? ' x-label' : ''}"${tentative ? ` data-tent="${esc(f.properties.name)}"` : ''} ` +
+        `style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
+        `transform="rotate(${rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
+        `${esc(f.properties.name)}${f.properties.grid ? ` <tspan class="st-grid">${esc(f.properties.grid)}</tspan>` : ''}</text>`);
+      if (placed) {
+        taken.push(placed.box);
+        emit(placed.x, placed.y, placed.rot, xway2);
+      }
+      if (xway2) {
+        // The estimator found nowhere, but it is conservative and the reconcile
+        // pass below judges by what actually rendered. Offer it three spots
+        // along the line; it keeps the first clean one and removes the rest.
+        for (const frac of [0.18, 0.5, 0.82]) {
+          const at = ordered[Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * frac)))];
+          emit(Math.min(Math.max(at[0], PADX), usedW - PADX),
+               Math.min(Math.max(at[1], PADY), usedH - PADY), vertical, true);
+        }
+      }
     }
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
@@ -280,14 +360,20 @@
     const ex = T.exclusions, dg = T.diagnostics, st = T.totals.statuses;
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
-      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests; ` +
+      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests. ` +
+      `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
-      `Days to close is the time from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records). Requests closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
-      `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
-      `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
-      `Rows the city flags as duplicates: <span class="fig">${fmt(dg.duplicateFlagged)}</span>, currently included.`,
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is worked out from the records themselves, not taken from a summary we did not check.`,
+      `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
+      // Zero-count diagnostics are noise; a drop is only worth a sentence when it happened.
+      `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
+      `${ex.negativeDurations > 0 ? ` Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>.` : ''}` +
+      `${ex.nullOrZeroWard > 0 ? ` Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.` : ''}`,
+      // The rationale bullet only earns its place when this type actually had duplicates.
+      ...(T.totals.duplicates > 0 ? [
+        `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
+      ] : []),
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }
@@ -524,14 +610,44 @@
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     typeKey = b.dataset.key;
-    history.replaceState(null, '', `#${typeKey}`);
+    history.replaceState(null, '', hashFor());
+    renderAll();
+  });
+
+  $('windows').addEventListener('click', async (e) => {
+    const b = e.target.closest('button'); if (!b || b.dataset.win === winKey) return;
+    const w = WINDOWS.find((x) => x.key === b.dataset.win);
+    if (!winCache.has(w.key)) {
+      try {
+        const r = await fetch(w.file);
+        if (!r.ok) throw new Error(String(r.status));
+        winCache.set(w.key, await r.json());
+      } catch { $('board-note').textContent = 'That year failed to load - try again.'; return; }
+    }
+    winKey = w.key;
+    adoptData(winCache.get(w.key));
+    history.replaceState(null, '', hashFor());
+    renderFoot();
     renderAll();
   });
 
   // Footer
-  $('foot-line').innerHTML = `Covering ${PERIOD}, a rolling 12 months. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)} from live API responses.`;
-  $('foot-portal').href = D.source.portal;
-  $('foot').hidden = false;
+  function renderFoot() {
+    $('foot-line').innerHTML = `Covering ${PERIOD}${winKey === 'rolling' ? ', a rolling 12 months' : ''}. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;
+    $('foot-portal').href = D.source.portal;
+    $('foot').hidden = false;
+  }
+  renderFoot();
+
+  // A deep link like #pothole-2025 needs that year's file before first paint.
+  if (winKey !== 'rolling') {
+    const w = WINDOWS.find((x) => x.key === winKey);
+    try {
+      const r = await fetch(w.file);
+      if (r.ok) { winCache.set(w.key, await r.json()); adoptData(winCache.get(w.key)); renderFoot(); }
+      else winKey = 'rolling';
+    } catch { winKey = 'rolling'; }
+  }
 
   renderAll();
 })();
