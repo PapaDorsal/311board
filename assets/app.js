@@ -49,17 +49,30 @@
     if (y < minY) minY = y; if (y > maxY) maxY = y;
   }
   const scale = Math.min((W - 2 * PAD) / (maxX - minX), (H - 2 * PAD) / (maxY - minY));
-  // center the city in the viewBox and trim the box to its actual aspect
+  // Trim the viewBox to the city's own aspect on BOTH axes. Chicago is width-limited
+  // here, so leaving the box at full height letterboxed the map with dead space.
   const usedW = (maxX - minX) * scale + 2 * PAD;
-  const offX = 0;
-  document.getElementById('map').setAttribute('viewBox', `0 0 ${Math.ceil(usedW)} ${H}`);
-  const px = (lon) => PAD + offX + (lon * kx - minX) * scale;
-  const py = (lat) => H - PAD - (lat - minY) * scale;
+  const usedH = (maxY - minY) * scale + 2 * PAD;
+  const mapEl = document.getElementById('map');
+  mapEl.setAttribute('viewBox', `0 0 ${Math.ceil(usedW)} ${Math.ceil(usedH)}`);
+  // Give the element a definite ratio: a percentage width on an SVG does not resolve
+  // during intrinsic sizing, which let the map demand more width than its grid track.
+  mapEl.style.aspectRatio = `${Math.ceil(usedW)} / ${Math.ceil(usedH)}`;
+  const px = (lon) => PAD + (lon * kx - minX) * scale;
+  const py = (lat) => usedH - PAD - (lat - minY) * scale;
   const wardPath = new Map();
+  const wardBox = new Map();   // projected bbox per ward, for deciding if a label fits
   for (const f of GEO.features) {
+    let bx0 = Infinity, bx1 = -Infinity, by0 = Infinity, by1 = -Infinity;
     const d = f.geometry.coordinates.map((poly) => poly.map((ring) =>
-      'M' + ring.map(([lon, lat]) => `${px(lon).toFixed(1)},${py(lat).toFixed(1)}`).join('L') + 'Z').join('')).join('');
+      'M' + ring.map(([lon, lat]) => {
+        const X = px(lon), Y = py(lat);
+        if (X < bx0) bx0 = X; if (X > bx1) bx1 = X;
+        if (Y < by0) by0 = Y; if (Y > by1) by1 = Y;
+        return `${X.toFixed(1)},${Y.toFixed(1)}`;
+      }).join('L') + 'Z').join('')).join('');
     wardPath.set(f.properties.ward, d);
+    wardBox.set(f.properties.ward, { w: bx1 - bx0, h: by1 - by0 });
   }
 
   // ---- state ----
@@ -105,13 +118,20 @@
     const breaks = bins(T);
     const byWard = new Map(T.wards.map((w) => [w.ward, w]));
     $('map-title').textContent = `Median days on the map`;
+    $('map-hint').textContent = 'Hover any ward for its number. Click for its full report card.';
     const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
       const w = byWard.get(ward);
       const fill = w ? (w.thin ? 'var(--map-empty)' : binColor(w.p50, breaks)) : 'var(--map-empty)';
       return `<path d="${d}" fill="${fill}" data-ward="${ward}" class="${ward === myWard ? 'sel' : ''}"></path>`;
-    }).join('') + [...labels.entries()].map(([ward, [lon, lat]]) =>
-      `<text x="${px(lon).toFixed(1)}" y="${(py(lat) + 3).toFixed(1)}" text-anchor="middle">${ward}</text>`).join('');
+    }).join('') + [...labels.entries()].map(([ward, [lon, lat]]) => {
+      // A number crammed into a sliver of a ward is noise. Draw it only where the
+      // shape can hold it; every ward is still identified on hover and on click.
+      const b = wardBox.get(ward) || { w: 0, h: 0 };
+      const wide = String(ward).length > 1 ? 15 : 11;
+      if (b.w < wide || b.h < 13) return '';
+      return `<text x="${px(lon).toFixed(1)}" y="${(py(lat) + 4).toFixed(1)}" text-anchor="middle">${ward}</text>`;
+    }).join('');
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
     $('legend').innerHTML =
       RAMP.map((c, i) => {
@@ -127,7 +147,8 @@
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
         ? `<strong>Ward ${w.ward}</strong> - median <span class="fig">${w.p50}</span> d, p90 <span class="fig">${w.p90}</span> d, <span class="fig">${fmt(w.n)}</span> requests`
-        : `<strong>Ward ${t.dataset.ward}</strong> - no data`) + (aldName ? `<br>${esc(aldName)}` : '');
+        : `<strong>Ward ${t.dataset.ward}</strong> - no data`) + (aldName ? `<br>${esc(aldName)}` : '') +
+        `<br><span class="tip-cta">Click for the full report card</span>`;
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
       tip.style.top = (e.clientY - r.top + 14) + 'px';
@@ -136,7 +157,7 @@
     $('map').onmouseleave = () => { tip.hidden = true; };
     $('map').onclick = (e) => {
       const t = e.target.closest('path'); if (!t) return;
-      setMyWard(Number(t.dataset.ward), 'picked on the map');
+      setMyWard(Number(t.dataset.ward), null);
     };
   }
 
@@ -196,8 +217,11 @@
     const idx = T.wards.filter((w) => !w.thin).findIndex((w) => w.ward === myWard);
     const w = T.wards.find((x) => x.ward === myWard);
     const ald = (D.aldermen || {})[myWard];
-    box.innerHTML = `<h3>Your ward: ${myWard}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
-      (ald && ald.name ? `<p>Alderperson ${esc(ald.name)} &middot; <a href="ward.html?w=${myWard}">full report card &rarr;</a></p>` : `<p><a href="ward.html?w=${myWard}">full report card &rarr;</a></p>`) + (w
+    // "Your ward" only when we actually located them; a map click is just browsing.
+    const heading = note ? `Your ward: ${myWard}` : `Ward ${myWard}`;
+    box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
+      (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
+      ` &middot; <a href="ward.html?w=${myWard}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
       ? `<p>For ${esc(T.plain)}: median <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No ${D.year} data for this type in Ward ${myWard}.</p>`);

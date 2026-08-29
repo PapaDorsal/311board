@@ -11,9 +11,38 @@
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
   $('ward-sub').innerHTML = (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
-    (ald && ald.website ? ` &middot; <a href="${esc(ald.website)}" rel="noopener">ward website</a>` : '') +
-    (ald && ald.email ? ` &middot; <a href="mailto:${esc(ald.email)}">${esc(ald.email)}</a>` : '') +
     ` &middot; ${D.year} numbers`;
+
+  // Full office block, so anyone reading a number can act on it without a second search.
+  if (ald) {
+    const tel = (n) => `tel:${String(n).replace(/[^0-9+]/g, '').slice(0, 11)}`;
+    const rows = [];
+    if (ald.address) {
+      rows.push(`<div class="office-row"><span class="office-k">Ward office</span><span class="office-v">${esc(ald.address.line1)}` +
+        (ald.address.line2 ? `<br>${esc(ald.address.line2)}` : '') + `</span></div>`);
+    }
+    if (ald.phone) {
+      // The city lists rollover lines as "(312) 744-6836 / 9867/6213"; link the first, show the rest.
+      const first = (ald.phone.match(/\(?\d{3}\)?[ -]?\d{3}-\d{4}/) || [])[0];
+      rows.push(`<div class="office-row"><span class="office-k">Phone</span><span class="office-v">` +
+        (first ? `<a href="${tel(first)}">${esc(first)}</a>` : esc(ald.phone)) +
+        (first && ald.phone.trim() !== first ? ` <span class="office-alt">${esc(ald.phone.replace(first, '').replace(/^[ /]+/, ''))}</span>` : '') +
+        `</span></div>`);
+    }
+    if (ald.email) rows.push(`<div class="office-row"><span class="office-k">Email</span><span class="office-v"><a href="mailto:${esc(ald.email)}">${esc(ald.email)}</a></span></div>`);
+    if (ald.website) rows.push(`<div class="office-row"><span class="office-k">Website</span><span class="office-v"><a href="${esc(ald.website)}" rel="noopener">${esc(String(ald.website).replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a></span></div>`);
+    if (ald.cityHall) {
+      rows.push(`<div class="office-row"><span class="office-k">City Hall</span><span class="office-v">${esc(ald.cityHall.line1)}` +
+        (ald.cityHall.line2 ? `<br>${esc(ald.cityHall.line2)}` : '') +
+        (ald.cityHall.phone ? `<br>${esc(ald.cityHall.phone)}` : '') + `</span></div>`);
+    }
+    if (rows.length) {
+      $('office-detail').innerHTML =
+        (ald.name ? `<p class="office-name">Alderperson ${esc(ald.name)}</p>` : '') + rows.join('') +
+        `<p class="office-note">Contact details published by the City of Chicago. The ward office handles service requests filed in Ward ${ward}.</p>`;
+      $('office').hidden = false;
+    }
+  }
 
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   function receiptUrl(type) {

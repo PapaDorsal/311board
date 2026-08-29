@@ -2,7 +2,7 @@
 // front-page choropleth: Douglas-Peucker at ~30m, coordinates to 4 decimals.
 // Writes data/wards.geojson. Usage: node tools/prep-wards-geo.mjs
 const URL_ = 'https://data.cityofchicago.org/api/geospatial/p293-wvbd?method=export&format=GeoJSON';
-const TOL = 0.00008; // degrees, ~9m — ward shapes stay faithful, size drops ~6x
+const TOL = 0.00004; // degrees, ~4.5m - keeps ward outlines crisp when the map is drawn large
 
 function dp(points, tol) {
   if (points.length < 3) return points;
@@ -35,6 +35,46 @@ function simplifyRing(ring, tol) {
   return [...a.slice(0, -1), ...b];
 }
 
+function pointInRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function distToRing(x, y, ring) {
+  let min = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    const dx = xj - xi, dy = yj - yi;
+    const t = dx || dy ? Math.max(0, Math.min(1, ((x - xi) * dx + (y - yi) * dy) / (dx * dx + dy * dy))) : 0;
+    const d = Math.hypot(x - (xi + t * dx), y - (yi + t * dy));
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+// Coarse grid then local refinement: the interior point furthest from any edge.
+function visualCenter(ring) {
+  const xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  let best = [(x0 + x1) / 2, (y0 + y1) / 2], bestD = -Infinity, step = Math.max(x1 - x0, y1 - y0) / 24;
+  for (let pass = 0; pass < 5; pass++) {
+    for (let x = x0; x <= x1; x += step) {
+      for (let y = y0; y <= y1; y += step) {
+        if (!pointInRing(x, y, ring)) continue;
+        const d = distToRing(x, y, ring);
+        if (d > bestD) { bestD = d; best = [x, y]; }
+      }
+    }
+    x0 = best[0] - step; x1 = best[0] + step; y0 = best[1] - step; y1 = best[1] + step;
+    step /= 4;
+  }
+  return best;
+}
+
 const res = await fetch(URL_, { signal: AbortSignal.timeout(120000) });
 if (!res.ok) throw new Error(`HTTP ${res.status}`);
 const gj = await res.json();
@@ -45,11 +85,19 @@ const features = gj.features.map((f) => {
   const simp = polys.map((rings) => rings
     .map((ring) => simplifyRing(ring, TOL).map(([x, y]) => [r4(x), r4(y)]))
     .filter((ring) => ring.length >= 4));
-  // label point: centroid of the largest ring (good enough for a number label)
-  let best = null, bestN = -1;
-  for (const rings of simp) if (rings[0] && rings[0].length > bestN) { bestN = rings[0].length; best = rings[0]; }
-  const cx = r4(best.reduce((a, p) => a + p[0], 0) / best.length);
-  const cy = r4(best.reduce((a, p) => a + p[1], 0) / best.length);
+  // Label point: the ring's visual center (pole of inaccessibility), not its
+  // centroid - Chicago wards are famously gerrymandered, and a centroid often
+  // lands outside its own polygon, putting the number in a neighbouring ward.
+  let best = null, bestArea = -1;
+  for (const rings of simp) {
+    const r = rings[0];
+    if (!r) continue;
+    let a = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] * r[i][1]) - (r[i][0] * r[j][1]);
+    a = Math.abs(a / 2);
+    if (a > bestArea) { bestArea = a; best = r; }
+  }
+  const [cx, cy] = [r4(visualCenter(best)[0]), r4(visualCenter(best)[1])];
   return {
     type: 'Feature',
     properties: { ward, label: [cx, cy] },

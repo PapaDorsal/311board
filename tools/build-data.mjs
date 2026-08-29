@@ -140,7 +140,16 @@ const offRes = await fetch(`${OFFICES}?$limit=60`, { signal: AbortSignal.timeout
 const offices = offRes.ok ? await offRes.json() : [];
 const aldermen = Object.fromEntries(offices.map((o) => {
   const name = String(o.alderman || '').split(',').map((x) => x.trim()).reverse().join(' ').trim();
-  return [Number(o.ward), { name, email: o.email || null, website: o.website?.url || null }];
+  const line2 = [o.city, o.state].filter(Boolean).join(', ') + (o.zipcode ? ' ' + o.zipcode : '');
+  const chLine2 = [o.city_hall_city, o.city_hall_state].filter(Boolean).join(', ') + (o.city_hall_zipcode ? ' ' + o.city_hall_zipcode : '');
+  return [Number(o.ward), {
+    name,
+    email: o.email || null,
+    website: o.website?.url || null,
+    phone: o.ward_phone || null,
+    address: o.address ? { line1: o.address, line2: line2.trim() || null } : null,
+    cityHall: o.city_hall_address ? { line1: o.city_hall_address, line2: chLine2.trim() || null, phone: o.city_hall_phone || null } : null,
+  }];
 }));
 console.log(`ward offices: ${Object.keys(aldermen).length}`);
 
