@@ -44,12 +44,12 @@ body { margin: 0; background: var(--page); color: var(--ink); font: 15.5px/1.55 
 a { color: inherit; }
 
 /* masthead */
-.wordmark { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.flag { width: 74px; height: 24px; flex: none; }
+.wordmark { display: flex; align-items: center; gap: clamp(8px, 1.6vw, 14px); min-width: 0; }
+.flag { width: clamp(44px, 12vw, 104px); height: auto; flex: none; }
 .flag .stripe { fill: var(--chi-blue); }
 .flag .stars path { fill: var(--chi-red); }
 .wordmark h1 {
-  font-family: var(--display); font-weight: 800; font-size: 34px; letter-spacing: 0.015em;
+  font-family: var(--display); font-weight: 800; font-size: clamp(22px, calc(9.8vw - 8px), 48px); letter-spacing: 0.015em;
   margin: 0; text-transform: uppercase;
 }
 .wm-accent { color: var(--accent); }
@@ -58,7 +58,7 @@ a { color: inherit; }
 /* hook */
 .hook { margin: 26px 0 18px; }
 .hook-line {
-  font-family: var(--display); font-weight: 700; font-size: 32px; line-height: 1.12;
+  font-family: var(--display); font-weight: 700; font-size: clamp(25px, 6.4vw, 34px); line-height: 1.12;
   text-transform: uppercase; letter-spacing: 0.01em; margin: 0; max-width: 24ch; text-wrap: balance;
 }
 .hook-sub { color: var(--ink-2); margin: 12px 0 0; max-width: 62ch; }
@@ -133,7 +133,7 @@ a { color: inherit; }
 
 .board-grid > .table-pane { grid-area: table; }
 @media (max-width: 820px) { .board-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "left" "table"; } }
-.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: 22px; margin: 0 0 8px; }
+.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: clamp(19px, 2.2vw, 26px); margin: 0 0 8px; }
 .map-pane { position: sticky; top: 14px; min-width: 0; }
 @media (max-width: 820px) {
   .map-pane { position: static; }
@@ -213,7 +213,7 @@ tr.thin .bar { background: var(--bar-thin); }
 .masthead a.home { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
 .crumb { font-size: 13.5px; margin: 22px 0 6px; }
 .crumb a { color: var(--accent); text-decoration: none; }
-.ward-title { font-family: var(--display); text-transform: uppercase; font-weight: 800; font-size: 40px; margin: 4px 0 2px; }
+.ward-title { font-family: var(--display); text-transform: uppercase; font-weight: 800; font-size: clamp(30px, 4.4vw, 46px); margin: 4px 0 2px; }
 .ward-sub { color: var(--ink-2); margin: 0 0 12px; }
 .ward-actions { margin-top: 14px; display: flex; align-items: center; gap: 10px; }
 .share-btn {
@@ -247,22 +247,17 @@ td.c-ward a:hover { color: var(--accent); }
 .card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
 
 @media (max-width: 480px) {
-  .wordmark h1 { font-size: 25px; }
-  .flag { width: 56px; height: 18px; }
 }
 /* On a 320px screen the flag plus a 25px wordmark is 8px wider than the page,
    and the flex row had nothing that would give. Both step down together. */
 @media (max-width: 340px) {
   .wordmark { gap: 9px; }
-  .wordmark h1 { font-size: 22px; }
-  .flag { width: 46px; height: 15px; }
   .card-table .c-num { width: 58px; }
   /* let the type name use two lines rather than fight the numeric columns
      for pixels that are not there on a 320px screen */
   .card-table tbody td:first-child { white-space: normal; overflow-wrap: anywhere; }
   .card-table td, .card-table th { padding-left: 4px; padding-right: 4px; }
   .card-table thead th .sort-btn { font-size: 9px; letter-spacing: 0; }
-  .hook-line { font-size: 27px; }
 }
 
 /* ward card head: title and the locator side by side */
