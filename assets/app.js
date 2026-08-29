@@ -2,13 +2,16 @@
 // and ward map (data/wards.geojson). Every figure comes from the snapshot; the only
 // live network call is the optional address lookup, against the same public dataset.
 (async function () {
-  const [dataRes, geoRes, nbRes] = await Promise.all([
-    fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json')]);
+  const [dataRes, geoRes, nbRes, stRes] = await Promise.all([
+    fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json'),
+    fetch('data/streets.geojson')]);
   if (!dataRes.ok || !geoRes.ok) return;
   const D = await dataRes.json();
   const GEO = await geoRes.json();
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
+  // Street context is optional garnish; the map still works if it fails to load.
+  const ST = stRes.ok ? (await stRes.json()).features : [];
   const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
   // The board covers a rolling window, not a calendar year; say so wherever a period is named.
   const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
@@ -127,6 +130,7 @@
     $('map-title').textContent = `Typical days on the map`;
     $('map-hint').textContent = 'Hover any ward for its number. Click for its full report card.';
     const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
+    const placedWardBoxes = [];
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
       const w = byWard.get(ward);
       const fill = w ? (w.thin ? 'var(--map-empty)' : binColor(w.p50, breaks)) : 'var(--map-empty)';
@@ -137,8 +141,11 @@
       const b = wardBox.get(ward) || { w: 0, h: 0 };
       const wide = String(ward).length > 1 ? 16 : 12;
       if (b.w < wide || b.h < 14) return '';
-      return `<text x="${px(lon).toFixed(1)}" y="${(py(lat) + 4).toFixed(1)}" text-anchor="middle">${ward}</text>`;
-    }).join('');
+      const lx = px(lon), ly = py(lat) + 4;
+      const halfW = String(ward).length * 4 + 3;
+      placedWardBoxes.push({ x0: lx - halfW, x1: lx + halfW, y0: ly - 10, y1: ly + 3 });
+      return `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">${ward}</text>`;
+    }).join('') + streetLayer(placedWardBoxes);
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
     $('legend').innerHTML =
       RAMP.map((c, i) => {
@@ -168,6 +175,77 @@
       const t = e.target.closest('path'); if (!t) return;
       setMyWard(Number(t.dataset.ward), null);
     };
+  }
+
+  // Arterials for orientation. Drawn over the fills but under the ward numbers,
+  // and deliberately quiet: hairline strokes, small labels, no interaction.
+  function streetLayer(wardBoxes) {
+    if (!ST.length) return '';
+    const lines = [], labels = [];
+    // A 6.4 unit label renders at 6.4px only when the map is drawn at 1:1. On a
+    // phone, and in the two-column desktop layout, it is drawn much smaller than
+    // that and the names stop being readable. Scale the type so a label always
+    // lands near 10 CSS px, and let the collision test below thin the set:
+    // fewer streets named, but the ones that are named can be read.
+    // The svg is aspect-fitted, so the drawn scale is the smaller of the two
+    // ratios - using width alone overstates it whenever the box letterboxes.
+    const mb = $('map').getBoundingClientRect();
+    const drawn = (mb.width && mb.height)
+      ? Math.min(mb.width / usedW, mb.height / usedH) : 1;
+    const SF = Math.max(1, 10 / (6.4 * drawn));
+    const taken = (wardBoxes || []).slice();
+    const hits = (b) => taken.some((t) => b.x0 < t.x1 && b.x1 > t.x0 && b.y0 < t.y1 && b.y1 > t.y0);
+    for (const f of ST) {
+      for (const seg of f.geometry.coordinates) {
+        const pts = seg.map(([lon, lat]) => [px(lon), py(lat)]);
+        lines.push(`<path class="st-line" d="M${pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}"/>`);
+      }
+      // Label near the end of the longest run rather than its midpoint: the middle of
+      // the city is where the ward numbers live, and midpoint labels collided with them.
+      let best = null, bestLen = -1;
+      for (const seg of f.geometry.coordinates) {
+        const a = seg[0], b = seg[seg.length - 1];
+        const L = Math.hypot(px(b[0]) - px(a[0]), py(b[1]) - py(a[1]));
+        if (L > bestLen) { bestLen = L; best = seg; }
+      }
+      if (!best || bestLen < 60) continue;
+      const proj = best.map(([lo, la]) => [px(lo), py(la)]);
+      const head = proj[0], tail = proj[proj.length - 1];
+      const vertical = Math.abs(tail[1] - head[1]) > Math.abs(tail[0] - head[0]);
+      // walk in from whichever end sits nearest the map edge
+      const ordered = vertical
+        ? (head[1] <= tail[1] ? proj : proj.slice().reverse())      // start at the top
+        : (head[0] <= tail[0] ? proj : proj.slice().reverse());     // start at the left
+      // Walk along the street and take the first spot that clears the ward numbers
+      // and the labels already placed. A street with nowhere clear goes unlabelled -
+      // the line still orients you, and a collided label helps nobody.
+      const text = `${f.properties.name} ${f.properties.grid}`;
+      const halfLen = (text.length * 1.7 + 3) * SF, halfThick = 5 * SF;
+      const PADX = 24, PADY = 12;
+      const ang = vertical ? -90 : 0;
+      // Try along the line rotated, then the same spots set horizontally: a horizontal
+      // label needs far less clearance, so a crowded avenue can still be named.
+      let placed = null;
+      outer:
+      for (const rot of vertical ? [true, false] : [false]) {
+        for (const frac of [0.14, 0.06, 0.24, 0.34, 0.86, 0.76, 0.66, 0.5, 0.94]) {
+          const at = ordered[Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * frac)))];
+          const x = Math.min(Math.max(at[0], PADX), usedW - PADX);
+          const y = Math.min(Math.max(at[1], PADY), usedH - PADY);
+          const box = rot
+            ? { x0: x - halfThick, x1: x + halfThick, y0: y - halfLen, y1: y + halfLen }
+            : { x0: x - halfLen, x1: x + halfLen, y0: y - halfThick, y1: y + halfThick };
+          if (!hits(box)) { placed = { x, y, box, rot }; break outer; }
+        }
+      }
+      if (!placed) continue;
+      taken.push(placed.box);
+      const { x, y } = placed;
+      labels.push(`<text class="st-label" style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
+        `transform="rotate(${placed.rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
+        `${esc(f.properties.name)} <tspan class="st-grid">${esc(f.properties.grid)}</tspan></text>`);
+    }
+    return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
   function renderTable(T) {
@@ -247,7 +325,7 @@
     renderMine(note);
   }
 
-  // Point-in-polygon (ray cast) over the shipped ward polygons — GPS never leaves the browser.
+  // Point-in-polygon (ray cast) over the shipped ward polygons; GPS never leaves the browser.
   function wardAt(lon, lat) {
     for (const f of GEO.features) {
       for (const poly of f.geometry.coordinates) {

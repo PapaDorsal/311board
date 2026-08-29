@@ -13,7 +13,7 @@
 
   // Per-ward identity so tabs, browser history and shared links are distinguishable.
   const BASE = 'https://chiwardboard.vercel.app';
-  const wTitle = `Ward ${ward} - CHIWARDBOARD`;
+  const wTitle = `Ward ${ward} - ChiWardBoard`;
   const aldName = ((D.aldermen || {})[ward] || {}).name;
   const wDesc = `How fast the city closes 311 requests in Chicago's Ward ${ward}` +
     (aldName ? ` (Alderperson ${aldName})` : '') +
