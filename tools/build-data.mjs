@@ -23,6 +23,8 @@ const TYPES = [
   { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street lights out' },
   { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris' },
   { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation violations' },
+  { key: 'fly-dumping', official: 'Fly Dumping Complaint', plain: 'fly dumping' },
+  { key: 'missed-pickup', official: 'Missed Garbage Pick-Up Complaint', plain: 'missed pickups' },
 ];
 
 const T0 = Date.now();
