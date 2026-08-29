@@ -173,7 +173,7 @@
     $('map').onmouseleave = () => { tip.hidden = true; };
     $('map').onclick = (e) => {
       const t = e.target.closest('path'); if (!t) return;
-      setMyWard(Number(t.dataset.ward), null);
+      setMyWard(Number(t.dataset.ward), null, true);
     };
   }
 
@@ -298,7 +298,11 @@
 
   // ---- find-your-ward ----
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  function renderMine(note) {
+  // `jump` is only set when the visitor picked a ward off the map. Locating
+  // yourself by address or GPS should leave you where you are - the card answers
+  // the question on its own, and on a phone the table is a screen and a half
+  // down, so scrolling to it threw the page out from under them.
+  function renderMine(note, jump) {
     const box = $('mine');
     if (!myWard) { box.hidden = true; return; }
     const T = type();
@@ -315,14 +319,15 @@
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
     box.hidden = false;
+    if (!jump) return;
     const row = document.getElementById(`wrow-${myWard}`);
-    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
-  function setMyWard(ward, note) {
+  function setMyWard(ward, note, jump) {
     myWard = ward;
     document.querySelectorAll('#map path').forEach((p) => p.classList.toggle('sel', Number(p.dataset.ward) === ward));
     document.querySelectorAll('#lb-body tr').forEach((r) => r.classList.toggle('mine-row', r.id === `wrow-${ward}`));
-    renderMine(note);
+    renderMine(note, jump);
   }
 
   // Point-in-polygon (ray cast) over the shipped ward polygons; GPS never leaves the browser.
@@ -368,6 +373,7 @@
       if (!r.ok) throw new Error('http ' + r.status);
       AX = await r.json();
       AX.names = [...new Set(Object.keys(AX.streets).map((k) => k.split('|')[1]))];
+      AX.bare = new Set(Object.keys(AX.streets).map((k) => k.slice(0, k.lastIndexOf('|'))));
     } catch { axFail = true; }
     return AX;
   }
@@ -439,6 +445,10 @@
         ks.push(`${d}|${name}|${t}`);
     return ks;
   }
+  // Sides of the street are indexed separately, because a ward boundary often
+  // runs down the middle of one. Prefer the side the house number is actually on
+  // and fall back to the other, which is right except on a boundary street.
+  function sidesFor(number) { return number % 2 ? ['O', 'E'] : ['E', 'O']; }
 
   // Runs are [blockStart, ward, blockStart, ward, ...] ascending; the ward for a
   // block is the one whose run starts at or before it.
@@ -459,7 +469,7 @@
     const block = Math.floor(a.number / 100);
 
     let names = [a.name], corrected = null;
-    if (!keysFor(a, a.name).some((k) => ix.streets[k])) {
+    if (!keysFor(a, a.name).some((k) => ix.bare.has(k))) {
       // nothing under that spelling: find the closest real street name instead
       const max = a.name.length <= 5 ? 1 : 2;
       const near = ix.names.filter((n) => n !== a.name && within(a.name, n, max));
@@ -467,10 +477,12 @@
     }
     for (const name of names) {
       for (const k of keysFor(a, name)) {
-        const runs = ix.streets[k];
-        if (!runs) continue;
-        const w = wardOnStreet(runs, block);
-        if (w) return { ward: w, corrected: name === a.name ? null : corrected, ambiguous: names.length > 1 && !corrected };
+        for (const side of sidesFor(a.number)) {
+          const runs = ix.streets[`${k}|${side}`];
+          if (!runs) continue;
+          const w = wardOnStreet(runs, block);
+          if (w) return { ward: w, corrected: name === a.name ? null : corrected };
+        }
       }
     }
     return { err: `No Chicago block matches "${raw}". Check the street name, or use your location.` };

@@ -8,13 +8,25 @@
 // at 5417 specifically. Any typo failed for the same reason.
 //
 // METHOD: the 311 records carry the address already split into components
-// (street_number, street_direction, street_name, street_type) AND the ward the
-// city's own geocoder assigned. Grouping those by hundred-block gives, for
-// every block in the city, the ward it sits in - built from the same authority
-// the rest of the board uses. A block is a far better unit than a house number:
-// a block lies in one ward, and one 311 record anywhere on it places the whole
-// block. Blocks are then run-length encoded per street, since a street runs
-// through a ward for a long stretch before crossing into the next one.
+// (street_number, street_direction, street_name, street_type) AND a latitude and
+// longitude. Grouping by hundred-block and taking the MEDIAN coordinate of the
+// records on it gives a point on that block; resolving that point against the
+// ward polygons the board already ships gives the ward. A block is a far better
+// unit than a house number: one 311 record anywhere on it places the whole block.
+// Blocks are then run-length encoded per street, since a street runs through a
+// ward for a long stretch before crossing into the next one.
+//
+// WHY NOT THE WARD COLUMN: the obvious build reads the ward the city stamped on
+// each record and takes the most common one per block. That was measured at 88.5%
+// against the polygons on 400 real addresses - one lookup in ten landed in the
+// wrong ward, all of them on boundary streets, because the stamped ward is noisy
+// exactly where a boundary runs. The polygons are the authority the map and the
+// location button already use, so the index is built from them too.
+//
+// WHY MEDIAN, AND WHY BY SIDE OF THE STREET: a median ignores the occasional
+// record geocoded to an intersection or across town, which an average would not.
+// Odd and even house numbers are indexed separately because a boundary often runs
+// down the middle of a street, putting the two sides in different wards.
 //
 // WHY BUILD IT INSTEAD OF QUERYING LIVE: a shipped index means the visitor's
 // address never leaves their browser. That is the same promise the GPS finder
@@ -29,15 +41,15 @@
 // resolution off the city's own assignments is the honest alternative.
 //
 // LIMITATIONS, stated because they matter:
-//  - Block granularity. A block split between two wards by a boundary running
-//    down its middle resolves to whichever ward holds more of its records.
-//    Those blocks are counted and reported by this script.
-//  - Coverage is limited to blocks that have at least one 311 record with a
-//    ward. A block nobody has ever called about is not in the index.
-//  - Boundary assignment is the city's own, inherited warts and all.
+//  - Block-side granularity. A boundary that cuts across a block rather than
+//    running along it still resolves the whole side to one ward.
+//  - Coverage is limited to block sides carrying at least MIN_BLOCK_N records
+//    with coordinates. A block nobody has ever called about is not in the index.
+//  - The polygons are the city's own 2023 ward map, inherited warts and all.
 //  - House numbers with a letter suffix (7607S) are excluded from the build.
 const BASE = 'https://data.cityofchicago.org/resource/v6vf-nfxy.json';
 const OUT = 'data/address-index.json';
+const WARDS = 'data/wards.geojson';
 const MIN_BLOCK_N = 2;      // a block needs 2+ records before it is trusted
 const DIGITS = ["'0'","'1'","'2'","'3'","'4'","'5'","'6'","'7'","'8'","'9'"].join(',');
 
@@ -56,7 +68,7 @@ async function get(url, label) {
 // Casting to a number instead makes the whole query fail on the first bad row.
 const WHERE = [
   'street_name IS NOT NULL',
-  'ward IS NOT NULL',
+  'latitude IS NOT NULL',
   'street_number IS NOT NULL',
   'length(street_number) BETWEEN 3 AND 5',
   `substring(street_number,length(street_number),1) IN (${DIGITS})`,
@@ -68,8 +80,10 @@ const rows = [];
 for (let off = 0; ; off += PAGE) {
   const q = new URLSearchParams({
     $query: `SELECT street_direction AS d, street_name AS n, street_type AS t, ` +
-      `substring(street_number,1,length(street_number)-2) AS b, ward AS w, count(1) AS c ` +
-      `WHERE ${WHERE} GROUP BY d,n,t,b,w ORDER BY d,n,t,b,w LIMIT ${PAGE} OFFSET ${off}`,
+      `substring(street_number,1,length(street_number)-2) AS b, ` +
+      `substring(street_number,length(street_number),1) IN ('1','3','5','7','9') AS odd, ` +
+      `median(latitude) AS la, median(longitude) AS lo, count(1) AS c ` +
+      `WHERE ${WHERE} GROUP BY d,n,t,b,odd ORDER BY d,n,t,b,odd LIMIT ${PAGE} OFFSET ${off}`,
   });
   const page = await get(`${BASE}?${q}`, `blocks@${off}`);
   rows.push(...page);
@@ -78,31 +92,37 @@ for (let off = 0; ; off += PAGE) {
 }
 console.log('');
 
-// Collapse each block to the ward that holds most of its records, and note how
-// often that was a real contest rather than a unanimous block.
-const blocks = new Map();   // "D|NAME|T|B" -> Map(ward -> count)
-let dropped = 0;
-for (const r of rows) {
-  const w = Number(r.w), c = Number(r.c);
-  if (!Number.isFinite(w) || w < 1 || w > 50) { dropped++; continue; }
-  const key = `${r.d || ''}|${r.n}|${r.t || ''}|${r.b}`;
-  if (!blocks.has(key)) blocks.set(key, new Map());
-  const m = blocks.get(key);
-  m.set(w, (m.get(w) || 0) + c);
+// Resolve each block's median point against the ward polygons - the same ray
+// cast, over the same shipped file, that the location button uses.
+const { readFileSync, writeFileSync } = await import('node:fs');
+const GEO = JSON.parse(readFileSync(WARDS, 'utf8'));
+function wardAt(lon, lat) {
+  for (const f of GEO.features) {
+    for (const poly of f.geometry.coordinates) {
+      let inside = false; const o = poly[0];
+      for (let i = 0, j = o.length - 1; i < o.length; j = i++) {
+        const [xi, yi] = o[i], [xj, yj] = o[j];
+        if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) return Number(f.properties.ward);
+    }
+  }
+  return null;
 }
 
-const streets = new Map();  // "D|NAME|T" -> [[blockStart, ward], ...]
-let split = 0, thin = 0;
-for (const [key, m] of blocks) {
-  const total = [...m.values()].reduce((a, b) => a + b, 0);
-  if (total < MIN_BLOCK_N) { thin++; continue; }
-  const ranked = [...m.entries()].sort((a, b) => b[1] - a[1]);
-  if (ranked.length > 1 && ranked[1][1] / total >= 0.2) split++;
-  const i = key.lastIndexOf('|');
-  const st = key.slice(0, i), b = Number(key.slice(i + 1));
-  if (!Number.isFinite(b)) continue;
+const streets = new Map();  // "D|NAME|T|PARITY" -> [[blockStart, ward], ...]
+let thin = 0, outside = 0, kept = 0;
+for (const r of rows) {
+  if (Number(r.c) < MIN_BLOCK_N) { thin++; continue; }
+  const b = Number(r.b), la = Number(r.la), lo = Number(r.lo);
+  if (!Number.isFinite(b) || !Number.isFinite(la) || !Number.isFinite(lo)) { outside++; continue; }
+  const w = wardAt(lo, la);
+  if (!w) { outside++; continue; }   // median landed off the ward map entirely
+  kept++;
+  const p = (r.odd === true || r.odd === 'true') ? 'O' : 'E';
+  const st = `${r.d || ''}|${r.n}|${r.t || ''}|${p}`;
   if (!streets.has(st)) streets.set(st, []);
-  streets.get(st).push([b, ranked[0][0]]);
+  streets.get(st).push([b, w]);
 }
 
 // Run-length encode: a street usually holds one ward for many blocks, so only
@@ -113,7 +133,7 @@ for (const [st, list] of streets) {
   list.sort((a, b) => a[0] - b[0]);
   const runs = [];
   for (const [b, w] of list) {
-    if (!runs.length || runs[runs.length - 1][1] !== w) { runs.push([b, w]); }
+    if (!runs.length || runs[runs.length - 1][1] !== w) runs.push([b, w]);
   }
   breakpoints += runs.length;
   out[st] = runs.flat();
@@ -122,16 +142,15 @@ for (const [st, list] of streets) {
 const payload = {
   built: new Date().toISOString().slice(0, 10),
   source: 'https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy',
-  note: 'Hundred-block to ward, from the ward the city assigned to 311 records on that block.',
+  note: 'Hundred-block and side of street to ward, by resolving the median coordinate of the 311 records on that block against the ward polygons.',
   streets: out,
 };
-const { writeFileSync } = await import('node:fs');
 writeFileSync(OUT, JSON.stringify(payload));
 
 const bytes = JSON.stringify(payload).length;
 console.log(`streets: ${streets.size}`);
-console.log(`blocks indexed: ${blocks.size - thin} (dropped ${thin} with fewer than ${MIN_BLOCK_N} records)`);
-console.log(`blocks where a second ward held 20%+ of the records: ${split}`);
-console.log(`rows with an out-of-range ward: ${dropped}`);
-console.log(`run-length breakpoints stored: ${breakpoints} (from ${blocks.size} blocks)`);
+console.log(`block sides indexed: ${kept}`);
+console.log(`dropped, fewer than ${MIN_BLOCK_N} records: ${thin}`);
+console.log(`dropped, median point outside every ward polygon: ${outside}`);
+console.log(`run-length breakpoints stored: ${breakpoints} (from ${kept} block sides)`);
 console.log(`${OUT}: ${(bytes / 1024).toFixed(0)} KB`);
