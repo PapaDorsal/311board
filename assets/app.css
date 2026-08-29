@@ -56,9 +56,9 @@ a { color: inherit; }
 .tagline { color: var(--ink-2); margin: 6px 0 0; }
 
 /* hook */
-.hook { margin: 40px 0 26px; }
+.hook { margin: 32px 0 22px; }
 .hook-line {
-  font-family: var(--display); font-weight: 700; font-size: 44px; line-height: 1.08;
+  font-family: var(--display); font-weight: 700; font-size: 36px; line-height: 1.1;
   text-transform: uppercase; letter-spacing: 0.01em; margin: 0; max-width: 24ch; text-wrap: balance;
 }
 .hook-sub { color: var(--ink-2); margin: 12px 0 0; max-width: 62ch; }
@@ -75,31 +75,38 @@ a { color: inherit; }
 .types button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* finder */
-.finder { margin: 0 0 26px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-.finder-label { display: block; font: 700 12px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin-bottom: 8px; }
+.finder { margin: 30px 0 0; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.finder-label { display: block; font: 700 10.5px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
 .finder-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .finder-row input {
-  flex: 1 1 240px; font: 15px var(--sans); color: var(--ink);
-  background: var(--page); border: 1px solid var(--grid); border-radius: 8px; padding: 9px 12px;
+  flex: 1 1 220px; font: 13.5px var(--sans); color: var(--ink);
+  background: var(--page); border: 1px solid var(--grid); border-radius: 6px; padding: 6px 10px;
 }
 .finder-row input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .finder-row button {
-  font: 600 14px var(--sans); border-radius: 8px; padding: 9px 14px; cursor: pointer;
+  font: 600 13px var(--sans); border-radius: 6px; padding: 6px 12px; cursor: pointer;
   background: var(--accent); color: #fff; border: 1px solid var(--accent);
 }
 .finder-row button#finder-gps { background: transparent; color: var(--accent); }
-.finder-note { color: var(--muted); font-size: 12.5px; margin: 8px 0 0; }
+.finder-note { color: var(--muted); font-size: 11.5px; margin: 6px 0 0; }
 
 /* your-ward card */
-.mine { margin: 0 0 26px; padding: 14px 16px; border-left: 4px solid var(--chi-red); background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.mine { margin: 10px 0 0; padding: 12px 14px; border-left: 4px solid var(--chi-red); background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .mine h3 { font-family: var(--display); text-transform: uppercase; font-size: 20px; margin: 0 0 4px; }
 .mine p { margin: 0; color: var(--ink-2); }
 .mine .err { color: var(--ink-2); }
 
 /* board layout */
-.board-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(540px, 600px); gap: 26px; align-items: start; }
-@media (max-width: 820px) { .board-grid { grid-template-columns: minmax(0, 1fr); } }
-.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: 19px; margin: 0 0 8px; }
+.board-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(540px, 600px);
+  grid-template-areas: "filters filters" "map table";
+  gap: 18px 26px; align-items: start;
+}
+.board-grid > #types { grid-area: filters; }
+.board-grid > .map-pane { grid-area: map; }
+.board-grid > .table-pane { grid-area: table; }
+@media (max-width: 820px) { .board-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "filters" "map" "table"; } }
+.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: 21px; margin: 0 0 8px; }
 .map-pane { position: sticky; top: 14px; min-width: 0; }
 @media (max-width: 820px) {
   .map-pane { position: static; }
@@ -144,6 +151,7 @@ tbody tr.mine-row { background: color-mix(in srgb, var(--chi-red) 7%, transparen
 .c-bar { width: 44%; }
 td.c-rank { color: var(--muted); font-family: var(--mono); font-size: 12.5px; }
 td.c-ward { font-weight: 600; }
+td.c-ward > a { display: inline-block; max-width: 15em; }
 td.c-ward > a { white-space: nowrap; }
 td.c-ward .row-sub { white-space: normal; }
 td.c-ward .thin-tag {
@@ -203,7 +211,7 @@ td.c-ward a:hover { color: var(--accent); }
 @media (max-width: 480px) {
   .wordmark h1 { font-size: 25px; }
   .flag { width: 56px; height: 18px; }
-  .hook-line { font-size: 34px; }
+  .hook-line { font-size: 29px; }
 }
 
 /* ward office contact block */
@@ -252,3 +260,8 @@ td.c-ward a:hover { color: var(--accent); }
 .sort-ind { color: var(--accent); font-size: 0.9em; }
 .table-src { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; }
 .table-src a { color: var(--accent); }
+
+/* neighbourhood context: recognisable, but never louder than the ward number */
+.row-hood { font-size: 11.5px; color: var(--ink-2); font-weight: 500; line-height: 1.25; white-space: normal; }
+.hood-inline { font-weight: 500; font-size: 0.72em; color: var(--ink-2); }
+.hood-line { color: var(--ink-2); font-weight: 600; }

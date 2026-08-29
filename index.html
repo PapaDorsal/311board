@@ -57,24 +57,9 @@
     </div>
   </section>
 
-  <nav id="types" class="types" aria-label="Request type" hidden></nav>
-
-  <section id="finder" class="finder" hidden>
-    <form id="finder-form">
-      <label class="finder-label" for="finder-input">Find your ward</label>
-      <div class="finder-row">
-        <input id="finder-input" type="search" placeholder="Your street address, e.g. 1060 W Addison St" autocomplete="street-address">
-        <button type="submit">Look up</button>
-        <button type="button" id="finder-gps" title="Use your location - checked against the ward map right here in your browser; your location is never sent anywhere">Use my location</button>
-      </div>
-    </form>
-    <p class="finder-note" id="finder-note">Addresses are matched against the city&rsquo;s own 311 records. Location stays in your browser.</p>
-  </section>
-
-  <section id="mine" class="mine" hidden></section>
-
   <section id="board" hidden>
     <div class="board-grid">
+      <nav id="types" class="types" aria-label="Request type"></nav>
       <div class="map-pane">
         <h2 class="pane-title" id="map-title"></h2>
         <p class="board-note" id="map-hint"></p>
@@ -105,6 +90,20 @@
       </div>
     </div>
   </section>
+
+  <section id="finder" class="finder" hidden>
+    <form id="finder-form">
+      <label class="finder-label" for="finder-input">Find your ward</label>
+      <div class="finder-row">
+        <input id="finder-input" type="search" placeholder="Your street address, e.g. 1060 W Addison St" autocomplete="street-address">
+        <button type="submit">Look up</button>
+        <button type="button" id="finder-gps" title="Use your location - checked against the ward map right here in your browser; your location is never sent anywhere">Use my location</button>
+      </div>
+    </form>
+    <p class="finder-note" id="finder-note">Addresses are matched against the city&rsquo;s own 311 records. Location stays in your browser.</p>
+  </section>
+
+  <section id="mine" class="mine" hidden></section>
 
   <section id="method" class="method" hidden>
     <h2>How we counted</h2>
