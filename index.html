@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ChiWardBoard - See which ward fixes potholes fastest</title>
 <meta name="description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
-<link rel="canonical" href="https://chiwardboard.vercel.app/">
+<link rel="canonical" href="https://chiwardboard.com/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
@@ -13,17 +13,17 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
 <meta property="og:site_name" content="ChiWardBoard">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://chiwardboard.vercel.app/">
+<meta property="og:url" content="https://chiwardboard.com/">
 <meta property="og:title" content="ChiWardBoard - See which ward fixes potholes fastest">
 <meta property="og:description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
-<meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta property="og:image" content="https://chiwardboard.com/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="ChiWardBoard - see which ward fixes potholes fastest">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="ChiWardBoard - See which ward fixes potholes fastest">
 <meta name="twitter:description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
-<meta name="twitter:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta name="twitter:image" content="https://chiwardboard.com/assets/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
@@ -51,10 +51,6 @@
   <section id="hook" class="hook" hidden>
     <p class="hook-line" id="hook-line"></p>
     <p class="hook-sub" id="hook-sub"></p>
-    <div class="ward-actions">
-      <button type="button" id="share" class="share-btn">Share this</button>
-      <span class="share-done" id="share-done" hidden>Link copied.</span>
-    </div>
   </section>
 
   <section id="board" hidden>
@@ -71,6 +67,8 @@
       </section>
       <section id="mine" class="mine" hidden></section>
 
+      <nav id="types" class="types" aria-label="Request type"></nav>
+
       <div class="map-pane">
         <h2 class="pane-title" id="map-title"></h2>
         <p class="board-note" id="map-hint"></p>
@@ -80,7 +78,6 @@
         </div>
         <div class="legend" id="legend"></div>
       </div>
-      <nav id="types" class="types" aria-label="Request type"></nav>
       </div>
       <div class="table-pane">
         <h2 class="pane-title" id="board-title"></h2>
@@ -92,14 +89,18 @@
                 <th class="c-rank" scope="col">#</th>
                 <th class="c-ward" scope="col">Ward</th>
                 <th class="c-bar" scope="col">Typical days</th>
-                <th class="c-num" scope="col">Slowest 10%</th>
+                <th class="c-num c-tail" scope="col">9 in 10 within</th>
                 <th class="c-num" scope="col">Requests</th>
               </tr>
             </thead>
             <tbody id="lb-body"></tbody>
           </table>
         </div>
-        <p class="table-gloss">Typical days = the middle request: half of them close faster, half slower. Slowest 10% = only one request in ten takes longer than this. Click any ward for the records behind its numbers.</p>
+        <p class="table-gloss">Typical days = the middle request: half close faster, half slower. 9 in 10 within = nine of every ten requests were closed by this many days. Click any ward for the records behind its numbers.</p>
+        <div class="ward-actions">
+          <button type="button" id="share" class="share-btn">Share this</button>
+          <span class="share-done" id="share-done" hidden>Link copied.</span>
+        </div>
       </div>
     </div>
   </section>

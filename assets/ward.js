@@ -12,7 +12,7 @@
   if (!Number.isInteger(ward) || ward < 1 || ward > 50) { $('missing').hidden = false; return; }
 
   // Per-ward identity so tabs, browser history and shared links are distinguishable.
-  const BASE = 'https://chiwardboard.vercel.app';
+  const BASE = 'https://chiwardboard.com';
   const wTitle = `Ward ${ward} - ChiWardBoard`;
   const aldName = ((D.aldermen || {})[ward] || {}).name;
   const wDesc = `How fast the city closes 311 requests in Chicago's Ward ${ward}` +
@@ -137,7 +137,7 @@
       <td class="c-num">${d2(r.wardVal)}</td>
       <td class="c-num">${d2(r.cityVal)}</td>
       <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? 'unranked' : '-')}</td>
-      <td class="c-num">${fmt(r.n)}</td>
+      <td class="c-num c-vol">${fmt(r.n)}</td>
     </tr>`).join('');
 
     document.querySelectorAll('#card thead th').forEach((th) => {

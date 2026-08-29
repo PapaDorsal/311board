@@ -1,6 +1,6 @@
 // chiwardboard front page. Renders the build-time snapshot (data/leaderboard.json)
-// and ward map (data/wards.geojson). Every figure comes from the snapshot; the only
-// live network call is the optional address lookup, against the same public dataset.
+// and ward map (data/wards.geojson). Every figure comes from the snapshot, and the
+// address lookup resolves against a shipped index: the page makes no live calls.
 (async function () {
   const [dataRes, geoRes, nbRes, stRes] = await Promise.all([
     fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json'),
@@ -160,7 +160,7 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, slowest 10% over <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
+        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, 9 in 10 within <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
@@ -173,7 +173,7 @@
     $('map').onmouseleave = () => { tip.hidden = true; };
     $('map').onclick = (e) => {
       const t = e.target.closest('path'); if (!t) return;
-      setMyWard(Number(t.dataset.ward), null);
+      setMyWard(Number(t.dataset.ward), null, true);
     };
   }
 
@@ -248,6 +248,9 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
+  // Two decimals everywhere so the column aligns on the point: a bare "6" beside
+  // "5.02" reads as a different kind of number.
+  const d2 = (v) => (v === null || v === undefined ? '-' : Number(v).toFixed(2));
   function renderTable(T) {
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
@@ -265,8 +268,8 @@
         <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
-        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${w.p50}</span></div></td>
-        <td class="c-num">${w.p90}</td>
+        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
+        <td class="c-num c-tail">${d2(w.p90)}</td>
         <td class="c-num">${fmt(w.n)}</td>
       </tr>`;
     }).join('');
@@ -298,7 +301,11 @@
 
   // ---- find-your-ward ----
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  function renderMine(note) {
+  // `jump` is only set when the visitor picked a ward off the map. Locating
+  // yourself by address or GPS should leave you where you are - the card answers
+  // the question on its own, and on a phone the table is a screen and a half
+  // down, so scrolling to it threw the page out from under them.
+  function renderMine(note, jump) {
     const box = $('mine');
     if (!myWard) { box.hidden = true; return; }
     const T = type();
@@ -315,14 +322,15 @@
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
     box.hidden = false;
+    if (!jump) return;
     const row = document.getElementById(`wrow-${myWard}`);
-    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
-  function setMyWard(ward, note) {
+  function setMyWard(ward, note, jump) {
     myWard = ward;
     document.querySelectorAll('#map path').forEach((p) => p.classList.toggle('sel', Number(p.dataset.ward) === ward));
     document.querySelectorAll('#lb-body tr').forEach((r) => r.classList.toggle('mine-row', r.id === `wrow-${ward}`));
-    renderMine(note);
+    renderMine(note, jump);
   }
 
   // Point-in-polygon (ray cast) over the shipped ward polygons; GPS never leaves the browser.
@@ -355,35 +363,156 @@
 
   function finderErr(msg) { $('finder-note').textContent = msg; }
 
-  // Address lookup: match against the same public 311 records, read the ward off a record.
+  // ---- address lookup ----
+  // Resolved entirely in the browser against data/address-index.json, so a typed
+  // address is never sent anywhere - the same promise the location button makes.
+  // The index maps hundred-blocks to wards, which is why a house number with no
+  // 311 record of its own still resolves: its block almost certainly has one.
+  let AX = null, axFail = false;
+  async function addressIndex() {
+    if (AX || axFail) return AX;
+    try {
+      const r = await fetch('data/address-index.json');
+      if (!r.ok) throw new Error('http ' + r.status);
+      AX = await r.json();
+      AX.names = [...new Set(Object.keys(AX.streets).map((k) => k.split('|')[1]))];
+      AX.bare = new Set(Object.keys(AX.streets).map((k) => k.slice(0, k.lastIndexOf('|'))));
+    } catch { axFail = true; }
+    return AX;
+  }
+
+  // The city writes street types and directions in its own shorthand. Accept the
+  // long forms people actually type and fold them onto it.
+  const DIRS = { NORTH: 'N', SOUTH: 'S', EAST: 'E', WEST: 'W', N: 'N', S: 'S', E: 'E', W: 'W' };
+  const TYPES = {
+    STREET: 'ST', ST: 'ST', AVENUE: 'AVE', AVE: 'AVE', AV: 'AVE', BOULEVARD: 'BLVD', BLVD: 'BLVD',
+    ROAD: 'RD', RD: 'RD', DRIVE: 'DR', DR: 'DR', PLACE: 'PL', PL: 'PL', COURT: 'CT', CT: 'CT',
+    LANE: 'LN', LN: 'LN', PARKWAY: 'PKWY', PKWY: 'PKWY', TERRACE: 'TER', TER: 'TER',
+    SQUARE: 'SQ', SQ: 'SQ', HIGHWAY: 'HWY', HWY: 'HWY', EXPRESSWAY: 'EXPY', EXPY: 'EXPY',
+    CRESCENT: 'CRES', CRES: 'CRES', ROW: 'ROW', PLAZA: 'PLZ', PLZ: 'PLZ', WAY: 'WAY',
+  };
+  // 53, 53rd and THIRD all mean the same numbered street to a Chicagoan.
+  const WORDNUM = {
+    FIRST: '1', SECOND: '2', THIRD: '3', FOURTH: '4', FIFTH: '5', SIXTH: '6',
+    SEVENTH: '7', EIGHTH: '8', NINTH: '9', TENTH: '10',
+  };
+  function numberedStreet(word) {
+    const w = WORDNUM[word] || word;
+    const m = /^(\d+)(ST|ND|RD|TH)?$/.exec(w);
+    if (!m) return null;
+    const n = Number(m[1]), v = n % 100;
+    const suf = ['TH', 'ST', 'ND', 'RD'][(v - 20) % 10] || ['TH', 'ST', 'ND', 'RD'][v] || 'TH';
+    return n + suf;
+  }
+
+  function parseAddress(raw) {
+    const parts = raw.toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
+      .replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    if (!parts.length) return null;
+    const num = /^(\d+)/.exec(parts.shift());
+    if (!num) return null;
+    let dir = '';
+    if (parts.length > 1 && DIRS[parts[0]]) dir = DIRS[parts.shift()];
+    let type = '';
+    if (parts.length > 1 && TYPES[parts[parts.length - 1]]) type = TYPES[parts.pop()];
+    // a trailing direction ("2100 W NORTH AVE" vs "500 N MAIN N") is part of the name
+    if (!parts.length) return null;
+    const name = parts.map((p, i) => (i === parts.length - 1 ? (numberedStreet(p) || p) : p)).join(' ');
+    return { number: Number(num[1]), dir, type, name: numberedStreet(name) || name };
+  }
+
+  // Small edit distance, capped: enough to forgive a slip or a doubled letter,
+  // not enough to turn one real street into a different real street.
+  function within(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return false;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i]; let best = i;
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        best = Math.min(best, cur[j]);
+      }
+      if (best > max) return false;
+      prev = cur;
+    }
+    return prev[b.length] <= max;
+  }
+
+  // Candidate keys, most specific first: exactly what was typed, then the same
+  // street without the type, then without the direction. A wrong "Ave" for a
+  // "Blvd" should not beat the visitor for it.
+  function keysFor(a, name) {
+    const ks = [];
+    for (const t of [a.type, ''].filter((v, i, s) => s.indexOf(v) === i))
+      for (const d of [a.dir, ''].filter((v, i, s) => s.indexOf(v) === i))
+        ks.push(`${d}|${name}|${t}`);
+    return ks;
+  }
+  // Sides of the street are indexed separately, because a ward boundary often
+  // runs down the middle of one. Prefer the side the house number is actually on
+  // and fall back to the other, which is right except on a boundary street.
+  function sidesFor(number) { return number % 2 ? ['O', 'E'] : ['E', 'O']; }
+
+  // Runs are [blockStart, ward, blockStart, ward, ...] ascending; the ward for a
+  // block is the one whose run starts at or before it.
+  function wardOnStreet(runs, block) {
+    let lo = 0, hi = runs.length / 2 - 1, hit = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (runs[mid * 2] <= block) { hit = mid; lo = mid + 1; } else { hi = mid - 1; }
+    }
+    return hit < 0 ? null : runs[hit * 2 + 1];
+  }
+
+  async function lookupAddress(raw) {
+    const ix = await addressIndex();
+    if (!ix) return { err: 'The address index did not load. Use your location, or click a ward on the map.' };
+    const a = parseAddress(raw);
+    if (!a) return { err: 'Type a house number and street, like "1060 W Addison St".' };
+    const block = Math.floor(a.number / 100);
+
+    let names = [a.name], corrected = null;
+    if (!keysFor(a, a.name).some((k) => ix.bare.has(k))) {
+      // nothing under that spelling: find the closest real street name instead
+      const max = a.name.length <= 5 ? 1 : 2;
+      const near = ix.names.filter((n) => n !== a.name && within(a.name, n, max));
+      if (near.length) { names = near; corrected = near.length === 1 ? near[0] : null; }
+    }
+    for (const name of names) {
+      for (const k of keysFor(a, name)) {
+        for (const side of sidesFor(a.number)) {
+          const runs = ix.streets[`${k}|${side}`];
+          if (!runs) continue;
+          const w = wardOnStreet(runs, block);
+          if (w) return { ward: w, corrected: name === a.name ? null : corrected };
+        }
+      }
+    }
+    return { err: `No Chicago block matches "${raw}". Check the street name, or use your location.` };
+  }
+
   $('finder-form').onsubmit = async (e) => {
     e.preventDefault();
-    const raw = $('finder-input').value.trim().toUpperCase().replace(/'/g, '');
+    const raw = $('finder-input').value.trim();
     if (!raw) return;
     finderErr('Looking up…');
-    try {
-      const p = new URLSearchParams({
-        $select: 'ward, count(1) as c',
-        $where: `upper(street_address) like '${raw.replace(/\s+/g, ' ')}%' AND ward IS NOT NULL`,
-        $group: 'ward', $order: 'count(1) DESC', $limit: '3',
-      });
-      const res = await fetch(`${D.source.api}?${p}`);
-      const hits = res.ok ? await res.json() : [];
-      if (hits.length) {
-        setMyWard(Number(hits[0].ward), 'matched from 311 records at that address');
-        finderErr(hits.length > 1 ? 'That address matched more than one ward; showing the most common. Add a direction (N/S/E/W) to narrow it.' : 'Matched against the city’s own 311 records.');
-      } else {
-        finderErr('No 311 record matches that address. Try just the number and street name, like "1060 W ADDISON".');
-      }
-    } catch { finderErr('The city data portal did not answer - try again, or use your location.'); }
+    const r = await lookupAddress(raw);
+    if (r.err) { finderErr(r.err); return; }
+    setMyWard(r.ward, 'from the address you typed');
+    finderErr(r.corrected
+      ? `Read that as ${r.corrected}. Matched to the block, in your browser - the address was not sent anywhere.`
+      : 'Matched to the block, in your browser - the address was not sent anywhere.');
   };
 
   $('share').onclick = async () => {
     const T = type();
     const url = `${location.origin}${location.pathname}#${T.key}`;
     const h = T.headline;
+    // Whole days in a text message. The second decimal is real but nobody reads
+    // a shared line that closely, and it makes the sentence look like a readout.
+    const days = (v) => Math.round(Number(v));
     const text = h && h.slowest.p50 >= 1.5
-      ? `Ward ${h.slowest.ward} takes ${h.slowest.p50} days on ${T.plain}. Ward ${h.fastest.ward}: ${h.fastest.p50}. - chiwardboard`
+      ? `Ward ${h.slowest.ward} takes ${days(h.slowest.p50)} days on ${T.plain}. Ward ${h.fastest.ward}: ${days(h.fastest.p50)}. - chiwardboard`
       : `Chicago's ${T.plain}, ranked by ward - chiwardboard`;
     try {
       if (navigator.share) { await navigator.share({ title: 'chiwardboard', text, url }); return; }
