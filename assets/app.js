@@ -374,6 +374,7 @@
         `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
       ] : []),
       `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves.`,
+      `Two things these numbers cannot separate. The city says it prioritizes arterial streets over side streets when dispatching crews, so a ward with more arterial mileage may close requests faster without anyone working differently. And every row here started with a resident filing a request, so wards that report more, or report different things, will look different for that reason alone. Neither effect is corrected for here.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }
