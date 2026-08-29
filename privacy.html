@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy - CHIWARDBOARD</title>
+<meta name="description" content="What chiwardboard collects and what it does not: no accounts, no tracking cookies, and location that never leaves your browser.">
+<link rel="canonical" href="https://chiwardboard.vercel.app/privacy.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta property="og:site_name" content="chiwardboard">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chiwardboard.vercel.app/privacy.html">
+<meta property="og:title" content="Privacy - CHIWARDBOARD">
+<meta property="og:description" content="What chiwardboard collects and what it does not: no accounts, no tracking cookies, and location that never leaves your browser.">
+<meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="chiwardboard - Chicago city services, ranked by ward">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Privacy - CHIWARDBOARD">
+<meta name="twitter:description" content="What chiwardboard collects and what it does not: no accounts, no tracking cookies, and location that never leaves your browser.">
+<meta name="twitter:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<main class="wrap narrow">
+  <header class="masthead">
+    <div class="wordmark">
+      <a class="home" href="./" aria-label="chiwardboard home">
+        <svg class="flag" viewBox="0 0 64 20" aria-hidden="true">
+          <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
+          <g class="stars" transform="translate(6,5) scale(0.5)">
+            <path d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(28,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(56,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(84,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          </g>
+        </svg>
+        <h1>chi<span class="wm-accent">ward</span>board</h1>
+      </a>
+    </div>
+  </header>
+
+  <p class="crumb"><a href="./">&larr; Back to the board</a></p>
+
+  <section class="method">
+    <h2>Privacy</h2>
+    <p class="board-note">Last updated: August 29, 2026</p>
+    <p>chiwardboard is a static site that publishes public city records. There is no account system, no login, no payment mechanism of any kind, and no advertising. Here is exactly what happens to information when you use it.</p>
+  </section>
+
+  <section class="method">
+    <h2>What we collect</h2>
+    <ul>
+      <li><strong>Nothing that identifies you, on our side.</strong> The site has no database, no server code of its own, and no way to store anything you do here. It is HTML, CSS, JavaScript, and two data files.</li>
+      <li><strong>No cookies for tracking.</strong> The site sets no cookies at all. It does not use localStorage, sessionStorage, or IndexedDB.</li>
+      <li><strong>No accounts and no payments.</strong> There is nothing to sign up for and nothing to buy.</li>
+    </ul>
+  </section>
+
+  <section class="method">
+    <h2>&ldquo;Use my location&rdquo;</h2>
+    <ul>
+      <li>If you press the location button, your browser asks your permission and hands your coordinates to the page.</li>
+      <li><strong>Those coordinates are not sent to any server.</strong> They are compared against the ward boundary file already downloaded to your browser, using a point-in-polygon check that runs on your device. The result is a ward number.</li>
+      <li>We verified this in the code that ships with this site: the coordinate is read once and passed only to that local function. It is never placed in a network request, a URL, or a log.</li>
+      <li>Nothing about your location is stored, even locally. Reload the page and it is gone.</li>
+    </ul>
+  </section>
+
+  <section class="method">
+    <h2>The address box</h2>
+    <ul>
+      <li><strong>An address you type is sent to a server.</strong> It goes directly from your browser to the City of Chicago&rsquo;s public data portal at data.cityofchicago.org, as part of a search query for 311 records at that address.</li>
+      <li>It is not matched locally, and we are not trying to hide that. The city&rsquo;s records are the only way to answer the question accurately.</li>
+      <li>The address travels inside the web address of that request, which means the City of Chicago and its data platform may record it in ordinary server logs. Their handling of that request is governed by their policies, not ours.</li>
+      <li>The request does not pass through us. We never receive the address, and we do not store it.</li>
+      <li>If you would rather not send an address anywhere, use the location button, which stays on your device, or just click your ward on the map.</li>
+    </ul>
+  </section>
+
+  <section class="method">
+    <h2>Analytics</h2>
+    <ul>
+      <li><strong>No analytics script runs on this site.</strong> We confirmed this two ways: there is no analytics code, package, or tag anywhere in the source, and the page as actually served loads exactly one script, which is our own chart and table code.</li>
+      <li><strong>NOT DETERMINED:</strong> whether our hosting provider&rsquo;s built-in analytics product is switched on in its dashboard. That is an account setting that lives outside the source code, so we cannot confirm its state from the code alone. If it were switched on it would collect anonymous page-view data such as page path, referrer, country, and device type, without cookies. We will state a definite answer here once we can verify it.</li>
+      <li><strong>Server logs exist regardless.</strong> Like every website, requests reach a hosting provider (Vercel) that records standard technical information such as IP address, user agent, and the page requested, in order to serve the page. Google Fonts receives a similar request because the site loads a typeface from it.</li>
+    </ul>
+  </section>
+
+  <section class="method">
+    <h2>Where the data comes from</h2>
+    <p>Every figure on the board is computed from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a> and the city&rsquo;s 2023 ward boundaries. These are public records about service requests, published by the city. We do not add anything to them and we do not collect anything about the people who read them.</p>
+    <p>chiwardboard is an independent project. It is <strong>not affiliated with, endorsed by, or speaking for the City of Chicago</strong>.</p>
+  </section>
+
+  <section class="method">
+    <h2>Questions, corrections, removal requests</h2>
+    <p>Write to <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a>. That includes anything you believe we have gotten wrong, and any request concerning a record that appears through this site. Note that the underlying records are published by the City of Chicago, so removing something at the source is the city&rsquo;s decision, not ours - but tell us and we will point you to the right place and correct anything on our end.</p>
+  </section>
+
+  <footer class="foot">
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a></p>
+    <p>Made in Chicago. The data is public; the potholes are personal.</p>
+  </footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHIWARDBOARD - Chicago city services, ranked by ward</title>
+<meta name="description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<link rel="canonical" href="https://chiwardboard.vercel.app/">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta property="og:site_name" content="chiwardboard">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://chiwardboard.vercel.app/">
+<meta property="og:title" content="CHIWARDBOARD - Chicago city services, ranked by ward">
+<meta property="og:description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="chiwardboard - Chicago city services, ranked by ward">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CHIWARDBOARD - Chicago city services, ranked by ward">
+<meta name="twitter:description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<meta name="twitter:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <div class="wordmark">
+      <svg class="flag" viewBox="0 0 64 20" aria-hidden="true">
+        <rect y="3" width="64" height="4" class="stripe"/>
+        <rect y="13" width="64" height="4" class="stripe"/>
+        <g class="stars" transform="translate(6,5) scale(0.5)">
+          <path d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          <path transform="translate(28,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          <path transform="translate(56,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          <path transform="translate(84,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+        </g>
+      </svg>
+      <h1>chi<span class="wm-accent">ward</span>board</h1>
+    </div>
+    <p class="tagline">City services, ranked by ward. Public 311 records, plain language, receipts.</p>
+  </header>
+
+  <section id="hook" class="hook" hidden>
+    <p class="hook-line" id="hook-line"></p>
+    <p class="hook-sub" id="hook-sub"></p>
+    <div class="ward-actions">
+      <button type="button" id="share" class="share-btn">Share this</button>
+      <span class="share-done" id="share-done" hidden>Link copied.</span>
+    </div>
+  </section>
+
+  <nav id="types" class="types" aria-label="Request type" hidden></nav>
+
+  <section id="finder" class="finder" hidden>
+    <form id="finder-form">
+      <label class="finder-label" for="finder-input">Find your ward</label>
+      <div class="finder-row">
+        <input id="finder-input" type="search" placeholder="Your street address, e.g. 1060 W Addison St" autocomplete="street-address">
+        <button type="submit">Look up</button>
+        <button type="button" id="finder-gps" title="Use your location - checked against the ward map right here in your browser; your location is never sent anywhere">Use my location</button>
+      </div>
+    </form>
+    <p class="finder-note" id="finder-note">Addresses are matched against the city&rsquo;s own 311 records. Location stays in your browser.</p>
+  </section>
+
+  <section id="mine" class="mine" hidden></section>
+
+  <section id="board" hidden>
+    <div class="board-grid">
+      <div class="map-pane">
+        <h2 class="pane-title" id="map-title"></h2>
+        <p class="board-note" id="map-hint"></p>
+        <div class="map-box">
+          <svg id="map" viewBox="0 0 400 520" role="img" aria-label="Chicago ward map colored by median days to close"></svg>
+          <div id="map-tip" class="map-tip" hidden></div>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="table-pane">
+        <h2 class="pane-title" id="board-title"></h2>
+        <p class="board-note" id="board-note"></p>
+        <div class="table-scroll">
+          <table id="lb">
+            <thead>
+              <tr>
+                <th class="c-rank" scope="col">#</th>
+                <th class="c-ward" scope="col">Ward</th>
+                <th class="c-bar" scope="col">Median days</th>
+                <th class="c-num" scope="col">Slowest 10%</th>
+                <th class="c-num" scope="col">Requests</th>
+              </tr>
+            </thead>
+            <tbody id="lb-body"></tbody>
+          </table>
+        </div>
+        <p class="table-gloss">Median days = the middle request: half close faster, half slower. Slowest 10% = only one request in ten takes longer than this. Click any ward for the records behind its numbers.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="method" class="method" hidden>
+    <h2>How we counted</h2>
+    <ul id="method-list"></ul>
+  </section>
+
+  <section class="method">
+    <h2>What&rsquo;s on the board, and what isn&rsquo;t</h2>
+    <ul>
+      <li>The board tracks request types where the closure timestamp plausibly means work happened - a tow, a filled pothole, a baited alley. Informational calls and aircraft noise complaints are off the board: the city logs them at its own buildings (662,321 at the 311 call center in Ward 28; 364,900 at O&rsquo;Hare in Ward 41), so those records describe a facility, not a neighborhood.</li>
+      <li>Some types close almost instantly citywide. We show them anyway and say so - a race everyone finishes before lunch is still a public record.</li>
+    </ul>
+  </section>
+
+  <footer class="foot" id="foot" hidden>
+    <p id="foot-line"></p>
+    <p>Built from the City of Chicago&rsquo;s public <a id="foot-portal" href="">311 Service Requests dataset</a> and the city&rsquo;s 2023 ward boundaries. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a> &middot; questions: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a></p>
+    <p>Made in Chicago. The data is public; the potholes are personal.</p>
+  </footer>
+
+  <noscript><p class="board-note">This page renders a data snapshot with JavaScript. The raw snapshot is at <a href="data/leaderboard.json">data/leaderboard.json</a>.</p></noscript>
+</main>
+<script src="assets/app.js"></script>
+</body>
+</html>
