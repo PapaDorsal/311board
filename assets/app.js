@@ -280,13 +280,15 @@
     const ex = T.exclusions, dg = T.diagnostics, st = T.totals.statuses;
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
-      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests; ` +
-      `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
+      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests. ` +
+      `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded` +
+      `${T.totals.duplicates > 0 ? '' : ' (none for this type)'}; ` +
+      `<span class="fig">${fmt(dg.rowsTimed)}</span> completed, non-duplicate ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
       `Days to close is the time from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records). Requests closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
       `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
       `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
-      `Rows the city flags as duplicates: <span class="fig">${fmt(dg.duplicateFlagged)}</span>, currently included.`,
+      `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own Open311 tooling.`,
       `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is worked out from the records themselves, not taken from a summary we did not check.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
