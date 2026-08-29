@@ -182,6 +182,17 @@
   function streetLayer(wardBoxes) {
     if (!ST.length) return '';
     const lines = [], labels = [];
+    // A 6.4 unit label renders at 6.4px only when the map is drawn at 1:1. On a
+    // phone, and in the two-column desktop layout, it is drawn much smaller than
+    // that and the names stop being readable. Scale the type so a label always
+    // lands near 10 CSS px, and let the collision test below thin the set:
+    // fewer streets named, but the ones that are named can be read.
+    // The svg is aspect-fitted, so the drawn scale is the smaller of the two
+    // ratios - using width alone overstates it whenever the box letterboxes.
+    const mb = $('map').getBoundingClientRect();
+    const drawn = (mb.width && mb.height)
+      ? Math.min(mb.width / usedW, mb.height / usedH) : 1;
+    const SF = Math.max(1, 10 / (6.4 * drawn));
     const taken = (wardBoxes || []).slice();
     const hits = (b) => taken.some((t) => b.x0 < t.x1 && b.x1 > t.x0 && b.y0 < t.y1 && b.y1 > t.y0);
     for (const f of ST) {
@@ -209,7 +220,7 @@
       // and the labels already placed. A street with nowhere clear goes unlabelled -
       // the line still orients you, and a collided label helps nobody.
       const text = `${f.properties.name} ${f.properties.grid}`;
-      const halfLen = text.length * 1.7 + 3, halfThick = 5;
+      const halfLen = (text.length * 1.7 + 3) * SF, halfThick = 5 * SF;
       const PADX = 24, PADY = 12;
       const ang = vertical ? -90 : 0;
       // Try along the line rotated, then the same spots set horizontally: a horizontal
@@ -230,7 +241,7 @@
       if (!placed) continue;
       taken.push(placed.box);
       const { x, y } = placed;
-      labels.push(`<text class="st-label" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
+      labels.push(`<text class="st-label" style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
         `transform="rotate(${placed.rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
         `${esc(f.properties.name)} <tspan class="st-grid">${esc(f.properties.grid)}</tspan></text>`);
     }

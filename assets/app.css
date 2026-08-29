@@ -301,9 +301,9 @@ td.c-ward a:hover { color: var(--accent); }
   paint-order: stroke; stroke: var(--surface); stroke-width: 2.2px; stroke-linejoin: round;
 }
 #map .st-grid { opacity: 0.72; font-size: 0.86em; }
-/* on phones the map is half the size, so the names crowd the ward numbers: lines only */
-@media (max-width: 820px) { #map .st-label { display: none; } #map .st-line { opacity: 0.22; } }
-
+/* label size is set per-label in JS from how large the map is actually drawn;
+   here we only thicken the halo so small type stays readable over the fills. */
+@media (max-width: 820px) { #map .st-line { opacity: 0.22; } #map .st-label { stroke-width: 3px; } }
 /* footer utility: quiet, grouped, not a feature */
 .links { margin: 34px 0 0; padding-top: 16px; border-top: 1px solid var(--grid); }
 .links h2 { font-family: var(--display); text-transform: uppercase; font-size: 15px; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; }
