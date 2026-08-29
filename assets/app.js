@@ -128,8 +128,8 @@
       // A number crammed into a sliver of a ward is noise. Draw it only where the
       // shape can hold it; every ward is still identified on hover and on click.
       const b = wardBox.get(ward) || { w: 0, h: 0 };
-      const wide = String(ward).length > 1 ? 15 : 11;
-      if (b.w < wide || b.h < 13) return '';
+      const wide = String(ward).length > 1 ? 16 : 12;
+      if (b.w < wide || b.h < 14) return '';
       return `<text x="${px(lon).toFixed(1)}" y="${(py(lat) + 4).toFixed(1)}" text-anchor="middle">${ward}</text>`;
     }).join('');
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
@@ -146,9 +146,9 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> - median <span class="fig">${w.p50}</span> d, p90 <span class="fig">${w.p90}</span> d, <span class="fig">${fmt(w.n)}</span> requests`
+        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, slowest 10% over <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) + (aldName ? `<br>${esc(aldName)}` : '') +
-        `<br><span class="tip-cta">Click for the full report card</span>`;
+        `<br><span class="tip-cta">Source: City of Chicago 311 records. Click for the rows behind this.</span>`;
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
       tip.style.top = (e.clientY - r.top + 14) + 'px';
@@ -165,13 +165,13 @@
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
     $('board-note').innerHTML = `Fastest first. ` + (thin
-      ? `Rank is withheld from the ${word(thin)} ward${thin > 1 ? 's' : ''} with fewer than <span class="fig">${D.minWardN}</span> completed requests - too few to trust a percentile, too many to hide.`
-      : `Every ward clears the <span class="fig">${D.minWardN}</span>-request bar for this type.`);
+      ? `The ${word(thin)} ward${thin > 1 ? 's' : ''} marked <em>too few to rank</em> handled fewer than <span class="fig">${D.minWardN}</span> of these requests all year - too few for the numbers to mean much, too many to hide. They are listed but not ranked.`
+      : `Every ward handled at least <span class="fig">${D.minWardN}</span> of these requests, enough for the numbers to mean something.`);
     const maxP50 = Math.max(...T.wards.map((w) => w.p50));
     let rank = 0;
     $('lb-body').innerHTML = T.wards.map((w) => {
       const pct = Math.max(1.5, (w.p50 / (maxP50 || 1)) * 100);
-      const tag = w.thin ? ` <span class="thin-tag">n &lt; ${D.minWardN}</span>` : '';
+      const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank">${w.thin ? '–' : ++rank}</td>
@@ -179,7 +179,6 @@
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${w.p50}</span></div></td>
         <td class="c-num">${w.p90}</td>
         <td class="c-num">${fmt(w.n)}</td>
-        <td class="c-src"><a href="${esc(receiptUrl(T, w.ward))}" rel="noopener">rows</a></td>
       </tr>`;
     }).join('');
     $('board').hidden = false;
@@ -192,11 +191,11 @@
       `&ldquo;Closed&rdquo; means status Completed. ${D.year} filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests; ` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
-      `Days to close is closed_date minus created_date. Same-second closures, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
+      `Days to close is the time from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records). Requests closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
       `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
       `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
       `Rows the city flags as duplicates: <span class="fig">${fmt(dg.duplicateFlagged)}</span>, currently included.`,
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days; nine in ten within <span class="fig">${T.citywide.p90}</span>. Medians are computed from the rows, not from an aggregate we didn&rsquo;t check.`,
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves, not from a summary we did not check.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }

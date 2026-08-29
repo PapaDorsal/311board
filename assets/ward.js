@@ -7,7 +7,29 @@
   const ward = Number(new URLSearchParams(location.search).get('w'));
   if (!Number.isInteger(ward) || ward < 1 || ward > 50) { $('missing').hidden = false; return; }
 
-  document.title = `Ward ${ward} report card - chiwardboard`;
+  // Per-ward identity so tabs, browser history and shared links are distinguishable.
+  const BASE = 'https://chiwardboard.vercel.app';
+  const wTitle = `Ward ${ward} - CHIWARDBOARD`;
+  const aldName = ((D.aldermen || {})[ward] || {}).name;
+  const wDesc = `How fast the city closes 311 requests in Chicago's Ward ${ward}` +
+    (aldName ? ` (Alderperson ${aldName})` : '') +
+    `: ${D.types.length} request types, ranked against the other 49 wards, from public records.`;
+  document.title = wTitle;
+  const setMeta = (sel, attr, val) => {
+    let el = document.head.querySelector(sel);
+    if (!el) { el = document.createElement(sel.startsWith('link') ? 'link' : 'meta');
+      const m = sel.match(/\[(\w+)="([^"]+)"\]/); if (m) el.setAttribute(m[1], m[2]);
+      document.head.appendChild(el); }
+    el.setAttribute(attr, val);
+  };
+  const wUrl = `${BASE}/ward.html?w=${ward}`;
+  setMeta('meta[name="description"]', 'content', wDesc);
+  setMeta('link[rel="canonical"]', 'href', wUrl);
+  setMeta('meta[property="og:url"]', 'content', wUrl);
+  setMeta('meta[property="og:title"]', 'content', wTitle);
+  setMeta('meta[property="og:description"]', 'content', wDesc);
+  setMeta('meta[name="twitter:title"]', 'content', wTitle);
+  setMeta('meta[name="twitter:description"]', 'content', wDesc);
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
   $('ward-sub').innerHTML = (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
@@ -70,7 +92,7 @@
     </tr>`;
   }).join('');
   $('card-note').textContent = ranked
-    ? `Faster than the citywide median in ${wins} of ${ranked} ranked categories. Medians in days; "rank" is fastest-first among wards with enough requests to trust a percentile.`
+    ? `Faster than the citywide typical time in ${wins} of ${ranked} ranked categories. Figures are median days - the middle request, half faster and half slower. Rank is fastest-first among the wards that handled enough of these requests for the numbers to mean something.`
     : 'Not enough requests in any category to rank this ward.';
   $('card').hidden = false;
 

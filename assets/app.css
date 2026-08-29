@@ -40,6 +40,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 15.5px/1.55 var(--sans); }
 .wrap { max-width: 1160px; margin: 0 auto; padding: 34px 20px 64px; }
+@media (min-width: 1400px) { .wrap { max-width: 1360px; } }
 a { color: inherit; }
 
 /* masthead */
@@ -96,7 +97,7 @@ a { color: inherit; }
 .mine .err { color: var(--ink-2); }
 
 /* board layout */
-.board-grid { display: grid; grid-template-columns: minmax(300px, 38fr) minmax(0, 62fr); gap: 26px; align-items: start; }
+.board-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(540px, 600px); gap: 26px; align-items: start; }
 @media (max-width: 820px) { .board-grid { grid-template-columns: minmax(0, 1fr); } }
 .pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: 19px; margin: 0 0 8px; }
 .map-pane { position: sticky; top: 14px; min-width: 0; }
@@ -191,8 +192,8 @@ td .row-sub a, .row-sub { font-weight: 400; }
 td.c-ward a { text-decoration: none; color: inherit; }
 td.c-ward a:hover { color: var(--accent); }
 #map text {
-  font: 700 10.5px var(--sans); fill: var(--ink); pointer-events: none;
-  paint-order: stroke; stroke: var(--surface); stroke-width: 2.6px; stroke-linejoin: round;
+  font: 700 11.5px var(--sans); fill: var(--ink); pointer-events: none;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 2.8px; stroke-linejoin: round;
 }
 
 /* ward report card fits a phone without horizontal scroll */
@@ -231,3 +232,6 @@ td.c-ward a:hover { color: var(--accent); }
   border-radius: 8px; padding: 10px 16px;
 }
 .file-btn:hover { filter: brightness(1.08); }
+
+.table-gloss { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; max-width: 78ch; }
+.method code { font-family: var(--mono); font-size: 0.92em; }

@@ -3,9 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ward report card - chiwardboard</title>
-<meta name="description" content="One Chicago ward's 311 response times across every request type on the board.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z' fill='%23e4002b'/%3E%3C/svg%3E">
+<title>Ward report card - CHIWARDBOARD</title>
+<meta name="description" content="One Chicago ward’s 311 response times across every request type on the board, with its alderperson’s office contact.">
+<link rel="canonical" href="https://chiwardboard.vercel.app/ward.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta property="og:site_name" content="chiwardboard">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chiwardboard.vercel.app/ward.html">
+<meta property="og:title" content="Ward report card - CHIWARDBOARD">
+<meta property="og:description" content="One Chicago ward’s 311 response times across every request type on the board, with its alderperson’s office contact.">
+<meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="chiwardboard - Chicago city services, ranked by ward">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ward report card - CHIWARDBOARD">
+<meta name="twitter:description" content="One Chicago ward’s 311 response times across every request type on the board, with its alderperson’s office contact.">
+<meta name="twitter:image" content="https://chiwardboard.vercel.app/assets/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
@@ -56,8 +74,8 @@
         <thead>
           <tr>
             <th scope="col">Request type</th>
-            <th class="c-num" scope="col">Ward</th>
-            <th class="c-num" scope="col">City</th>
+            <th class="c-num" scope="col">This ward</th>
+            <th class="c-num" scope="col">Citywide</th>
             <th class="c-num" scope="col">Rank</th>
             <th class="c-num" scope="col">Requests</th>
             <th class="c-src" scope="col">Source</th>
@@ -75,7 +93,7 @@
   </section>
 
   <footer class="foot">
-    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a>.</p>
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a> &middot; corrections: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a></p>
   </footer>
 </main>
 <script src="assets/ward.js"></script>
