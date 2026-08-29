@@ -3,26 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CHIWARDBOARD - Chicago city services, ranked by ward</title>
-<meta name="description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<title>ChiWardBoard - See which ward fixes potholes fastest</title>
+<meta name="description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
 <link rel="canonical" href="https://chiwardboard.vercel.app/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
-<meta property="og:site_name" content="chiwardboard">
+<meta property="og:site_name" content="ChiWardBoard">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://chiwardboard.vercel.app/">
-<meta property="og:title" content="CHIWARDBOARD - Chicago city services, ranked by ward">
-<meta property="og:description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<meta property="og:title" content="ChiWardBoard - See which ward fixes potholes fastest">
+<meta property="og:description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
 <meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="chiwardboard - Chicago city services, ranked by ward">
+<meta property="og:image:alt" content="ChiWardBoard - see which ward fixes potholes fastest">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="CHIWARDBOARD - Chicago city services, ranked by ward">
-<meta name="twitter:description" content="Which Chicago wards close 311 requests fast, and which do not. Potholes, rats, graffiti and more, ranked across all 50 wards from the city’s public records.">
+<meta name="twitter:title" content="ChiWardBoard - See which ward fixes potholes fastest">
+<meta name="twitter:description" content="See which Chicago ward fixes potholes fastest - and which is slowest on rats, graffiti, street lights and more. Public 311 records, all 50 wards, with receipts.">
 <meta name="twitter:image" content="https://chiwardboard.vercel.app/assets/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +45,7 @@
       </svg>
       <h1>chi<span class="wm-accent">ward</span>board</h1>
     </div>
-    <p class="tagline">City services, ranked by ward. Public 311 records, plain language, receipts.</p>
+    <p class="tagline">See which ward fixes potholes fastest.</p>
   </header>
 
   <section id="hook" class="hook" hidden>
@@ -59,7 +59,18 @@
 
   <section id="board" hidden>
     <div class="board-grid">
-      <nav id="types" class="types" aria-label="Request type"></nav>
+      <div class="board-left">
+      <section id="finder" class="finder" hidden>
+        <button type="button" id="finder-gps" class="gps-btn" title="Checked against the ward map in your browser; your location is never sent anywhere">Use my location</button>
+        <form id="finder-form" class="addr-form">
+          <label class="finder-label" for="finder-input">or look up an address</label>
+          <input id="finder-input" type="search" placeholder="1060 W Addison St" autocomplete="street-address">
+          <button type="submit" class="addr-go">Go</button>
+        </form>
+        <p class="finder-note" id="finder-note">Location stays in your browser. Or just click a ward on the map.</p>
+      </section>
+      <section id="mine" class="mine" hidden></section>
+
       <div class="map-pane">
         <h2 class="pane-title" id="map-title"></h2>
         <p class="board-note" id="map-hint"></p>
@@ -68,6 +79,8 @@
           <div id="map-tip" class="map-tip" hidden></div>
         </div>
         <div class="legend" id="legend"></div>
+      </div>
+      <nav id="types" class="types" aria-label="Request type"></nav>
       </div>
       <div class="table-pane">
         <h2 class="pane-title" id="board-title"></h2>
@@ -90,20 +103,6 @@
       </div>
     </div>
   </section>
-
-  <section id="finder" class="finder" hidden>
-    <form id="finder-form">
-      <label class="finder-label" for="finder-input">Find your ward</label>
-      <div class="finder-row">
-        <input id="finder-input" type="search" placeholder="Your street address, e.g. 1060 W Addison St" autocomplete="street-address">
-        <button type="submit">Look up</button>
-        <button type="button" id="finder-gps" title="Use your location - checked against the ward map right here in your browser; your location is never sent anywhere">Use my location</button>
-      </div>
-    </form>
-    <p class="finder-note" id="finder-note">Addresses are matched against the city&rsquo;s own 311 records. Location stays in your browser.</p>
-  </section>
-
-  <section id="mine" class="mine" hidden></section>
 
   <section id="method" class="method" hidden>
     <h2>How we counted</h2>
