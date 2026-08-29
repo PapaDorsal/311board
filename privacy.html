@@ -89,8 +89,8 @@
   <section class="method">
     <h2>Analytics</h2>
     <ul>
-      <li><strong>No analytics script runs on this site.</strong> We confirmed this two ways: there is no analytics code, package, or tag anywhere in the source, and the page as actually served loads exactly one script, which is our own chart and table code.</li>
-      <li><strong>Our host&rsquo;s built-in analytics is not running either.</strong> When Vercel Web Analytics is switched on for a site, it injects its own tracking script into every page it serves. We checked the pages as actually delivered to a browser: no such script is injected, and no cookies are set. Nothing is measuring you here. (Vercel still keeps ordinary server logs, described below, as every host does.)</li>
+      <li><strong>We count visits with Vercel Web Analytics.</strong> Each page loads our host&rsquo;s analytics script, which reports the page you viewed, the page that referred you, and coarse device and location categories (browser, device type, country) to Vercel. That is the second of the two scripts the site loads; the first is our own chart and table code.</li>
+      <li><strong>It is cookieless and does not follow you.</strong> The script sets no cookies and stores nothing in your browser. Visitors are counted by a short-lived hash rather than a persistent identifier, so it cannot recognise you across days or across other sites. We see aggregate counts, not individual people. (Vercel also keeps ordinary server logs, described below, as every host does.)</li>
       <li><strong>Server logs exist regardless.</strong> Like every website, requests reach a hosting provider (Vercel) that records standard technical information such as IP address, user agent, and the page requested, in order to serve the page. Google Fonts receives a similar request because the site loads a typeface from it.</li>
     </ul>
   </section>
@@ -111,5 +111,6 @@
     <p>Made in Chicago. The data is public; the potholes are personal.</p>
   </footer>
 </main>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
