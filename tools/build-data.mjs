@@ -3,8 +3,13 @@
 // writes data/leaderboard.json. Every number the page shows comes from this run.
 // Usage: node tools/build-data.mjs
 const BASE = 'https://data.cityofchicago.org/resource/v6vf-nfxy.json';
-const YEAR = 2025;
-const Y = `created_date >= '${YEAR}-01-01T00:00:00' AND created_date < '${YEAR + 1}-01-01T00:00:00'`;
+// Rolling 12 months ending at the most recent COMPLETE month, so the board never
+// mixes a part-filled month into a median. The city's own published median dataset
+// (u6fz-87ei) uses the same rolling-12-month shape.
+const WINDOW_FROM = process.env.WINDOW_FROM || '2025-08-01';
+const WINDOW_TO   = process.env.WINDOW_TO   || '2026-08-01';   // exclusive
+const YEAR = Number(WINDOW_FROM.slice(0, 4));
+const Y = `created_date >= '${WINDOW_FROM}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00'`;
 const MIN_WARD_N = 200;      // headline endpoints only from wards at/above this
 
 // The suite. Featured first. plain = how the page says it; official = the record's term.
@@ -157,6 +162,9 @@ const out = {
   generatedAt: new Date(T0).toISOString(),
   source: { dataset: 'v6vf-nfxy', api: BASE, portal: 'https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy' },
   year: YEAR,
+  window: { from: WINDOW_FROM, to: WINDOW_TO,
+            label: new Date(WINDOW_FROM + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+              + ' to ' + new Date(new Date(WINDOW_TO + 'T00:00:00Z').getTime() - 86400000).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) },
   minWardN: MIN_WARD_N,
   featured: 'abandoned-vehicle',
   aldermen,
