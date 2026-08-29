@@ -1,6 +1,8 @@
 // Ward report card: one ward, every type on the board. Same snapshot as the front page.
 (async function () {
   const D = await (await fetch('data/leaderboard.json')).json();
+  const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
+  const PERIOD = WIN.label;
   const nbRes = await fetch('data/ward-neighborhoods.json').catch(() => null);
   const NB = nbRes && nbRes.ok ? (await nbRes.json()).wards : {};
   const $ = (id) => document.getElementById(id);
@@ -15,7 +17,7 @@
   const aldName = ((D.aldermen || {})[ward] || {}).name;
   const wDesc = `How fast the city closes 311 requests in Chicago's Ward ${ward}` +
     (aldName ? ` (Alderperson ${aldName})` : '') +
-    `: ${D.types.length} request types, ranked against the other 49 wards, from public records.`;
+    `: ${D.types.length} request types over ${PERIOD}, ranked against the other 49 wards, from public records.`;
   document.title = wTitle;
   const setMeta = (sel, attr, val) => {
     let el = document.head.querySelector(sel);
@@ -37,7 +39,7 @@
   const wHoods = ((NB[ward] || {}).names || []).join(', ');
   $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
     (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
-    ` &middot; ${D.year} numbers`;
+    ` &middot; ${PERIOD}`;
 
   // Full office block, so anyone reading a number can act on it without a second search.
   if (ald) {
@@ -72,14 +74,14 @@
 
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
   function receiptUrlAll() {
-    const where = `created_date >= '${D.year}-01-01T00:00:00' AND created_date < '${D.year + 1}-01-01T00:00:00'` +
+    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
       ` AND status='Completed' AND ward=${ward}`;
     const p = new URLSearchParams({ $select: 'sr_number,sr_type,street_address,created_date,closed_date', $where: where, $order: 'created_date DESC', $limit: '1000' });
     return `${D.source.api}?${p}`;
   }
 
   function receiptUrl(type) {
-    const where = `created_date >= '${D.year}-01-01T00:00:00' AND created_date < '${D.year + 1}-01-01T00:00:00'` +
+    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
       ` AND sr_type='${type.official.replace(/'/g, "''")}' AND status='Completed' AND ward=${ward}`;
     const p = new URLSearchParams({ $select: 'sr_number,street_address,created_date,closed_date', $where: where, $order: 'created_date DESC', $limit: '1000' });
     return `${D.source.api}?${p}`;
@@ -170,7 +172,7 @@
   $('table-src').innerHTML =
     `Figures computed from the City of Chicago&rsquo;s public ` +
     `<a href="${esc(D.source.portal)}" rel="noopener">311 Service Requests dataset</a>` +
-    ` (${D.year}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
+    ` (${PERIOD}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
 
   $('card').hidden = false;
 

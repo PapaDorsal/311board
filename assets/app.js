@@ -10,6 +10,9 @@
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
   const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
+  // The board covers a rolling window, not a calendar year; say so wherever a period is named.
+  const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
+  const PERIOD = WIN.label;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -34,7 +37,7 @@
     return w <= 1 ? 'about a week' : `about ${word(w)} weeks`;
   }
   function receiptUrl(type, ward) {
-    const where = `created_date >= '${D.year}-01-01T00:00:00' AND created_date < '${D.year + 1}-01-01T00:00:00'` +
+    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
       ` AND sr_type='${type.official.replace(/'/g, "''")}' AND status='Completed' AND ward=${ward}`;
     const p = new URLSearchParams({
       $select: 'sr_number,street_address,created_date,closed_date',
@@ -91,10 +94,10 @@
     if (!h) { $('hook').hidden = true; return; }
     if (h.slowest.p50 < 1.5) {
       $('hook-line').textContent = `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Typical times run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards in ${D.year}. This one is not a race - but it is a record.`;
+      $('hook-sub').innerHTML = `Typical times run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Typical days to close, ${D.year}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
         `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
         `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     }
@@ -196,7 +199,7 @@
     const ex = T.exclusions, dg = T.diagnostics, st = T.totals.statuses;
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
-      `&ldquo;Closed&rdquo; means status Completed. ${D.year} filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests; ` +
+      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests; ` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
       `Days to close is the time from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records). Requests closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span>` +
@@ -230,9 +233,9 @@
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
       ` &middot; <a href="ward.html?w=${myWard}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
-      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
+      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests over ${PERIOD}` +
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
-      : `<p>No ${D.year} data for this type in Ward ${myWard}.</p>`);
+      : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
     box.hidden = false;
     const row = document.getElementById(`wrow-${myWard}`);
     if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -319,7 +322,7 @@
   });
 
   // Footer
-  $('foot-line').innerHTML = `Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)} from live API responses. ${D.year} season.`;
+  $('foot-line').innerHTML = `Covering ${PERIOD}, a rolling 12 months. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)} from live API responses.`;
   $('foot-portal').href = D.source.portal;
   $('foot').hidden = false;
 
