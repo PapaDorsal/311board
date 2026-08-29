@@ -105,11 +105,13 @@
     const breaks = bins(T);
     const byWard = new Map(T.wards.map((w) => [w.ward, w]));
     $('map-title').textContent = `Median days on the map`;
+    const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
       const w = byWard.get(ward);
       const fill = w ? (w.thin ? 'var(--map-empty)' : binColor(w.p50, breaks)) : 'var(--map-empty)';
       return `<path d="${d}" fill="${fill}" data-ward="${ward}" class="${ward === myWard ? 'sel' : ''}"></path>`;
-    }).join('');
+    }).join('') + [...labels.entries()].map(([ward, [lon, lat]]) =>
+      `<text x="${px(lon).toFixed(1)}" y="${(py(lat) + 3).toFixed(1)}" text-anchor="middle">${ward}</text>`).join('');
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
     $('legend').innerHTML =
       RAMP.map((c, i) => {
@@ -122,9 +124,10 @@
     $('map').onmousemove = (e) => {
       const t = e.target.closest('path'); if (!t) { tip.hidden = true; return; }
       const w = byWard.get(Number(t.dataset.ward));
-      tip.innerHTML = w
+      const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
+      tip.innerHTML = (w
         ? `<strong>Ward ${w.ward}</strong> — median <span class="fig">${w.p50}</span> d, p90 <span class="fig">${w.p90}</span> d, <span class="fig">${fmt(w.n)}</span> requests`
-        : `<strong>Ward ${t.dataset.ward}</strong> — no data`;
+        : `<strong>Ward ${t.dataset.ward}</strong> — no data`) + (aldName ? `<br>${esc(aldName)}` : '');
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
       tip.style.top = (e.clientY - r.top + 14) + 'px';
@@ -148,9 +151,10 @@
     $('lb-body').innerHTML = T.wards.map((w) => {
       const pct = Math.max(1.5, (w.p50 / (maxP50 || 1)) * 100);
       const tag = w.thin ? ` <span class="thin-tag">n &lt; ${D.minWardN}</span>` : '';
+      const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank">${w.thin ? '–' : ++rank}</td>
-        <td class="c-ward">Ward ${w.ward}${tag}</td>
+        <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${w.p50}</span></div></td>
         <td class="c-num">${w.p90}</td>
         <td class="c-num">${fmt(w.n)}</td>
@@ -191,7 +195,9 @@
     const T = type();
     const idx = T.wards.filter((w) => !w.thin).findIndex((w) => w.ward === myWard);
     const w = T.wards.find((x) => x.ward === myWard);
-    box.innerHTML = `<h3>Your ward: ${myWard}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` + (w
+    const ald = (D.aldermen || {})[myWard];
+    box.innerHTML = `<h3>Your ward: ${myWard}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
+      (ald && ald.name ? `<p>Alderperson ${esc(ald.name)} &middot; <a href="ward.html?w=${myWard}">full report card &rarr;</a></p>` : `<p><a href="ward.html?w=${myWard}">full report card &rarr;</a></p>`) + (w
       ? `<p>For ${esc(T.plain)}: median <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
         (idx >= 0 ? ` — <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` — too few requests to rank.`) + `</p>`
       : `<p>No ${D.year} data for this type in Ward ${myWard}.</p>`);
@@ -257,6 +263,20 @@
         finderErr('No 311 record matches that address. Try just the number and street name, like "1060 W ADDISON".');
       }
     } catch { finderErr('The city data portal did not answer — try again, or use your location.'); }
+  };
+
+  $('share').onclick = async () => {
+    const T = type();
+    const url = `${location.origin}${location.pathname}#${T.key}`;
+    const h = T.headline;
+    const text = h && h.slowest.p50 >= 1.5
+      ? `Ward ${h.slowest.ward} takes ${h.slowest.p50} days on ${T.plain}. Ward ${h.fastest.ward}: ${h.fastest.p50}. — chiwardboard`
+      : `Chicago's ${T.plain}, ranked by ward — chiwardboard`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'chiwardboard', text, url }); return; }
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
+    } catch { /* user cancelled */ }
   };
 
   $('types').addEventListener('click', (e) => {

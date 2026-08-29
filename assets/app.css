@@ -159,3 +159,36 @@ tr.thin .bar { background: var(--bar-thin); }
 .method li { margin: 0 0 6px; }
 .foot { margin-top: 42px; padding-top: 14px; border-top: 1px solid var(--grid); color: var(--muted); font-size: 12.5px; }
 .foot p { margin: 0 0 6px; }
+
+/* shared: subpages, ward labels, share */
+.wrap.narrow { max-width: 720px; }
+.masthead a.home { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
+.crumb { font-size: 13.5px; margin: 22px 0 6px; }
+.crumb a { color: var(--accent); text-decoration: none; }
+.ward-title { font-family: var(--display); text-transform: uppercase; font-weight: 800; font-size: 40px; margin: 4px 0 2px; }
+.ward-sub { color: var(--ink-2); margin: 0 0 12px; }
+.ward-actions { margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+.share-btn {
+  font: 600 13.5px var(--sans); cursor: pointer; border-radius: 999px; padding: 8px 16px;
+  background: transparent; color: var(--accent); border: 1px solid var(--accent);
+}
+.share-btn:hover { background: var(--accent); color: #fff; }
+.share-done { font-size: 13px; color: var(--ink-2); }
+.row-sub { font-size: 12px; color: var(--muted); }
+td .row-sub a, .row-sub { font-weight: 400; }
+td.c-ward a { text-decoration: none; color: inherit; }
+td.c-ward a:hover { color: var(--accent); }
+#map text {
+  font: 600 9px var(--sans); fill: var(--ink); pointer-events: none;
+  paint-order: stroke; stroke: var(--surface); stroke-width: 2px; stroke-linejoin: round;
+}
+
+/* ward report card fits a phone without horizontal scroll */
+.card-table table { min-width: 0; }
+.card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
+
+@media (max-width: 480px) {
+  .wordmark h1 { font-size: 25px; }
+  .flag { width: 56px; height: 18px; }
+  .hook-line { font-size: 34px; }
+}

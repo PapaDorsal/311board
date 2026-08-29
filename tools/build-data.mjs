@@ -134,12 +134,23 @@ async function profile({ key, official, plain }) {
 const types = [];
 for (const t of TYPES) types.push(await profile(t));
 
+// Who runs each ward — the city's Ward Offices dataset. "Last, First" -> "First Last".
+const OFFICES = 'https://data.cityofchicago.org/resource/htai-wnw4.json';
+const offRes = await fetch(`${OFFICES}?$limit=60`, { signal: AbortSignal.timeout(60000) });
+const offices = offRes.ok ? await offRes.json() : [];
+const aldermen = Object.fromEntries(offices.map((o) => {
+  const name = String(o.alderman || '').split(',').map((x) => x.trim()).reverse().join(' ').trim();
+  return [Number(o.ward), { name, email: o.email || null, website: o.website?.url || null }];
+}));
+console.log(`ward offices: ${Object.keys(aldermen).length}`);
+
 const out = {
   generatedAt: new Date(T0).toISOString(),
   source: { dataset: 'v6vf-nfxy', api: BASE, portal: 'https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy' },
   year: YEAR,
   minWardN: MIN_WARD_N,
   featured: 'abandoned-vehicle',
+  aldermen,
   types,
   run: { httpAttempts: calls, retries, timeouts, wallSeconds: r2((Date.now() - T0) / 1000) },
 };

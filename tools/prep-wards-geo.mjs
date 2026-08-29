@@ -45,9 +45,14 @@ const features = gj.features.map((f) => {
   const simp = polys.map((rings) => rings
     .map((ring) => simplifyRing(ring, TOL).map(([x, y]) => [r4(x), r4(y)]))
     .filter((ring) => ring.length >= 4));
+  // label point: centroid of the largest ring (good enough for a number label)
+  let best = null, bestN = -1;
+  for (const rings of simp) if (rings[0] && rings[0].length > bestN) { bestN = rings[0].length; best = rings[0]; }
+  const cx = r4(best.reduce((a, p) => a + p[0], 0) / best.length);
+  const cy = r4(best.reduce((a, p) => a + p[1], 0) / best.length);
   return {
     type: 'Feature',
-    properties: { ward },
+    properties: { ward, label: [cx, cy] },
     geometry: { type: 'MultiPolygon', coordinates: simp },
   };
 }).sort((a, b) => a.properties.ward - b.properties.ward);

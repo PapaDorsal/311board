@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>chiwardboard — which Chicago wards deliver</title>
 <meta name="description" content="Chicago 311 response times, ranked by ward. Public records, plain language, receipts.">
+<meta property="og:title" content="chiwardboard — which Chicago wards deliver">
+<meta property="og:description" content="City services, ranked by ward. Which wards fill potholes fast, and which don't. Public 311 records, with receipts.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://chiwardboard.vercel.app/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z' fill='%23e4002b'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,6 +38,10 @@
   <section id="hook" class="hook" hidden>
     <p class="hook-line" id="hook-line"></p>
     <p class="hook-sub" id="hook-sub"></p>
+    <div class="ward-actions">
+      <button type="button" id="share" class="share-btn">Share this</button>
+      <span class="share-done" id="share-done" hidden>Link copied.</span>
+    </div>
   </section>
 
   <nav id="types" class="types" aria-label="Request type" hidden></nav>
@@ -98,7 +107,8 @@
 
   <footer class="foot" id="foot" hidden>
     <p id="foot-line"></p>
-    <p>Built from the City of Chicago&rsquo;s public <a id="foot-portal" href="">311 Service Requests dataset</a> and the city&rsquo;s 2023 ward boundaries. Not affiliated with the City of Chicago.</p>
+    <p>Built from the City of Chicago&rsquo;s public <a id="foot-portal" href="">311 Service Requests dataset</a> and the city&rsquo;s 2023 ward boundaries. Not affiliated with the City of Chicago. <a href="about.html">About, methodology &amp; privacy</a> &middot; questions: <a href="mailto:michaelrappa@gmail.com">michaelrappa@gmail.com</a></p>
+    <p>Made in Chicago. The data is public; the potholes are personal.</p>
   </footer>
 
   <noscript><p class="board-note">This page renders a data snapshot with JavaScript. The raw snapshot is at <a href="data/leaderboard.json">data/leaderboard.json</a>.</p></noscript>

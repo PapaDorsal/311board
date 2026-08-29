@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ward report card — chiwardboard</title>
+<meta name="description" content="One Chicago ward's 311 response times across every request type on the board.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z' fill='%23e4002b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <div class="wordmark">
+      <a class="home" href="./" aria-label="chiwardboard home">
+        <svg class="flag" viewBox="0 0 64 20" aria-hidden="true">
+          <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
+          <g class="stars" transform="translate(6,5) scale(0.5)">
+            <path d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(28,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(56,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(84,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          </g>
+        </svg>
+        <h1>chi<span class="wm-accent">ward</span>board</h1>
+      </a>
+    </div>
+  </header>
+
+  <section id="card" hidden>
+    <p class="crumb"><a href="./">&larr; All wards</a></p>
+    <h2 class="ward-title" id="ward-title"></h2>
+    <p class="ward-sub" id="ward-sub"></p>
+    <div class="ward-actions">
+      <button type="button" id="share" class="share-btn">Share this report card</button>
+      <span class="share-done" id="share-done" hidden>Link copied.</span>
+    </div>
+    <div class="table-scroll card-table" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Request type</th>
+            <th class="c-num" scope="col">Ward</th>
+            <th class="c-num" scope="col">City</th>
+            <th class="c-num" scope="col">Rank</th>
+            <th class="c-num" scope="col">Requests</th>
+            <th class="c-src" scope="col">Source</th>
+          </tr>
+        </thead>
+        <tbody id="card-body"></tbody>
+      </table>
+    </div>
+    <p class="board-note" id="card-note" style="margin-top:10px"></p>
+  </section>
+
+  <section id="missing" class="method" hidden>
+    <h2>That&rsquo;s not a ward</h2>
+    <p style="color:var(--ink-2)">Chicago has 50 of them, numbered 1 through 50. <a href="./">Pick one from the board.</a></p>
+  </section>
+
+  <footer class="foot">
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About, methodology &amp; privacy</a>.</p>
+  </footer>
+</main>
+<script src="assets/ward.js"></script>
+</body>
+</html>
