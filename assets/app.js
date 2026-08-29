@@ -179,6 +179,26 @@
       placedWardBoxes.push({ x0: lx - halfW, x1: lx + halfW, y0: ly - 10, y1: ly + 3 });
       return `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle">${ward}</text>`;
     }).join('') + streetLayer(placedWardBoxes);
+    // Reconcile with rendered truth: the placement above works from estimated
+    // text boxes, and an estimate that runs a few pixels tight puts a street
+    // name on top of a ward number. Measure what the browser actually drew and
+    // hide any label that collides - expressways keep their spot first.
+    requestAnimationFrame(() => {
+      const svg = $('map');
+      const nums = [...svg.querySelectorAll('text:not(.st-label)')].map((e) => e.getBoundingClientRect());
+      const labs = [...svg.querySelectorAll('.st-label')]
+        .sort((a, b) => b.classList.contains('x-label') - a.classList.contains('x-label'));
+      const kept = [];
+      const clash = (A, B) => A.left < B.right && B.left < A.right && A.top < B.bottom && B.top < A.bottom;
+      const seen = new Set();
+      for (const el of labs) {
+        const name = el.dataset.tent;
+        const r = el.getBoundingClientRect();
+        if ((name && seen.has(name)) || nums.some((n) => clash(r, n)) || kept.some((k) => clash(r, k))) { el.remove(); continue; }
+        kept.push(r);
+        if (name) seen.add(name);
+      }
+    });
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
     $('legend').innerHTML =
       RAMP.map((c, i) => {
@@ -228,10 +248,14 @@
     const SF = Math.max(1, 10 / (6.4 * drawn));
     const taken = (wardBoxes || []).slice();
     const hits = (b) => taken.some((t) => b.x0 < t.x1 && b.x1 > t.x0 && b.y0 < t.y1 && b.y1 > t.y0);
-    for (const f of ST) {
+    // Expressways place their labels first: the brief names three of them, and
+    // letting a surface street claim the space first left only Kennedy labelled.
+    const ORDERED = [...ST].sort((a, b) => (b.properties.kind === 'xway') - (a.properties.kind === 'xway'));
+    for (const f of ORDERED) {
+      const xway = f.properties.kind === 'xway';
       for (const seg of f.geometry.coordinates) {
         const pts = seg.map(([lon, lat]) => [px(lon), py(lat)]);
-        lines.push(`<path class="st-line" d="M${pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}"/>`);
+        lines.push(`<path class="${xway ? 'x-line' : 'st-line'}" d="M${pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('L')}"/>`);
       }
       // Label near the end of the longest run rather than its midpoint: the middle of
       // the city is where the ward numbers live, and midpoint labels collided with them.
@@ -252,7 +276,9 @@
       // Walk along the street and take the first spot that clears the ward numbers
       // and the labels already placed. A street with nowhere clear goes unlabelled -
       // the line still orients you, and a collided label helps nobody.
-      const text = `${f.properties.name} ${f.properties.grid}`;
+      const xway2 = f.properties.kind === 'xway';
+      if (!f.properties.name) continue;   // Stevenson and Edens: line only, no label
+      const text = f.properties.grid ? `${f.properties.name} ${f.properties.grid}` : f.properties.name;
       const halfLen = (text.length * 1.7 + 3) * SF, halfThick = 5 * SF;
       const PADX = 24, PADY = 12;
       const ang = vertical ? -90 : 0;
@@ -263,20 +289,41 @@
       for (const rot of vertical ? [true, false] : [false]) {
         for (const frac of [0.14, 0.06, 0.24, 0.34, 0.86, 0.76, 0.66, 0.5, 0.94]) {
           const at = ordered[Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * frac)))];
-          const x = Math.min(Math.max(at[0], PADX), usedW - PADX);
-          const y = Math.min(Math.max(at[1], PADY), usedH - PADY);
-          const box = rot
-            ? { x0: x - halfThick, x1: x + halfThick, y0: y - halfLen, y1: y + halfLen }
-            : { x0: x - halfLen, x1: x + halfLen, y0: y - halfThick, y1: y + halfThick };
-          if (!hits(box)) { placed = { x, y, box, rot }; break outer; }
+          // Expressways run straight through the densest ward-number territory,
+          // so their labels may also try sitting just off the line.
+          const offs = xway2 ? [0, 9, -9, 15, -15, 21, -21] : [0];
+          for (const off of offs) {
+            const x = Math.min(Math.max(at[0] + (rot ? off : 0), PADX), usedW - PADX);
+            const y = Math.min(Math.max(at[1] + (rot ? 0 : off), PADY), usedH - PADY);
+            let box = rot
+              ? { x0: x - halfThick, x1: x + halfThick, y0: y - halfLen, y1: y + halfLen }
+              : { x0: x - halfLen, x1: x + halfLen, y0: y - halfThick, y1: y + halfThick };
+            // The estimate runs a shade tight for the bold expressway names; a
+            // margin here is what keeps them clear of ward numbers in practice.
+            if (xway2) box = { x0: box.x0 - 1, x1: box.x1 + 1, y0: box.y0 - 1, y1: box.y1 + 1 };
+            if (!hits(box)) { placed = { x, y, box, rot }; break outer; }
+          }
         }
       }
-      if (!placed) continue;
-      taken.push(placed.box);
-      const { x, y } = placed;
-      labels.push(`<text class="st-label" style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
-        `transform="rotate(${placed.rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
-        `${esc(f.properties.name)} <tspan class="st-grid">${esc(f.properties.grid)}</tspan></text>`);
+      const emit = (x, y, rot, tentative) => labels.push(
+        `<text class="st-label${xway2 ? ' x-label' : ''}"${tentative ? ` data-tent="${esc(f.properties.name)}"` : ''} ` +
+        `style="font-size:${(6.4 * SF).toFixed(2)}px" x="${x.toFixed(1)}" y="${y.toFixed(1)}" ` +
+        `transform="rotate(${rot ? -90 : 0} ${x.toFixed(1)} ${y.toFixed(1)})" text-anchor="middle">` +
+        `${esc(f.properties.name)}${f.properties.grid ? ` <tspan class="st-grid">${esc(f.properties.grid)}</tspan>` : ''}</text>`);
+      if (placed) {
+        taken.push(placed.box);
+        emit(placed.x, placed.y, placed.rot, xway2);
+      }
+      if (xway2) {
+        // The estimator found nowhere, but it is conservative and the reconcile
+        // pass below judges by what actually rendered. Offer it three spots
+        // along the line; it keeps the first clean one and removes the rest.
+        for (const frac of [0.18, 0.5, 0.82]) {
+          const at = ordered[Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * frac)))];
+          emit(Math.min(Math.max(at[0], PADX), usedW - PADX),
+               Math.min(Math.max(at[1], PADY), usedH - PADY), vertical, true);
+        }
+      }
     }
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
