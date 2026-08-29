@@ -505,8 +505,11 @@
     const T = type();
     const url = `${location.origin}${location.pathname}#${T.key}`;
     const h = T.headline;
+    // Whole days in a text message. The second decimal is real but nobody reads
+    // a shared line that closely, and it makes the sentence look like a readout.
+    const days = (v) => Math.round(Number(v));
     const text = h && h.slowest.p50 >= 1.5
-      ? `Ward ${h.slowest.ward} takes ${h.slowest.p50} days on ${T.plain}. Ward ${h.fastest.ward}: ${h.fastest.p50}. - chiwardboard`
+      ? `Ward ${h.slowest.ward} takes ${days(h.slowest.p50)} days on ${T.plain}. Ward ${h.fastest.ward}: ${days(h.fastest.p50)}. - chiwardboard`
       : `Chicago's ${T.plain}, ranked by ward - chiwardboard`;
     try {
       if (navigator.share) { await navigator.share({ title: 'chiwardboard', text, url }); return; }
