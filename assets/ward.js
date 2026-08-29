@@ -67,6 +67,13 @@
   }
 
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  function receiptUrlAll() {
+    const where = `created_date >= '${D.year}-01-01T00:00:00' AND created_date < '${D.year + 1}-01-01T00:00:00'` +
+      ` AND status='Completed' AND ward=${ward}`;
+    const p = new URLSearchParams({ $select: 'sr_number,sr_type,street_address,created_date,closed_date', $where: where, $order: 'created_date DESC', $limit: '1000' });
+    return `${D.source.api}?${p}`;
+  }
+
   function receiptUrl(type) {
     const where = `created_date >= '${D.year}-01-01T00:00:00' AND created_date < '${D.year + 1}-01-01T00:00:00'` +
       ` AND sr_type='${type.official.replace(/'/g, "''")}' AND status='Completed' AND ward=${ward}`;
@@ -75,25 +82,92 @@
   }
 
   let wins = 0, ranked = 0;
-  $('card-body').innerHTML = D.types.map((T) => {
+
+  // Build the rows as data first, so sorting is a re-render rather than DOM surgery.
+  const rows = D.types.map((T) => {
     const w = T.wards.find((x) => x.ward === ward);
     const eligible = T.wards.filter((x) => !x.thin);
     const idx = w && !w.thin ? eligible.findIndex((x) => x.ward === ward) : -1;
     if (idx >= 0) { ranked++; if (w.p50 <= T.citywide.p50) wins++; }
-    const rank = idx >= 0 ? `${idx + 1}/${eligible.length}` : (w ? 'unranked' : ' - ');
-    const delta = w ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '';
-    return `<tr>
-      <td><a href="./#${T.key}" style="text-decoration:none"><strong>${esc(T.plain)}</strong></a><div class="row-sub">${delta}</div></td>
-      <td class="c-num">${w ? w.p50 : ' - '}</td>
-      <td class="c-num">${T.citywide.p50}</td>
-      <td class="c-num">${rank}</td>
-      <td class="c-num">${w ? fmt(w.n) : '0'}</td>
-      <td class="c-src">${w ? `<a href="${esc(receiptUrl(T))}" rel="noopener">rows</a>` : ''}</td>
-    </tr>`;
-  }).join('');
-  $('card-note').textContent = ranked
-    ? `Faster than the citywide typical time in ${wins} of ${ranked} ranked categories. Figures are median days - the middle request, half faster and half slower. Rank is fastest-first among the wards that handled enough of these requests for the numbers to mean something.`
-    : 'Not enough requests in any category to rank this ward.';
+    return {
+      key: T.key, plain: T.plain, href: `./#${T.key}`,
+      wardVal: w ? w.p50 : null,
+      cityVal: T.citywide.p50,
+      rankIdx: idx >= 0 ? idx + 1 : null,
+      rankOf: eligible.length,
+      hasData: !!w,
+      n: w ? w.n : 0,
+      delta: w ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '',
+    };
+  });
+
+  // Two decimals everywhere, so right-aligned figures also line up on the decimal point.
+  const d2 = (v) => (v === null ? '-' : Number(v).toFixed(2));
+
+  let sortKey = null, sortDir = 'asc';   // null = the published order below
+  const VAL = {
+    type: (r) => r.plain,
+    ward: (r) => (r.wardVal === null ? Infinity : r.wardVal),
+    city: (r) => r.cityVal,
+    rank: (r) => (r.rankIdx === null ? Infinity : r.rankIdx),
+    n:    (r) => r.n,
+  };
+
+  function renderRows() {
+    let list = rows.slice();
+    if (sortKey) {
+      const get = VAL[sortKey];
+      list.sort((a, b) => {
+        const x = get(a), y = get(b);
+        // rows with no ranking stay at the bottom whichever way the column is sorted
+        if (x === Infinity && y !== Infinity) return 1;
+        if (y === Infinity && x !== Infinity) return -1;
+        const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+        return sortDir === 'asc' ? c : -c;
+      });
+    }
+    $('card-body').innerHTML = list.map((r) => `<tr>
+      <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div></td>
+      <td class="c-num">${d2(r.wardVal)}</td>
+      <td class="c-num">${d2(r.cityVal)}</td>
+      <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? 'unranked' : '-')}</td>
+      <td class="c-num">${fmt(r.n)}</td>
+    </tr>`).join('');
+
+    document.querySelectorAll('#card thead th').forEach((th) => {
+      const k = th.dataset.sort;
+      const active = k === sortKey;
+      th.setAttribute('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+      const ind = th.querySelector('.sort-ind');
+      if (ind) ind.textContent = active ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+      const btn = th.querySelector('.sort-btn');
+      if (btn) {
+        // label from the column name only; the arrow lives in an aria-hidden span
+        if (!btn.dataset.label) btn.dataset.label = btn.textContent.replace(/[\u25B2\u25BC]/g, '').trim();
+        btn.setAttribute('aria-label',
+          `${btn.dataset.label}: ${active ? (sortDir === 'asc' ? 'sorted low to high' : 'sorted high to low') : 'not sorted'}. Activate to sort.`);
+      }
+    });
+  }
+
+  // Buttons, not click handlers on th, so the headers are reachable and operable by keyboard.
+  document.querySelectorAll('#card thead th .sort-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const k = btn.closest('th').dataset.sort;
+      if (sortKey === k) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else { sortKey = k; sortDir = 'asc'; }
+      renderRows();
+    });
+  });
+
+  renderRows();
+
+  // Provenance, once, under the table instead of a column of repeated links.
+  $('table-src').innerHTML =
+    `Figures computed from the City of Chicago&rsquo;s public ` +
+    `<a href="${esc(D.source.portal)}" rel="noopener">311 Service Requests dataset</a>` +
+    ` (${D.year}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
+
   $('card').hidden = false;
 
   $('share').onclick = async () => {

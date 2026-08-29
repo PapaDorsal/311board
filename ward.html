@@ -73,17 +73,17 @@
       <table>
         <thead>
           <tr>
-            <th scope="col">Request type</th>
-            <th class="c-num" scope="col">This ward</th>
-            <th class="c-num" scope="col">Citywide</th>
-            <th class="c-num" scope="col">Rank</th>
-            <th class="c-num" scope="col">Requests</th>
-            <th class="c-src" scope="col">Source</th>
+            <th scope="col" aria-sort="none" data-sort="type"><button type="button" class="sort-btn">Request type<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="ward"><button type="button" class="sort-btn">This ward<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="city"><button type="button" class="sort-btn">Citywide<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="rank"><button type="button" class="sort-btn">Rank<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="n"><button type="button" class="sort-btn">Requests<span class="sort-ind" aria-hidden="true"></span></button></th>
           </tr>
         </thead>
         <tbody id="card-body"></tbody>
       </table>
     </div>
+    <p class="table-src" id="table-src"></p>
     <p class="board-note" id="card-note" style="margin-top:10px"></p>
   </section>
 
@@ -91,6 +91,10 @@
     <h2>That&rsquo;s not a ward</h2>
     <p style="color:var(--ink-2)">Chicago has 50 of them, numbered 1 through 50. <a href="./">Pick one from the board.</a></p>
   </section>
+
+  <noscript>
+    <p class="board-note">This report card is built from a published data snapshot in your browser, so it needs JavaScript to display. The underlying figures are readable directly at <a href="data/leaderboard.json">data/leaderboard.json</a>, and the source records are on the <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">City of Chicago 311 dataset</a>.</p>
+  </noscript>
 
   <footer class="foot">
     <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a> &middot; corrections: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a></p>

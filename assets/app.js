@@ -87,10 +87,10 @@
     if (!h) { $('hook').hidden = true; return; }
     if (h.slowest.p50 < 1.5) {
       $('hook-line').textContent = `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Medians run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards in ${D.year}. This one is not a race - but it is a record.`;
+      $('hook-sub').innerHTML = `Typical times run <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards in ${D.year}. This one is not a race - but it is a record.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Median days to close, ${D.year}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
+      $('hook-sub').innerHTML = `Typical days to close, ${D.year}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
         `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
         `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     }
@@ -117,7 +117,7 @@
   function renderMap(T) {
     const breaks = bins(T);
     const byWard = new Map(T.wards.map((w) => [w.ward, w]));
-    $('map-title').textContent = `Median days on the map`;
+    $('map-title').textContent = `Typical days on the map`;
     $('map-hint').textContent = 'Hover any ward for its number. Click for its full report card.';
     const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
@@ -195,7 +195,7 @@
       `${dg.sameSecondCloses > 0 ? ' - read this type&rsquo;s fast wards accordingly' : ''}. ` +
       `Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>. Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.`,
       `Rows the city flags as duplicates: <span class="fig">${fmt(dg.duplicateFlagged)}</span>, currently included.`,
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves, not from a summary we did not check.`,
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is worked out from the records themselves, not taken from a summary we did not check.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }
@@ -221,7 +221,7 @@
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
       ` &middot; <a href="ward.html?w=${myWard}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
-      ? `<p>For ${esc(T.plain)}: median <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
+      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests in ${D.year}` +
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No ${D.year} data for this type in Ward ${myWard}.</p>`);
     box.hidden = false;
