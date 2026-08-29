@@ -1,6 +1,7 @@
 // Build-time data snapshot for chiwardboard.
 // Fetches the year's rows for each profiled request type live from Socrata and
 // writes data/leaderboard.json. Every number the page shows comes from this run.
+// Rows the city flags as duplicates are excluded from every timed figure.
 // Usage: node tools/build-data.mjs
 const BASE = 'https://data.cityofchicago.org/resource/v6vf-nfxy.json';
 // Rolling 12 months ending at the most recent COMPLETE month, so the board never
@@ -22,6 +23,8 @@ const TYPES = [
   { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street lights out' },
   { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris' },
   { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation violations' },
+  { key: 'fly-dumping', official: 'Fly Dumping Complaint', plain: 'fly dumping' },
+  { key: 'missed-pickup', official: 'Missed Garbage Pick-Up Complaint', plain: 'missed pickups' },
 ];
 
 const T0 = Date.now();
@@ -69,7 +72,8 @@ const r2 = (x) => Math.round(x * 100) / 100;
 
 async function profile({ key, official, plain }) {
   const totals = await q({
-    $select: 'count(1) as total, sum(case(closed_date IS NOT NULL, 1, true, 0)) as closed',
+    $select: 'count(1) as total, sum(case(closed_date IS NOT NULL, 1, true, 0)) as closed, ' +
+      'sum(case(duplicate = true, 1, true, 0)) as dupes',
     $where: `${Y} AND sr_type='${esc(official)}'`,
   }, `${key}:totals`);
   const statuses = await q({
@@ -86,13 +90,17 @@ async function profile({ key, official, plain }) {
   const all = [];
   let dropNotCompleted = 0, dropNoWard = 0, dropBadDate = 0, dropNeg = 0, dupRows = 0, sameSecond = 0, timed = 0;
   for (const r of rows) {
+    // Duplicates are excluded from every figure. A duplicate report is the same
+    // physical problem reported twice, so counting it twice both inflates volume
+    // and re-times one repair as if it were two. The city excludes them in its
+    // own Open311 tooling; including them made us the outlier.
+    if (r.duplicate === true || r.duplicate === 'true') { dupRows++; continue; }
     if (!/^completed/i.test(String(r.status || ''))) { dropNotCompleted++; continue; }
     const c = Date.parse(r.created_date), d = Date.parse(r.closed_date);
     if (!Number.isFinite(c) || !Number.isFinite(d)) { dropBadDate++; continue; }
     if (d === c) sameSecond++;
     const days = (d - c) / 86400000;
     if (days < 0) { dropNeg++; continue; }
-    if (r.duplicate === true || r.duplicate === 'true') dupRows++;
     const w = Number(r.ward);
     if (!Number.isFinite(w) || w === 0) { dropNoWard++; continue; }
     timed++;
@@ -127,9 +135,10 @@ async function profile({ key, official, plain }) {
     totals: {
       requests: Number(totals[0].total),
       withClosedDate: Number(totals[0].closed),
+      duplicates: Number(totals[0].dupes),
       statuses: Object.fromEntries(statuses.map(s => [s.status, Number(s.c)])),
     },
-    exclusions: { notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
+    exclusions: { duplicates: dupRows, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
     diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed },
     citywide: { p50: r2(quantile(sortedAll, 0.5)), p75: r2(quantile(sortedAll, 0.75)), p90: r2(quantile(sortedAll, 0.9)) },
     headline, wards,

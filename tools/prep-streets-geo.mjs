@@ -41,6 +41,18 @@ const WANTED = new Map([
   ['95TH',       { label: '95th',       grid: '9500 S' }],
 ]);
 
+// Expressway mainlines: exact STREET_NAM plus STREET_TYP === 'EXPY', which is
+// what separates the mainline from its hundreds of ER/XR ramp records and the
+// 'KENNEDY EXPRESS'/'DAN RYAN EXPRESS' reversible lanes. Only three carry a
+// label - more would crowd the surface-street names off the map.
+const XWAYS = new Map([
+  ['KENNEDY',    { label: 'Kennedy' }],
+  ['EISENHOWER', { label: 'Eisenhower' }],
+  ['DAN RYAN',   { label: 'Dan Ryan' }],
+  ['STEVENSON',  { label: null }],
+  ['EDENS',      { label: null }],
+]);
+
 if (!existsSync(`${DIR}/Major_Streets.shp`)) {
   execSync(`curl -sSL --retry 3 --max-time 240 -o ${ZIP} "${URL_}"`, { stdio: 'inherit' });
   execSync(`rm -rf ${DIR} && mkdir -p ${DIR} && cd ${DIR} && unzip -oq ${ZIP}`, { stdio: 'inherit' });
@@ -150,10 +162,14 @@ const byStreet = new Map();
 for (const s of parts) {
   const row = rows[s.idx]; if (!row) continue;
   const nm = (row.STREET_NAM || '').toUpperCase().trim();
-  const w = WANTED.get(nm); if (!w) continue;
+  const typ = (row.STREET_TYP || '').toUpperCase().trim();
+  const xw = typ === 'EXPY' ? XWAYS.get(nm) : undefined;
+  const w = xw ? { label: xw.label, grid: null, kind: 'xway' } : WANTED.get(nm);
+  if (!w) continue;
   if ((row.STATUS || '').toUpperCase() === 'UNBU') continue;      // unbuilt paper streets
-  if (!byStreet.has(nm)) byStreet.set(nm, { ...w, lines: [] });
-  for (const line of s.lines) byStreet.get(nm).lines.push(line.map(([x, y]) => [r4(x), r4(y)]));
+  const key2 = (w.kind === 'xway' ? 'X:' : '') + nm;
+  if (!byStreet.has(key2)) byStreet.set(key2, { ...w, lines: [] });
+  for (const line of s.lines) byStreet.get(key2).lines.push(line.map(([x, y]) => [r4(x), r4(y)]));
 }
 
 const features = [...byStreet.entries()].map(([nm, v]) => {
@@ -163,13 +179,15 @@ const features = [...byStreet.entries()].map(([nm, v]) => {
     .sort((a, b) => Math.hypot(b[b.length-1][0]-b[0][0], b[b.length-1][1]-b[0][1])
                   - Math.hypot(a[a.length-1][0]-a[0][0], a[a.length-1][1]-a[0][1]))
     .slice(0, 4);                       // keep only the main runs
-  return { type: 'Feature', properties: { name: v.label, grid: v.grid },
+  const props = { name: v.label, grid: v.grid };
+  if (v.kind === 'xway') props.kind = 'xway';
+  return { type: 'Feature', properties: props,
            geometry: { type: 'MultiLineString', coordinates: merged } };
-}).sort((a, b) => a.properties.name.localeCompare(b.properties.name));
+}).sort((a, b) => String(a.properties.name).localeCompare(String(b.properties.name)));
 
 const out = JSON.stringify({ type: 'FeatureCollection',
   source: 'City of Chicago Major Streets (ueqs-5wr6), reprojected from State Plane Illinois East to WGS84',
   features });
 writeFileSync(new URL('../data/streets.geojson', import.meta.url), out);
 console.log(`${features.length} streets, ${(out.length/1024).toFixed(0)} KB -> data/streets.geojson`);
-for (const f of features) console.log(`  ${f.properties.name.padEnd(12)} ${String(f.properties.grid).padEnd(8)} ${f.geometry.coordinates.length} segments`);
+for (const f of features) console.log(`  ${String(f.properties.name).padEnd(12)} ${String(f.properties.grid).padEnd(8)} ${f.properties.kind || 'street'} ${f.geometry.coordinates.length} segments`);
