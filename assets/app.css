@@ -44,7 +44,7 @@ body { margin: 0; background: var(--page); color: var(--ink); font: 15.5px/1.55 
 a { color: inherit; }
 
 /* masthead */
-.wordmark { display: flex; align-items: center; gap: 14px; }
+.wordmark { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .flag { width: 74px; height: 24px; flex: none; }
 .flag .stripe { fill: var(--chi-blue); }
 .flag .stars path { fill: var(--chi-red); }
@@ -233,21 +233,48 @@ td.c-ward a:hover { color: var(--accent); }
 
 /* ward report card fits a phone without horizontal scroll */
 .card-table table { min-width: 0; }
+/* The card's five columns need more than a phone has, so it scrolled sideways
+   the same way the board did. Requests is the volume behind the figures - real
+   context, but the least urgent of the five - so it is the one that goes, and
+   the comparison the card exists for (this ward, citywide, rank) stays whole. */
+@media (max-width: 620px) {
+  .card-table .c-vol { display: none; }
+  .card-table table { table-layout: fixed; width: 100%; }
+  .card-table td, .card-table th { padding-left: 6px; padding-right: 6px; }
+  .card-table .c-num { width: 66px; }
+  .card-table thead th .sort-btn { font-size: 10.5px; letter-spacing: 0.02em; }
+}
 .card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
 
 @media (max-width: 480px) {
   .wordmark h1 { font-size: 25px; }
   .flag { width: 56px; height: 18px; }
+}
+/* On a 320px screen the flag plus a 25px wordmark is 8px wider than the page,
+   and the flex row had nothing that would give. Both step down together. */
+@media (max-width: 340px) {
+  .wordmark { gap: 9px; }
+  .wordmark h1 { font-size: 22px; }
+  .flag { width: 46px; height: 15px; }
+  .card-table .c-num { width: 58px; }
+  /* let the type name use two lines rather than fight the numeric columns
+     for pixels that are not there on a 320px screen */
+  .card-table tbody td:first-child { white-space: normal; overflow-wrap: anywhere; }
+  .card-table td, .card-table th { padding-left: 4px; padding-right: 4px; }
+  .card-table thead th .sort-btn { font-size: 9px; letter-spacing: 0; }
   .hook-line { font-size: 27px; }
 }
 
 /* ward office contact block */
 .office {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px;
   margin-top: 20px; padding: 16px 18px;
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
 }
-@media (max-width: 700px) { .office { grid-template-columns: 1fr; gap: 22px; } }
+@media (max-width: 700px) { .office { grid-template-columns: minmax(0, 1fr); gap: 22px; } }
+/* a grid track carries a min-content floor, so an unbreakable address or email
+   in here held the whole page open on a narrow phone */
+.office-col { min-width: 0; overflow-wrap: anywhere; }
 .office-h {
   font: 700 12px var(--sans); text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--muted); margin: 0 0 10px;
@@ -306,7 +333,9 @@ td.c-ward a:hover { color: var(--accent); }
    scrolled sideways and you could never see a ward and its number at once.
    The tail column is the one to drop: it is the least urgent of the five and
    it is still on the ward's own card. What is left fits with no scrolling. */
-@media (max-width: 560px) {
+/* 620, not 560: the five-column table needs about 555px and the page keeps
+   ~42px of padding, so anything under ~600px viewport still overflowed. */
+@media (max-width: 620px) {
   .c-tail { display: none; }
   /* Percent widths cannot hold a table that is already wider than its box, so
      the remaining four columns are given fixed shares and the text wraps into
@@ -333,6 +362,13 @@ td.c-ward a:hover { color: var(--accent); }
   td.c-bar .bar { display: none; }
   td.c-bar .barcell { gap: 0; }
   td.c-bar .bar-val { font-size: 13px; }
+}
+
+/* Between a small phone and the full table there is room for the bar again,
+   and giving it back stops the ward column from spreading to 400px. */
+@media (min-width: 471px) and (max-width: 620px) {
+  td.c-bar .bar { display: block; }
+  .c-bar { width: 150px; }
 }
 /* label size is set per-label in JS from how large the map is actually drawn;
    here we only thicken the halo so small type stays readable over the fills. */

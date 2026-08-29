@@ -137,7 +137,7 @@
       <td class="c-num">${d2(r.wardVal)}</td>
       <td class="c-num">${d2(r.cityVal)}</td>
       <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? 'unranked' : '-')}</td>
-      <td class="c-num">${fmt(r.n)}</td>
+      <td class="c-num c-vol">${fmt(r.n)}</td>
     </tr>`).join('');
 
     document.querySelectorAll('#card thead th').forEach((th) => {
