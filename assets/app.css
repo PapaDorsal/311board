@@ -202,6 +202,15 @@ td.c-ward .thin-tag {
   border: 1px solid var(--grid); border-radius: 4px; padding: 1px 5px; margin-left: 6px;
   vertical-align: 1px; white-space: nowrap;
 }
+/* Same shape as the thin tag but warm, because it is a different kind of
+   statement: not a caveat about our sample, a fact about the ward. */
+/* No border. A badge competed with the ward number for the eye, and at 390px
+   it wrapped onto its own line looking like the row's headline. This is an
+   annotation on the figure, not a label on the ward. */
+td.c-ward .open-tag {
+  font-weight: 600; font-size: 11px; color: var(--chi-red);
+  margin-left: 7px; white-space: nowrap;
+}
 td.c-num { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
 td.c-src { font-size: 12px; }
 td.c-src a { color: var(--muted); }

@@ -22,7 +22,7 @@ const TYPES = [
   { key: 'garbage-cart', official: 'Garbage Cart Maintenance', plain: 'garbage cart repairs' },
   { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street light repair' },
   { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris cleanup' },
-  { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation violations' },
+  { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation complaints' },
   { key: 'fly-dumping', official: 'Fly Dumping Complaint', plain: 'illegal dumping cleanup' },
   { key: 'missed-pickup', official: 'Missed Garbage Pick-Up Complaint', plain: 'missed garbage pickups' },
 ];

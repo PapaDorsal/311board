@@ -44,9 +44,12 @@
     'abandoned-vehicle': 'to deal with an abandoned car', 'pothole': 'to fill a pothole',
     'rodent': 'to bait for rats', 'graffiti': 'to remove graffiti',
     'garbage-cart': 'to fix a garbage cart', 'street-light': 'to fix a street light',
-    'tree-debris': 'to clear tree debris', 'sanitation': 'to close a sanitation violation',
+    'tree-debris': 'to clear tree debris', 'sanitation': 'to settle a sanitation complaint',
     'fly-dumping': 'to clear an illegally dumped pile', 'missed-pickup': 'to come back for a missed pickup',
   };
+  // A backlog is worth flagging on the board from here up. Below it the share
+  // still open is ordinary noise; above it the ward is not merely slow.
+  const OPEN_TAG = 20;
   // Sequential blue ramp (light steps 100..600 of the validated palette).
   const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#2a78d6', '#184f95'];
 
@@ -233,7 +236,8 @@
       tip.innerHTML = (w
         ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${d1(w.p50)}</span> days, ` +
           `<span class="fig">${w.week}%</span> closed within a week, ` +
-          `<span class="fig">${fmt(w.n)}</span> closed`
+          `<span class="fig">${fmt(w.n)}</span> closed` +
+          (w.openShare >= 1 ? `, <span class="fig">${Math.round(w.openShare)}%</span> still open` : '')
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
@@ -368,10 +372,16 @@
     $('lb-body').innerHTML = T.wards.map((w) => {
       const pct = Math.max(1.5, (w.p50 / (maxP50 || 1)) * 100);
       const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
+      // A ward can sit mid-table on the median while a fifth of its requests
+      // have never been closed at all. The median is estimated with those
+      // counted, so it is not hidden from the maths - but it was invisible on
+      // the page, and it is the difference between slow and not finishing.
+      const back = !w.thin && w.openShare >= OPEN_TAG
+        ? ` <span class="open-tag">${Math.round(w.openShare)}% still open</span>` : '';
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${w.thin ? '' : ++rank}</td>
-        <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}` +
+        <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${back}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
