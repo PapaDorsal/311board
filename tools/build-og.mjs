@@ -13,7 +13,12 @@ import { writeFileSync } from 'node:fs';
 const { chromium } = createRequire(import.meta.url)('playwright');
 
 const OUT = 'assets/og.png';
-const TAGLINE = 'See which ward fixes potholes fastest.';
+// Not the same words as og:title. iMessage renders the title in bold directly
+// beneath this image, so a tagline that repeats it printed the identical
+// sentence twice in one card. The title is the hook; the image says what the
+// site is. This line also has to make sense under a ward page's title, since
+// every page shares this one card.
+const TAGLINE = 'Chicago 311 response times, ranked by ward.';
 const STAR = 'M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 ' +
   'L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z';
 
