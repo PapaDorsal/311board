@@ -6,7 +6,7 @@
   --surface: #ffffff;
   --ink: #14141a;
   --ink-2: #52514e;
-  --muted: #898781;
+  --muted: #706e68;
   --grid: #e7e6e0;
   --border: rgba(11, 11, 11, 0.10);
   --bar: #2a78d6;
@@ -14,6 +14,7 @@
   --chi-blue: #7cc6e8;      /* flag stripe */
   --chi-red: #e4002b;       /* flag star */
   --accent: #0e6ba8;        /* chrome accent, deep lake blue */
+  --on-accent: #ffffff;     /* text on an accent fill */
   --map-empty: #e7e6e0;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -33,6 +34,9 @@
     --chi-blue: #5da8cc;
     --chi-red: #ef3d5d;
     --accent: #5fb0dd;
+    /* the dark accent is a pale blue; white on it is 2.4:1, so filled
+       controls take the dark ink instead (8.4:1) */
+    --on-accent: #14141a;
     --map-empty: #2c2c31;
   }
 }
@@ -45,7 +49,7 @@ a { color: inherit; }
 
 /* masthead */
 .wordmark { display: flex; align-items: center; gap: clamp(8px, 1.6vw, 14px); min-width: 0; }
-.flag { width: clamp(44px, 12vw, 104px); height: auto; flex: none; }
+.flag { width: clamp(56px, 15.5vw, 132px); height: auto; flex: none; }
 .flag .stripe { fill: var(--chi-blue); }
 .flag .stars path { fill: var(--chi-red); }
 .wordmark h1 {
@@ -72,7 +76,7 @@ a { color: inherit; }
   padding: 8px 14px; cursor: pointer;
 }
 .types button:hover { border-color: var(--accent); color: var(--ink); }
-.types button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.types button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* finder */
 /* The location button is what most people will use, so it leads and it is filled.
@@ -81,7 +85,7 @@ a { color: inherit; }
 .gps-btn {
   display: block; width: 100%; box-sizing: border-box;
   font: 600 14px var(--sans); cursor: pointer;
-  background: var(--accent); color: #fff; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
   border-radius: 8px; padding: 10px 14px; text-align: center;
 }
 .gps-btn:hover { filter: brightness(1.08); }
@@ -111,7 +115,7 @@ a { color: inherit; }
 .finder-row input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .finder-row button {
   font: 600 13px var(--sans); border-radius: 6px; padding: 6px 12px; cursor: pointer;
-  background: var(--accent); color: #fff; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
 }
 .finder-row button#finder-gps { background: transparent; color: var(--accent); }
 .finder-note { color: var(--muted); font-size: 11px; line-height: 1.35; margin: 5px 0 0; }
@@ -220,7 +224,7 @@ tr.thin .bar { background: var(--bar-thin); }
   font: 600 13.5px var(--sans); cursor: pointer; border-radius: 999px; padding: 8px 16px;
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
 }
-.share-btn:hover { background: var(--accent); color: #fff; }
+.share-btn:hover { background: var(--accent); color: var(--on-accent); }
 .share-done { font-size: 13px; color: var(--ink-2); }
 .row-sub { font-size: 12px; color: var(--muted); }
 td .row-sub a, .row-sub { font-weight: 400; }
@@ -300,7 +304,7 @@ td.c-ward a:hover { color: var(--accent); }
 .file-btn {
   display: inline-block; margin: 4px 0 2px;
   font: 600 14px var(--sans); text-decoration: none;
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--on-accent);
   border-radius: 8px; padding: 10px 16px;
 }
 .file-btn:hover { filter: brightness(1.08); }
