@@ -54,6 +54,15 @@ for (let w = 1; w <= 50; w++) {
   sub(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${esc(desc)}">`);
   sub(/<meta name="twitter:title" content="[^"]*">/, `<meta name="twitter:title" content="${esc(title)}">`);
   sub(/<meta name="twitter:description" content="[^"]*">/, `<meta name="twitter:description" content="${esc(desc)}">`);
+  // Its own card, rendered by build-ward-og.mjs. Versioned like the shared one:
+  // crawlers cache the picture hard, and these replace an image they have
+  // already fetched for this URL.
+  const img = `${BASE}/assets/og/ward-${w}.png?v=1`;
+  const cardHoods = ((NB[w] || {}).names || []).slice(0, 2).join(' & ');
+  const imgAlt = `Ward ${w}${cardHoods ? `, ${cardHoods}` : ''} - ChiWardBoard`;
+  sub(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${img}">`);
+  sub(/<meta property="og:image:alt" content="[^"]*">/, `<meta property="og:image:alt" content="${esc(imgAlt)}">`);
+  sub(/<meta name="twitter:image" content="[^"]*">/, `<meta name="twitter:image" content="${img}">`);
   // The script reads this rather than the query string on these pages.
   sub(/<body([^>]*)>/, `<body$1 data-ward="${w}">`);
 
