@@ -50,6 +50,13 @@
   // Sequential blue ramp (light steps 100..600 of the validated palette).
   const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#2a78d6', '#184f95'];
 
+  // One decimal everywhere a duration is shown, prose included. These lines used
+  // to interpolate the raw value, so the same figure read 68.18 in the sentence
+  // and 68.2 in the table directly beneath it. A value above zero but under 0.05
+  // says so rather than rounding into the wards that genuinely close same-day.
+  const d1 = (v) => (v === null || v === undefined ? '-'
+    : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
+
   function human(days) {
     if (days < 1) return 'under a day';
     if (days < 6) { const d = Math.round(days); return d === 1 ? 'about a day' : `about ${word(d)} days`; }
@@ -122,16 +129,16 @@
       $('hook-line').textContent = past
         ? `In ${winKey}, every ward cleared ${T.plain} in about a day.`
         : `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${h.fastest.p50}</span> to <span class="fig">${h.slowest.p50}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${d1(h.fastest.p50)}</span> to <span class="fig">${d1(h.slowest.p50)}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
     } else if (past) {
       $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
+        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days. ` +
         `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${h.slowest.p50}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${h.fastest.p50}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${h.gapDays}</span> days. ` +
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
+        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days. ` +
         `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
     }
     $('hook').hidden = false;
@@ -200,10 +207,21 @@
       }
     });
     const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
+    // On a type the city closes almost instantly, the fastest quintiles are all
+    // fractions of a day and one decimal renders them "0.0-0.0" - a band that
+    // says nothing. A band that ends inside the same day is named for that, and
+    // one whose ends round together is shown as the single figure it is.
+    const band = (from, to) => {
+      if (to < 0.05) return 'same day';
+      if (from < 0.05) return `under ${to.toFixed(1)}`;
+      const f = from.toFixed(1), t = to.toFixed(1);
+      return f === t ? f : `${f}–${t}`;
+    };
     $('legend').innerHTML =
+      `<span class="key-lead">Typical days, in five equal groups of wards:</span>` +
       RAMP.map((c, i) => {
         const from = i === 0 ? lo : breaks[i - 1], to = i === RAMP.length - 1 ? hi : breaks[i];
-        return `<span class="key"><span class="sw" style="background:${c}"></span>${from.toFixed(1)}–${to.toFixed(1)} d</span>`;
+        return `<span class="key"><span class="sw" style="background:${c}"></span>${band(from, to)}</span>`;
       }).join('') +
       `<span class="key"><span class="sw" style="background:var(--map-empty)"></span>under ${D.minWardN} requests</span>`;
 
@@ -213,7 +231,7 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, ` +
+        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${d1(w.p50)}</span> days, ` +
           `<span class="fig">${w.week}%</span> closed within a week, ` +
           `<span class="fig">${fmt(w.n)}</span> closed`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
@@ -338,13 +356,12 @@
   // The one exception is a value that is small but not zero: rounded to one
   // decimal it would be indistinguishable from the wards that genuinely close
   // these the same day, so it says so instead.
-  const d2 = (v) => (v === null || v === undefined ? '-'
-    : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
+  const d2 = d1;
   function renderTable(T) {
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
     $('board-note').innerHTML = `Fastest first. ` + (thin
-      ? `The ${word(thin)} ward${thin > 1 ? 's' : ''} marked <em>too few to rank</em> handled fewer than <span class="fig">${D.minWardN}</span> of these requests all year - too few for the numbers to mean much, too many to hide. They are listed but not ranked.`
+      ? `The ${word(thin)} ward${thin > 1 ? 's' : ''} marked <em>too few to rank</em> handled fewer than <span class="fig">${D.minWardN}</span> of these all year: listed, but too thin to rank.`
       : `Every ward handled at least <span class="fig">${D.minWardN}</span> of these requests, enough for the numbers to mean something.`);
     const maxP50 = Math.max(...T.wards.map((w) => w.p50));
     let rank = 0;
@@ -419,7 +436,7 @@
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
       ` &middot; <a href="ward-${myWard}.html">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
-      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests over ${PERIOD}` +
+      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${d1(w.p50)}</span> days, <span class="fig">${fmt(w.n)}</span> requests over ${PERIOD}` +
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
     box.hidden = false;
