@@ -609,8 +609,8 @@
     const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
     const what = VERB[T.key] || `to close a ${T.plain} request`;
     const text = h && h.slowest.p50 >= 1.5
-      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. That is how long Chicago takes ${what}, depending on where you live. - ChiWardBoard`
-      : `Chicago's ${T.plain}, ranked by ward - ChiWardBoard`;
+      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. That is how long Chicago takes ${what}, depending on where you live.`
+      : `Chicago's ${T.plain}, ranked by ward.`;
     try {
       if (navigator.share) { await navigator.share({ title: 'ChiWardBoard', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
