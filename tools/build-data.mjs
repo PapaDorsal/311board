@@ -228,6 +228,34 @@ async function profile({ key, official, plain }) {
 const types = [];
 for (const t of TYPES) types.push(await profile(t));
 
+// Corrections to the city's directory, applied after it is read.
+//
+// The Ward Offices dataset is the canonical machine-readable source and there is
+// no better one, but its rows were last updated 2025-10-03 and a link has rotted
+// since. We publish these numbers for people who are going to call and click
+// them, so a known-dead link is worse than a documented override. Each entry
+// names what the city says, what is actually true, and how that was established.
+// Keep this list as short as the evidence allows: it is a divergence from the
+// source, and about.html now says so.
+const OFFICE_FIXES = {
+  // The city publishes http://www.Aldermanmichelleharris.net. That host resolves
+  // to Cloudflare addresses (2606:4700::) and answers "Attention Required!", a
+  // hard block, while the live 8th Ward site is a different origin entirely
+  // (66.235.200.145) on the .com. Confirmed loading in a browser 2026-08-30.
+  8: { website: 'https://aldermanmichelleharris.com/' },
+  // Wards 17 and 39 have an EMAIL ADDRESS in the website column, prefixed with
+  // http://www. - "http://www.David.Moore@cityofchicago.org" and
+  // "http://www.ward39@cityofchicago.org". Both would render as a link that goes
+  // nowhere. We already publish the office email for each (Ward17@ and Ward39@
+  // cityofchicago.org), so dropping the bogus website costs the reader nothing.
+  //
+  // These hid from a curl sweep: curl reads www.David.Moore@cityofchicago.org as
+  // userinfo@host, quietly fetches cityofchicago.org and reports 200. The audit
+  // below uses fetch, which does not, which is how they surfaced.
+  17: { website: null },
+  39: { website: null },
+};
+
 // Who runs each ward - the city's Ward Offices dataset. "Last, First" -> "First Last".
 const OFFICES = 'https://data.cityofchicago.org/resource/htai-wnw4.json';
 const offRes = await fetch(`${OFFICES}?$limit=60`, { signal: AbortSignal.timeout(60000) });
@@ -243,9 +271,43 @@ const aldermen = Object.fromEntries(offices.map((o) => {
     phone: o.ward_phone || null,
     address: o.address ? { line1: o.address, line2: line2.trim() || null } : null,
     cityHall: o.city_hall_address ? { line1: o.city_hall_address, line2: chLine2.trim() || null, phone: o.city_hall_phone || null } : null,
+    ...(OFFICE_FIXES[Number(o.ward)] || {}),
   }];
 }));
 console.log(`ward offices: ${Object.keys(aldermen).length}`);
+for (const w of Object.keys(OFFICE_FIXES)) {
+  if (!aldermen[w]) console.warn(`!! office fix for ward ${w} matched no row - the directory may have changed shape`);
+  else console.log(`   override applied: ward ${w} (${Object.keys(OFFICE_FIXES[w]).join(', ')})`);
+}
+
+// Link audit. This REPORTS, it never edits: the build runs unattended every
+// month, a transient failure is common (two sites in one hand-run sweep failed
+// only because of a flaky proxy), and silently dropping a working link is worse
+// than printing a warning about a broken one. Cloudflare answers a bare fetch
+// with 403 even for healthy sites, so that is called out rather than counted as
+// dead - the point is to surface rot for a human, not to auto-prune.
+async function auditWardSites(map) {
+  const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  const sites = Object.entries(map).filter(([, a]) => a.website);
+  const checks = sites.map(async ([w, a]) => {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const r = await fetch(a.website, { redirect: 'follow', headers: { 'user-agent': UA }, signal: AbortSignal.timeout(15000) });
+        if (r.ok) return null;
+        if (r.status === 403) return [w, a.website, '403 (bot protection? verify in a browser)'];
+        if (attempt === 2) return [w, a.website, `HTTP ${r.status}`];
+      } catch (e) {
+        if (attempt === 2) return [w, a.website, e.name === 'TimeoutError' ? 'timed out' : 'unreachable'];
+      }
+    }
+    return null;
+  });
+  const bad = (await Promise.all(checks)).filter(Boolean);
+  console.log(`ward websites checked: ${sites.length}, not returning 200: ${bad.length}`);
+  for (const [w, url, why] of bad) console.warn(`!! ward ${w} website ${why}: ${url}`);
+}
+await auditWardSites(aldermen);
 
 const out = {
   generatedAt: new Date(T0).toISOString(),
