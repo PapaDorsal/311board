@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ward 27: Near West Side, West Town, Humboldt Park - ChiWardBoard</title>
+<meta name="description" content="How fast the city closes 311 requests in Chicago's Ward 27 (Near West Side, West Town, Humboldt Park), represented by Walter R. Burnett: 10 request types ranked against the other 49 wards, from public records.">
+<link rel="canonical" href="https://chiwardboard.com/ward-27.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta property="og:site_name" content="ChiWardBoard">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chiwardboard.com/ward-27.html">
+<meta property="og:title" content="Ward 27: Near West Side, West Town, Humboldt Park - ChiWardBoard">
+<meta property="og:description" content="How fast the city closes 311 requests in Chicago's Ward 27 (Near West Side, West Town, Humboldt Park), represented by Walter R. Burnett: 10 request types ranked against the other 49 wards, from public records.">
+<meta property="og:image" content="https://chiwardboard.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ChiWardBoard - see which ward fixes potholes fastest">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Ward 27: Near West Side, West Town, Humboldt Park - ChiWardBoard">
+<meta name="twitter:description" content="How fast the city closes 311 requests in Chicago's Ward 27 (Near West Side, West Town, Humboldt Park), represented by Walter R. Burnett: 10 request types ranked against the other 49 wards, from public records.">
+<meta name="twitter:image" content="https://chiwardboard.com/assets/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-ward="27">
+<main class="wrap">
+  <header class="masthead">
+    <div class="wordmark">
+      <a class="home" href="./" aria-label="chiwardboard home">
+        <svg class="flag" viewBox="0 0 64 20" aria-hidden="true">
+          <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
+          <g class="stars" transform="translate(6,5) scale(0.5)">
+            <path d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(28,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(56,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(84,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          </g>
+        </svg>
+        <h1>chi<span class="wm-accent">ward</span>board</h1>
+      </a>
+    </div>
+  </header>
+
+  <section id="card" hidden>
+    <p class="crumb"><a href="./">&larr; All wards</a></p>
+    <div class="ward-head">
+      <div class="ward-head-text">
+        <h2 class="ward-title" id="ward-title"></h2>
+        <p class="ward-sub" id="ward-sub"></p>
+        <div class="ward-actions">
+          <button type="button" id="share" class="share-btn">Share this report card</button>
+          <span class="share-done" id="share-done" hidden>Link copied.</span>
+        </div>
+      </div>
+      <figure class="locator" id="locator" hidden>
+        <svg id="loc-map" role="img" aria-label=""></svg>
+        <figcaption id="loc-cap"></figcaption>
+      </figure>
+    </div>
+
+    <section class="office" id="office" hidden>
+      <div class="office-col">
+        <h3 class="office-h">Who to call about these numbers</h3>
+        <div id="office-detail"></div>
+      </div>
+      <div class="office-col">
+        <h3 class="office-h">Report something yourself</h3>
+        <p class="office-note">Every row on this page started as somebody filing one of these. The city takes them online, by phone, or in the app.</p>
+        <p><a class="file-btn" href="https://311.chicago.gov/" rel="noopener">File a 311 request</a></p>
+        <p class="office-note">Or call <a href="tel:311">311</a> from a Chicago phone. Filing through your ward office works too, and they can chase a request that has gone quiet.</p>
+      </div>
+    </section>
+    <div class="table-scroll card-table" style="margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" aria-sort="none" data-sort="type"><button type="button" class="sort-btn">Request type<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="ward"><button type="button" class="sort-btn">This ward<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="city"><button type="button" class="sort-btn">Citywide<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num" scope="col" aria-sort="none" data-sort="rank"><button type="button" class="sort-btn">Rank<span class="sort-ind" aria-hidden="true"></span></button></th>
+            <th class="c-num c-vol" scope="col" aria-sort="none" data-sort="n"><button type="button" class="sort-btn">Requests<span class="sort-ind" aria-hidden="true"></span></button></th>
+          </tr>
+        </thead>
+        <tbody id="card-body"></tbody>
+      </table>
+    </div>
+    <p class="table-src" id="table-src"></p>
+    <p class="board-note" id="card-note" style="margin-top:10px"></p>
+  </section>
+
+  <section id="missing" class="method" hidden>
+    <h2>That&rsquo;s not a ward</h2>
+    <p style="color:var(--ink-2)">Chicago has 50 of them, numbered 1 through 50. <a href="./">Pick one from the board.</a></p>
+  </section>
+
+  <noscript>
+    <p class="board-note">This report card is built from a published data snapshot in your browser, so it needs JavaScript to display. The underlying figures are readable directly at <a href="data/leaderboard.json">data/leaderboard.json</a>, and the source records are on the <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">City of Chicago 311 dataset</a>.</p>
+  </noscript>
+
+  <footer class="foot">
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a> &middot; corrections: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a></p>
+  </footer>
+</main>
+<script src="assets/ward.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
