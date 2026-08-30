@@ -8,7 +8,9 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n).toLocaleString('en-US');
-  const ward = Number(new URLSearchParams(location.search).get('w'));
+  // Generated pages carry the ward in the markup; ward.html?w=27 still works so
+  // links shared before those pages existed keep resolving.
+  const ward = Number(document.body.dataset.ward || new URLSearchParams(location.search).get('w'));
   if (!Number.isInteger(ward) || ward < 1 || ward > 50) { $('missing').hidden = false; return; }
 
   // Per-ward identity so tabs, browser history and shared links are distinguishable.
@@ -26,7 +28,7 @@
       document.head.appendChild(el); }
     el.setAttribute(attr, val);
   };
-  const wUrl = `${BASE}/ward.html?w=${ward}`;
+  const wUrl = `${BASE}/ward-${ward}.html`;
   setMeta('meta[name="description"]', 'content', wDesc);
   setMeta('link[rel="canonical"]', 'href', wUrl);
   setMeta('meta[property="og:url"]', 'content', wUrl);

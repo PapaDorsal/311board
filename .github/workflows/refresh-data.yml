@@ -57,15 +57,22 @@ jobs:
           node tools/build-data.mjs
           node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
 
+      # Ward page titles carry neighbourhood and alderperson names from the
+      # snapshot, so they are regenerated whenever the data is.
+      - name: Regenerate the per-ward pages
+        run: |
+          node tools/build-ward-pages.mjs
+          test "$(ls ward-*.html | wc -l)" -eq 50
+
       - name: Commit if anything changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- data/; then
+          if git diff --quiet -- data/ ward-*.html; then
             echo "No change in the data, nothing to commit."
             exit 0
           fi
-          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json
+          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json ward-*.html
           git commit -m "Monthly data refresh
 
           Rebuilt from the City of Chicago 311 dataset by .github/workflows/refresh-data.yml.

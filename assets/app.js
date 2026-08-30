@@ -347,7 +347,7 @@
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank">${w.thin ? '–' : ++rank}</td>
-        <td class="c-ward"><a href="ward.html?w=${w.ward}">Ward ${w.ward}${tag}` +
+        <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
@@ -411,7 +411,7 @@
       (hoods(myWard) ? ` <span class="hood-inline">${esc(hoods(myWard))}</span>` : '');
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
-      ` &middot; <a href="ward.html?w=${myWard}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
+      ` &middot; <a href="ward-${myWard}.html">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
       ? `<p>For ${esc(T.plain)}: typically <span class="fig">${w.p50}</span> days, <span class="fig">${fmt(w.n)}</span> requests over ${PERIOD}` +
         (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
       : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
