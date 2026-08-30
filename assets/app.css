@@ -252,13 +252,18 @@ td.c-ward a:hover { color: var(--accent); }
   .card-table .c-vol { display: none; }
   .card-table table { table-layout: fixed; width: 100%; }
   .card-table td, .card-table th { padding-left: 6px; padding-right: 6px; }
-  .card-table .c-num { width: 68px; }
+  /* 60, not 68: one decimal made the longest duration four glyphs instead of
+     five, and the width it freed is worth more to the type name than to
+     whitespace inside a numeric column. */
+  .card-table .c-num { width: 60px; }
   /* "unranked" is wider than a five-character duration, so on a ward that has
      one it pushed the whole table 5px past the card. It sets its own size
      rather than every numeric column widening to accommodate the longest word
      any ward happens to contain. */
-  .card-table .unranked { font-size: 11px; letter-spacing: -0.01em; }
-  .card-table thead th .sort-btn { font-size: 10.5px; letter-spacing: 0.02em; }
+  .card-table .unranked { font-size: 10px; letter-spacing: -0.01em; }
+  /* the button's own 8px side padding is a quarter of a 60px column, and that,
+     not the type size, is what clips the longest header */
+  .card-table thead th .sort-btn { font-size: 10.5px; letter-spacing: 0; padding-left: 2px; padding-right: 2px; }
 }
 .card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
 
