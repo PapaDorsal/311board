@@ -604,9 +604,12 @@
     const h = T.headline;
     // Whole days in a text message. The second decimal is real but nobody reads
     // a shared line that closely, and it makes the sentence look like a readout.
-    const days = (v) => Math.round(Number(v));
+    // Both figures carry the unit: "Ward 14: 5" left the reader asking 5 what.
+    // The contrast leads, because the gap is the story, not either number alone.
+    const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
+    const what = VERB[T.key] || `to close a ${T.plain} request`;
     const text = h && h.slowest.p50 >= 1.5
-      ? `Ward ${h.slowest.ward} takes ${days(h.slowest.p50)} days on ${T.plain}. Ward ${h.fastest.ward}: ${days(h.fastest.p50)}. - ChiWardBoard`
+      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. That is how long Chicago takes ${what}, depending on where you live. - ChiWardBoard`
       : `Chicago's ${T.plain}, ranked by ward - ChiWardBoard`;
     try {
       if (navigator.share) { await navigator.share({ title: 'ChiWardBoard', text, url }); return; }
