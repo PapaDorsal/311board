@@ -214,10 +214,7 @@
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
         ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, ` +
-          (w.p90 === null
-            // Fewer than nine in ten have closed, so there is no such day yet.
-            ? `more than one in ten still open, `
-            : `9 in 10 within <span class="fig">${w.p90}</span> days, `) +
+          `<span class="fig">${w.week}%</span> closed within a week, ` +
           `<span class="fig">${fmt(w.n)}</span> closed`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
@@ -354,7 +351,7 @@
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
-        <td class="c-num c-tail">${d2(w.p90)}</td>
+        <td class="c-num c-tail">${w.week}%</td>
         <td class="c-num">${fmt(w.n)}</td>
       </tr>`;
     }).join('');
@@ -378,9 +375,7 @@
       ...(T.totals.duplicates > 0 ? [
         `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
       ] : []),
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days` +
-      (T.citywide.p90 === null ? '' : ` and nine in ten within <span class="fig">${T.citywide.p90}</span> days`) +
-      `. Every figure is computed from the records themselves.`,
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days, and <span class="fig">${T.citywide.week}%</span> are shut inside a week. Every figure is computed from the records themselves.`,
       ...(dg.censored > 0 ? [
         `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
         (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +

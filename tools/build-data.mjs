@@ -167,6 +167,22 @@ async function profile({ key, official, plain }) {
     return null;   // the curve never gets there: more than (1-p) never closed
   }
 
+  // Share closed within N days, read off the same curve. This is the figure the
+  // board shows: it always has an answer, where a 90th percentile does not once
+  // more than one in ten never closes.
+  function kmClosedWithin(obs, t) {
+    const s = obs.slice().sort((a, b) => a[0] - b[0] || (a[1] ? 1 : 0) - (b[1] ? 1 : 0));
+    let atRisk = s.length, surv = 1, i = 0;
+    while (i < s.length && s[i][0] <= t) {
+      const at = s[i][0];
+      let events = 0, tied = 0;
+      while (i + tied < s.length && s[i + tied][0] === at) { if (s[i + tied][1]) events++; tied++; }
+      if (events > 0) surv *= (1 - events / atRisk);
+      atRisk -= tied; i += tied;
+    }
+    return 100 * (1 - surv);
+  }
+
   const wards = [...byWard.entries()].map(([w, arr]) => {
     const closed = arr.filter((o) => o[1]).length;
     const p50 = kmQuantile(arr, 0.5), p75 = kmQuantile(arr, 0.75), p90 = kmQuantile(arr, 0.9);
@@ -174,6 +190,7 @@ async function profile({ key, official, plain }) {
       ward: w, n: closed, nAll: arr.length,
       openShare: r2(100 * (arr.length - closed) / arr.length),
       p50: p50 === null ? null : r2(p50), p75: p75 === null ? null : r2(p75), p90: p90 === null ? null : r2(p90),
+      week: Math.round(kmClosedWithin(arr, 7)),
       // A ward whose curve never reaches the median cannot be ranked on it.
       thin: closed < MIN_WARD_N || p50 === null,
     };
@@ -202,7 +219,8 @@ async function profile({ key, official, plain }) {
     exclusions: { duplicates: dupRows, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
     diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed,
                    stillOpen: openRows, canceled: canceledRows, censored: openRows + canceledRows },
-    citywide: { p50: r2(kmQuantile(sortedAll, 0.5)), p75: r2(kmQuantile(sortedAll, 0.75)), p90: r2(kmQuantile(sortedAll, 0.9)) },
+    citywide: { p50: r2(kmQuantile(sortedAll, 0.5)), p75: r2(kmQuantile(sortedAll, 0.75)), p90: r2(kmQuantile(sortedAll, 0.9)),
+                week: Math.round(kmClosedWithin(sortedAll, 7)) },
     headline, wards,
   };
 }
