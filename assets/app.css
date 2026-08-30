@@ -252,7 +252,12 @@ td.c-ward a:hover { color: var(--accent); }
   .card-table .c-vol { display: none; }
   .card-table table { table-layout: fixed; width: 100%; }
   .card-table td, .card-table th { padding-left: 6px; padding-right: 6px; }
-  .card-table .c-num { width: 66px; }
+  .card-table .c-num { width: 68px; }
+  /* "unranked" is wider than a five-character duration, so on a ward that has
+     one it pushed the whole table 5px past the card. It sets its own size
+     rather than every numeric column widening to accommodate the longest word
+     any ward happens to contain. */
+  .card-table .unranked { font-size: 11px; letter-spacing: -0.01em; }
   .card-table thead th .sort-btn { font-size: 10.5px; letter-spacing: 0.02em; }
 }
 .card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
@@ -263,12 +268,24 @@ td.c-ward a:hover { color: var(--accent); }
    and the flex row had nothing that would give. Both step down together. */
 @media (max-width: 340px) {
   .wordmark { gap: 9px; }
-  .card-table .c-num { width: 58px; }
+  /* table-layout:fixed means the type column gets whatever the numeric ones
+     leave. At 58px each it was left with 104px, which is narrower than the
+     word "abandoned" in the row's bold face - so the name split mid-word no
+     matter how the wrapping was configured. The numbers are five characters
+     and fit in 52. */
+  .card-table .c-num { width: 52px; }
+  .card-table tbody td:first-child strong { font-size: 14px; }
   /* let the type name use two lines rather than fight the numeric columns
      for pixels that are not there on a 320px screen */
-  .card-table tbody td:first-child { white-space: normal; overflow-wrap: anywhere; }
+  /* break-word, not anywhere: `anywhere` also shrinks the column's min-content
+     width, so the type column gave up pixels it had and split "abandoned" as
+     "abandone / d". break-word only breaks a word that genuinely cannot fit. */
+  .card-table tbody td:first-child { white-space: normal; overflow-wrap: break-word; }
   .card-table td, .card-table th { padding-left: 4px; padding-right: 4px; }
-  .card-table thead th .sort-btn { font-size: 9px; letter-spacing: 0; }
+  /* the button's own 8px side padding is 16 of a 52px column - a third of it -
+     which is what was clipping the longest header rather than the type size */
+  .card-table thead th .sort-btn { font-size: 8.5px; letter-spacing: 0; padding-left: 2px; padding-right: 2px; }
+  .card-table .unranked { font-size: 9px; }
 }
 
 /* ward card head: title and the locator side by side */
@@ -364,7 +381,10 @@ td.c-ward a:hover { color: var(--accent); }
   /* Of the two numeric columns only one fits. The share closed in a week says
      how the ward is doing; the raw request count is sample size, and the
      too-few-to-rank tag already flags a ward too small to trust. */
-  .c-num:not(.c-tail) { display: none; }
+  /* Scoped to the board. Unscoped, this hid every numeric column on the ward
+     report card too, which has no .c-tail - so a phone got a ward page whose
+     table said "slower than the city" and never said by how much. */
+  #lb .c-num:not(.c-tail) { display: none; }
   /* Percent widths cannot hold a table that is already wider than its box, so
      the remaining four columns are given fixed shares and the text wraps into
      them rather than pushing the table sideways. */
@@ -375,9 +395,9 @@ td.c-ward a:hover { color: var(--accent); }
   #lb th, #lb td { padding-left: 7px; padding-right: 7px; }
   /* all four fixed: mixing a percentage with fixed columns under
      table-layout:fixed overflowed by exactly the width of the fixed ones */
-  .c-rank { width: 22px; }
-  .c-bar  { width: 62px; }
-  .c-num  { width: 72px; }
+  #lb .c-rank { width: 22px; }
+  #lb .c-bar  { width: 62px; }
+  #lb .c-num  { width: 72px; }
   /* REQUESTS is the widest header and was clipping; the heads shrink rather
      than the numbers, which are what the column is for */
   #lb th { font-size: 10.5px; letter-spacing: 0.02em; }
@@ -396,7 +416,7 @@ td.c-ward a:hover { color: var(--accent); }
    and giving it back stops the ward column from spreading to 400px. */
 @media (min-width: 471px) and (max-width: 620px) {
   td.c-bar .bar { display: block; }
-  .c-bar { width: 150px; }
+  #lb .c-bar { width: 150px; }
 }
 /* label size is set per-label in JS from how large the map is actually drawn;
    here we only thicken the halo so small type stays readable over the fills. */

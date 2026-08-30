@@ -200,7 +200,7 @@
       <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div></td>
       <td class="c-num">${d2(r.wardVal)}</td>
       <td class="c-num">${d2(r.cityVal)}</td>
-      <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? 'unranked' : '-')}</td>
+      <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? '<span class="unranked">unranked</span>' : '-')}</td>
       <td class="c-num c-vol">${fmt(r.n)}</td>
     </tr>`).join('');
 
