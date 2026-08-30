@@ -330,9 +330,16 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
-  // Two decimals everywhere so the column aligns on the point: a bare "6" beside
-  // "5.02" reads as a different kind of number.
-  const d2 = (v) => (v === null || v === undefined ? '-' : Number(v).toFixed(2));
+  // One decimal, fixed, so the column still aligns on the point: a bare "6"
+  // beside "5.0" reads as a different kind of number. The second decimal was
+  // real but it was false precision - these are medians over a few hundred
+  // requests, and 10.89 against 10.73 invites a reading the sample cannot
+  // support. It also cost four glyphs in a column a phone can barely spare.
+  // The one exception is a value that is small but not zero: rounded to one
+  // decimal it would be indistinguishable from the wards that genuinely close
+  // these the same day, so it says so instead.
+  const d2 = (v) => (v === null || v === undefined ? '-'
+    : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
   function renderTable(T) {
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;

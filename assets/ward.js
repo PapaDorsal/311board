@@ -172,7 +172,11 @@
   });
 
   // Two decimals everywhere, so right-aligned figures also line up on the decimal point.
-  const d2 = (v) => (v === null ? '-' : Number(v).toFixed(2));
+  // One decimal, matching the board. See the note on d2 in app.js: the second
+  // decimal is false precision on a median over a few hundred requests, and a
+  // small-but-nonzero value says so rather than rounding into the same-day wards.
+  const d2 = (v) => (v === null || v === undefined ? '-'
+    : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
 
   let sortKey = null, sortDir = 'asc';   // null = the published order below
   const VAL = {
