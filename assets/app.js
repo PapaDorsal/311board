@@ -370,7 +370,7 @@
       const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
-        <td class="c-rank">${w.thin ? '–' : ++rank}</td>
+        <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${w.thin ? '' : ++rank}</td>
         <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
@@ -388,8 +388,7 @@
     $('method-list').innerHTML = [
       `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests. ` +
       `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
-      `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
-      `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
+      `<span class="fig">${fmt(dg.rowsTimed)}</span> of them are finished and timed here.`,
       `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
       // Zero-count diagnostics are noise; a drop is only worth a sentence when it happened.
       `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
@@ -399,7 +398,7 @@
       ...(T.totals.duplicates > 0 ? [
         `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
       ] : []),
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days, and <span class="fig">${T.citywide.week}%</span> are shut inside a week. Every figure is computed from the records themselves.`,
+      `Citywide, half of these close within <span class="fig">${d1(T.citywide.p50)}</span> days, and <span class="fig">${T.citywide.week}%</span> are shut inside a week. Every figure is computed from the records themselves.`,
       ...(dg.censored > 0 ? [
         `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
         (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +
@@ -436,8 +435,8 @@
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
       ` &middot; <a href="ward-${myWard}.html">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
-      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${d1(w.p50)}</span> days, <span class="fig">${fmt(w.n)}</span> requests over ${PERIOD}` +
-        (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few requests to rank.`) + `</p>`
+      ? `<p>For ${esc(T.plain)}: typically <span class="fig">${d1(w.p50)}</span> days, <span class="fig">${fmt(w.n)}</span> completed over ${PERIOD}` +
+        (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${T.wards.filter(x => !x.thin).length} ranked wards.` : ` - too few to rank.`) + `</p>`
       : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
     box.hidden = false;
     if (!jump) return;

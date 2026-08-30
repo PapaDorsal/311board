@@ -255,7 +255,7 @@ const out = {
             label: new Date(WINDOW_FROM + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
               + ' to ' + new Date(new Date(WINDOW_TO + 'T00:00:00Z').getTime() - 86400000).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) },
   minWardN: MIN_WARD_N,
-  featured: 'abandoned-vehicle',
+  featured: 'pothole',
   aldermen,
   types,
   run: { httpAttempts: calls, retries, timeouts, wallSeconds: r2((Date.now() - T0) / 1000) },
