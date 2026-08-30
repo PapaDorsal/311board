@@ -386,7 +386,7 @@
     const ex = T.exclusions, dg = T.diagnostics, st = T.totals.statuses;
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
-      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city filed <span class="fig">${fmt(T.totals.requests)}</span> ${esc(T.plain)} requests. ` +
+      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city logged <span class="fig">${fmt(T.totals.requests)}</span> of these. ` +
       `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> of them are finished and timed here.`,
       `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
