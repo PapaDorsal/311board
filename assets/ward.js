@@ -29,6 +29,12 @@
     el.setAttribute(attr, val);
   };
   const wUrl = `${BASE}/ward-${ward}.html`;
+  // Someone arriving on the legacy ward.html?w=43 sees that in the address bar,
+  // and copying it by hand shares the generic preview. Swap it for the page that
+  // identifies itself; the document already loaded is the same one.
+  if (!document.body.dataset.ward) {
+    try { history.replaceState(null, '', `ward-${ward}.html`); } catch { /* file:// and the like */ }
+  }
   setMeta('meta[name="description"]', 'content', wDesc);
   setMeta('link[rel="canonical"]', 'href', wUrl);
   setMeta('meta[property="og:url"]', 'content', wUrl);
@@ -235,7 +241,11 @@
   $('card').hidden = false;
 
   $('share').onclick = async () => {
-    const url = location.href;
+    // Always the per-ward page. location.href may be the legacy ward.html?w=43,
+    // whose static meta is generic, so sharing that produced a preview reading
+    // "Ward report card" with no ward in it - the whole point of the per-ward
+    // pages was to stop that.
+    const url = wUrl;
     const text = `Ward ${ward}'s 311 report card - ChiWardBoard`;
     try {
       if (navigator.share) { await navigator.share({ title: text, url }); return; }
