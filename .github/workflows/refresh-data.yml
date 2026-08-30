@@ -1,0 +1,73 @@
+# Monthly data refresh.
+#
+# The board covers a rolling 12 months ending at the most recent complete month,
+# so with nobody running the build it silently ages: in August 2026 the site was
+# serving calendar-2025 figures. This runs on the 2nd of each month, by which
+# point the previous month is complete and the city has had a day to settle its
+# records.
+#
+# It commits straight to main rather than opening a pull request. A pull request
+# nobody merges leaves the data exactly as stale as no workflow at all, which is
+# the problem being solved. The safety comes from tools/check-snapshot.mjs
+# instead: every rebuilt file is validated before anything is committed, and a
+# failure leaves the previous, known-good data in place.
+name: Refresh data
+
+on:
+  schedule:
+    - cron: '17 8 2 * *'      # 08:17 UTC on the 2nd, off the hour to dodge the rush
+  workflow_dispatch:           # and runnable by hand from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The calendar years are rebuilt first and the rolling window last, because
+      # build-data.mjs always writes data/leaderboard.json: finishing with the
+      # rolling build leaves every file where it belongs with no shuffling.
+      - name: Rebuild 2024
+        run: |
+          WINDOW_FROM=2024-01-01 WINDOW_TO=2025-01-01 node tools/build-data.mjs
+          node tools/check-snapshot.mjs data/leaderboard.json data/leaderboard-2024.json
+          mv data/leaderboard.json data/leaderboard-2024.json
+
+      - name: Rebuild 2025
+        run: |
+          WINDOW_FROM=2025-01-01 WINDOW_TO=2026-01-01 node tools/build-data.mjs
+          node tools/check-snapshot.mjs data/leaderboard.json data/leaderboard-2025.json
+          mv data/leaderboard.json data/leaderboard-2025.json
+
+      - name: Rebuild the rolling window
+        run: |
+          git show HEAD:data/leaderboard.json > /tmp/prev-rolling.json
+          node tools/build-data.mjs
+          node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- data/; then
+            echo "No change in the data, nothing to commit."
+            exit 0
+          fi
+          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json
+          git commit -m "Monthly data refresh
+
+          Rebuilt from the City of Chicago 311 dataset by .github/workflows/refresh-data.yml.
+          Every file passed tools/check-snapshot.mjs before this commit."
+          git push
