@@ -412,7 +412,7 @@
       ...(dg.censored > 0 ? [
         `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
         (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +
-        `. Leaving them out would have hidden the slowest cases entirely and made a ward that never finishes look like a ward with nothing to finish, so each one counts as a wait of at least that long.`,
+        `. If we dropped them, a ward&rsquo;s unfinished work would disappear from its own figures and make it look faster than it is, so each one counts as a wait of at least that long.`,
       ] : []),
       `Two things these numbers cannot separate. The city says it prioritizes arterial streets over side streets when dispatching crews, so a ward with more arterial mileage may close requests faster without anyone working differently. And every row here started with a resident filing a request, so wards that report more, or report different things, will look different for that reason alone. Neither effect is corrected for here.`,
     ].map((s) => `<li>${s}</li>`).join('');
