@@ -609,8 +609,8 @@
     const T = type();
     const url = `${location.origin}${location.pathname}#${T.key}`;
     const h = T.headline;
-    // Whole days in a text message. The second decimal is real but nobody reads
-    // a shared line that closely, and it makes the sentence look like a readout.
+    // Whole days in a text message: the table's one decimal is right for a
+    // column you are comparing down, but it makes a sentence look like a readout.
     // Both figures carry the unit: "Ward 14: 5" left the reader asking 5 what.
     // The contrast leads, because the gap is the story, not either number alone.
     const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
