@@ -213,7 +213,12 @@
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
-        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, 9 in 10 within <span class="fig">${w.p90}</span> days, <span class="fig">${fmt(w.n)}</span> requests`
+        ? `<strong>Ward ${w.ward}</strong> - typically <span class="fig">${w.p50}</span> days, ` +
+          (w.p90 === null
+            // Fewer than nine in ten have closed, so there is no such day yet.
+            ? `more than one in ten still open, `
+            : `9 in 10 within <span class="fig">${w.p90}</span> days, `) +
+          `<span class="fig">${fmt(w.n)}</span> closed`
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
@@ -373,7 +378,14 @@
       ...(T.totals.duplicates > 0 ? [
         `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
       ] : []),
-      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days and nine in ten within <span class="fig">${T.citywide.p90}</span> days. Every figure is computed from the records themselves.`,
+      `Citywide, half of these close within <span class="fig">${T.citywide.p50}</span> days` +
+      (T.citywide.p90 === null ? '' : ` and nine in ten within <span class="fig">${T.citywide.p90}</span> days`) +
+      `. Every figure is computed from the records themselves.`,
+      ...(dg.censored > 0 ? [
+        `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
+        (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +
+        `. Leaving them out would have hidden the slowest cases entirely and made a ward that never finishes look like a ward with nothing to finish, so each one counts as a wait of at least that long.`,
+      ] : []),
       `Two things these numbers cannot separate. The city says it prioritizes arterial streets over side streets when dispatching crews, so a ward with more arterial mileage may close requests faster without anyone working differently. And every row here started with a resident filing a request, so wards that report more, or report different things, will look different for that reason alone. Neither effect is corrected for here.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
