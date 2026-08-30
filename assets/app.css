@@ -401,6 +401,23 @@ td.c-ward a:hover { color: var(--accent); }
 /* label size is set per-label in JS from how large the map is actually drawn;
    here we only thicken the halo so small type stays readable over the fills. */
 @media (max-width: 820px) { #map .st-line { opacity: 0.22; } #map .x-line { opacity: 0.2; } #map .st-label { stroke-width: 3px; } }
+/* Methodology collapses. It is 16% of the page on a phone and most visitors
+   are not auditing us, but it is the thing that makes the numbers trustworthy,
+   so it stays on the page one tap away rather than moving somewhere else. The
+   heading is always visible: nothing is concealed, only folded. */
+.method > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
+.method > summary::-webkit-details-marker { display: none; }
+.method > summary::after {
+  content: ''; width: 7px; height: 7px; flex: none;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translate(-2px, -2px); transition: transform .15s ease;
+}
+.method[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.method > summary:hover::after { border-color: var(--ink); }
+.method > summary h2 { margin: 0; }
+.method > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+.method[open] > summary { margin-bottom: 10px; }
+
 /* window selector: quieter than the type pills - a modifier, not the subject */
 .windows { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
 .windows button {
