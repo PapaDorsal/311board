@@ -162,7 +162,7 @@
     if (rows.length) {
       $('office-detail').innerHTML =
         (ald.name ? `<p class="office-name">Alderperson ${esc(ald.name)}</p>` : '') + rows.join('') +
-        `<p class="office-note">Contact details published by the City of Chicago. The ward office handles service requests filed in Ward ${ward}.</p>`;
+        `<p class="office-note">Contact details from the City of Chicago&rsquo;s Ward Offices directory, with broken links corrected. The ward office handles service requests filed in Ward ${ward}.</p>`;
       $('office').hidden = false;
     }
   }
