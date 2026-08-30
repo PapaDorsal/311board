@@ -1,8 +1,35 @@
 // Ward report card: one ward, every type on the board. Same snapshot as the front page.
 (async function () {
-  const D = await (await fetch('data/leaderboard.json')).json();
-  const WIN = D.window || { from: `${D.year}-01-01`, to: `${D.year + 1}-01-01`, label: String(D.year) };
-  const PERIOD = WIN.label;
+  // Same three windows the board offers, and the same reason earlier years are
+  // not among them: the ward map changed in May 2023, so a 2022 figure would
+  // describe a different area under the same ward number.
+  const WINDOWS = [
+    { key: 'rolling', pill: 'Last 12 months', file: 'data/leaderboard.json' },
+    { key: '2024', pill: '2024', file: 'data/leaderboard-2024.json' },
+    { key: '2025', pill: '2025', file: 'data/leaderboard-2025.json' },
+  ];
+  const winCache = new Map();
+  async function loadWin(key) {
+    if (winCache.has(key)) return winCache.get(key);
+    const w = WINDOWS.find((x) => x.key === key);
+    const r = await fetch(w.file);
+    if (!r.ok) throw new Error(String(r.status));
+    const j = await r.json();
+    winCache.set(key, j);
+    return j;
+  }
+  // A shared ward-12.html#2024 has to land on 2024, so the window is resolved
+  // before anything renders rather than switched after first paint.
+  const hm = (location.hash || '').match(/^#([\w-]+)$/);
+  let winKey = hm && WINDOWS.some((w) => w.key === hm[1]) && hm[1] !== 'rolling' ? hm[1] : 'rolling';
+  let D, WIN, PERIOD;
+  function adoptData(d) {
+    D = d;
+    WIN = d.window || { from: `${d.year}-01-01`, to: `${d.year + 1}-01-01`, label: String(d.year) };
+    PERIOD = WIN.label;
+  }
+  try { adoptData(await loadWin(winKey)); }
+  catch { winKey = 'rolling'; adoptData(await loadWin('rolling')); }
   const nbRes = await fetch('data/ward-neighborhoods.json').catch(() => null);
   const NB = nbRes && nbRes.ok ? (await nbRes.json()).wards : {};
   const $ = (id) => document.getElementById(id);
@@ -33,7 +60,8 @@
   // and copying it by hand shares the generic preview. Swap it for the page that
   // identifies itself; the document already loaded is the same one.
   if (!document.body.dataset.ward) {
-    try { history.replaceState(null, '', `ward-${ward}.html`); } catch { /* file:// and the like */ }
+    const keep = winKey === 'rolling' ? '' : `#${winKey}`;
+    try { history.replaceState(null, '', `ward-${ward}.html${keep}`); } catch { /* file:// and the like */ }
   }
   setMeta('meta[name="description"]', 'content', wDesc);
   setMeta('link[rel="canonical"]', 'href', wUrl);
@@ -45,9 +73,12 @@
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
   const wHoods = ((NB[ward] || {}).names || []).join(', ');
-  $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
-    (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
-    ` &middot; ${PERIOD}`;
+  function renderSub() {
+    $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
+      (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
+      ` &middot; ${PERIOD}`;
+  }
+  renderSub();
 
   // ---- locator map: this ward's own shape, in context ----
   // A rank tells you how the ward did; it does not tell you which ward this is.
@@ -151,16 +182,14 @@
     return `${D.source.api}?${p}`;
   }
 
-  let wins = 0, ranked = 0;
-
   // Build the rows as data first, so sorting is a re-render rather than DOM surgery.
-  const rows = D.types.map((T) => {
+  let rows = [];
+  const buildRows = () => D.types.map((T) => {
     const w = T.wards.find((x) => x.ward === ward);
     const eligible = T.wards.filter((x) => !x.thin);
     const idx = w && !w.thin ? eligible.findIndex((x) => x.ward === ward) : -1;
-    if (idx >= 0) { ranked++; if (w.p50 <= T.citywide.p50) wins++; }
     return {
-      key: T.key, plain: T.plain, href: `./#${T.key}`,
+      key: T.key, plain: T.plain, href: `./#${T.key}${winKey === 'rolling' ? '' : `-${winKey}`}`,
       wardVal: w ? w.p50 : null,
       cityVal: T.citywide.p50,
       rankIdx: idx >= 0 ? idx + 1 : null,
@@ -233,13 +262,42 @@
     });
   });
 
-  renderRows();
-
   // Provenance, once, under the table instead of a column of repeated links.
-  $('table-src').innerHTML =
-    `Figures computed from the City of Chicago&rsquo;s public ` +
-    `<a href="${esc(D.source.portal)}" rel="noopener">311 Service Requests dataset</a>` +
-    ` (${PERIOD}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
+  function renderSrc() {
+    $('table-src').innerHTML =
+      `Figures computed from the City of Chicago&rsquo;s public ` +
+      `<a href="${esc(D.source.portal)}" rel="noopener">311 Service Requests dataset</a>` +
+      ` (${PERIOD}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
+  }
+
+  function renderWindows() {
+    $('windows').innerHTML = WINDOWS.map((w) =>
+      `<button type="button" data-win="${w.key}" aria-pressed="${w.key === winKey}">${esc(w.pill)}</button>`).join('');
+    $('windows').hidden = false;
+  }
+
+  // Everything downstream of the snapshot, in one place, so switching a window
+  // is the same code path as the first paint. The chosen sort survives it.
+  function renderCard() {
+    rows = buildRows();
+    renderSub();
+    renderRows();
+    renderSrc();
+    renderWindows();
+  }
+  renderCard();
+
+  $('windows').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b || b.dataset.win === winKey) return;
+    try { await loadWin(b.dataset.win); }
+    catch { $('table-src').textContent = 'That year failed to load - try again.'; return; }
+    winKey = b.dataset.win;
+    adoptData(winCache.get(winKey));
+    // The address bar should be shareable at the year on screen.
+    try { history.replaceState(null, '', winKey === 'rolling' ? `ward-${ward}.html` : `ward-${ward}.html#${winKey}`); } catch { /* file:// */ }
+    renderCard();
+  });
 
   $('card').hidden = false;
 
@@ -248,8 +306,10 @@
     // whose static meta is generic, so sharing that produced a preview reading
     // "Ward report card" with no ward in it - the whole point of the per-ward
     // pages was to stop that.
-    const url = wUrl;
-    const text = `Ward ${ward}'s 311 report card - ChiWardBoard`;
+    const url = winKey === 'rolling' ? wUrl : `${wUrl}#${winKey}`;
+    const text = winKey === 'rolling'
+      ? `Ward ${ward}'s 311 report card - ChiWardBoard`
+      : `Ward ${ward}'s 311 report card for ${PERIOD} - ChiWardBoard`;
     try {
       if (navigator.share) { await navigator.share({ title: text, url }); return; }
       await navigator.clipboard.writeText(url);
