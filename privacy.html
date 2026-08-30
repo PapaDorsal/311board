@@ -59,7 +59,7 @@
   <section class="method">
     <h2>What we collect</h2>
     <ul>
-      <li><strong>Nothing that identifies you, on our side.</strong> The site has no database, no server code of its own, and no way to store anything you do here. It is HTML, CSS, JavaScript, and two data files.</li>
+      <li><strong>Nothing that identifies you, on our side.</strong> The site has no database, no server code of its own, and no way to store anything you do here. It is HTML, CSS, JavaScript, and a handful of public data files.</li>
       <li><strong>No cookies for tracking.</strong> The site sets no cookies at all. It does not use localStorage, sessionStorage, or IndexedDB.</li>
       <li><strong>No accounts and no payments.</strong> There is nothing to sign up for and nothing to buy.</li>
     </ul>
@@ -78,11 +78,10 @@
   <section class="method">
     <h2>The address box</h2>
     <ul>
-      <li><strong>An address you type is sent to a server.</strong> It goes directly from your browser to the City of Chicago&rsquo;s public data portal at data.cityofchicago.org, as part of a search query for 311 records at that address.</li>
-      <li>It is not matched locally, and we are not trying to hide that. The city&rsquo;s records are the only way to answer the question accurately.</li>
-      <li>The address travels inside the web address of that request, which means the City of Chicago and its data platform may record it in ordinary server logs. Their handling of that request is governed by their policies, not ours.</li>
-      <li>The request does not pass through us. We never receive the address, and we do not store it.</li>
-      <li>If you would rather not send an address anywhere, use the location button, which stays on your device, or just click your ward on the map.</li>
+      <li><strong>An address you type stays on your device.</strong> It is not sent to us, to the City of Chicago, or to anyone else.</li>
+      <li>The site downloads a block-to-ward index, built ahead of time from public 311 records, the same way it downloads the map. Your address is matched against that index by code running in your browser, and the result is a ward number.</li>
+      <li>Nothing about the address is stored, even locally. Reload the page and it is gone.</li>
+      <li>Because the index is built from blocks that have at least one public 311 record, an address on a block nobody has ever called about will not be found. The location button and the map are there for that case.</li>
     </ul>
   </section>
 
