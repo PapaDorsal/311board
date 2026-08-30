@@ -364,6 +364,7 @@
       `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> completed ones are timed here` +
       `${canceled ? `; <span class="fig">${fmt(canceled)}</span> cancellations are excluded` : ''}.`,
+      `Requests that are still open, or that the city canceled, are not counted here. On most request types that is a small share, under <span class="fig">3.5</span> percent. On three it is not: tree debris <span class="fig">15</span> percent, garbage carts <span class="fig">11</span> percent, potholes <span class="fig">10</span> percent. Those excluded requests are concentrated in the slower wards, so if anything these numbers understate how slow a slow ward is.`,
       `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
       // Zero-count diagnostics are noise; a drop is only worth a sentence when it happened.
       `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
