@@ -132,7 +132,7 @@
       $('hook-line').textContent = past
         ? `In ${winKey}, every ward cleared ${T.plain} in about a day.`
         : `Every ward clears ${T.plain} in about a day.`;
-      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${d1(h.fastest.p50)}</span> to <span class="fig">${d1(h.slowest.p50)}</span> days across wards over ${PERIOD}. This one is not a race - but it is a record.`;
+      $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${d1(h.fastest.p50)}</span> to <span class="fig">${d1(h.slowest.p50)}</span> days across wards over ${PERIOD}.`;
     } else if (past) {
       $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
@@ -401,7 +401,7 @@
       `<span class="fig">${fmt(dg.rowsTimed)}</span> of them are finished and timed here.`,
       `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +
       // Zero-count diagnostics are noise; a drop is only worth a sentence when it happened.
-      `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, the tell for bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
+      `${dg.sameSecondCloses > 0 ? ` Closed in the same second they were opened, usually the sign of bulk administrative closing: <span class="fig">${fmt(dg.sameSecondCloses)}</span> - read this type&rsquo;s fast wards accordingly.` : ''}` +
       `${ex.negativeDurations > 0 ? ` Negative durations dropped: <span class="fig">${fmt(ex.negativeDurations)}</span>.` : ''}` +
       `${ex.nullOrZeroWard > 0 ? ` Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.` : ''}`,
       // The rationale bullet only earns its place when this type actually had duplicates.

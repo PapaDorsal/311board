@@ -68,15 +68,15 @@
       <li><strong>&ldquo;Closed&rdquo; means Completed.</strong> Only a request the city marks Completed counts as finished work. Cancelled and still-open requests are not thrown away: each one counts as a wait of at least that long, so a ward that never finishes cannot look fast by dropping out of the count.</li>
       <li><strong>Duplicates are excluded.</strong> A report the city flags as a duplicate is the same physical problem reported twice; counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling. The per-type count excluded is shown with each board.</li>
       <li><strong>Days to close.</strong> For a finished request it is the closed timestamp minus the created timestamp. For one still open it is the time waited so far, measured to the moment the data was pulled, and counted as a wait of at least that long. A cancelled request is counted the same way, up to its close. The typical time is estimated from all of them together, so the unfinished ones pull it in the direction they belong. Negative durations and rows with no ward are dropped, and the counts of everything dropped are printed with the claim they affect.</li>
-      <li><strong>Ranking floor.</strong> Headline fastest/slowest and rank positions come only from wards with at least 200 completed requests of that type, and only where enough of them closed for a typical time to exist at all. Wards that miss either test are shown, flagged, and unranked - excluded from nothing, trusted for less.</li>
-      <li><strong>Gaps over ratios.</strong> Ward differences are stated in absolute days. When the fastest ward&rsquo;s typical time is near zero a ratio inflates into a number nobody should print, so we don&rsquo;t print it.</li>
+      <li><strong>Ranking floor.</strong> Headline fastest/slowest and rank positions come only from wards with at least 200 completed requests of that type, and only where enough of them closed for a typical time to exist at all. Wards that miss either test are shown and flagged, but not ranked.</li>
+      <li><strong>Gaps over ratios.</strong> Ward differences are stated in absolute days. When the fastest ward&rsquo;s typical time is near zero, a ratio divides by almost nothing and becomes meaninglessly large, so we do not print one.</li>
       <li><strong>What&rsquo;s off the board.</strong> Informational calls and aircraft noise complaints are logged at city facilities (the 311 call center in Ward 28; O&rsquo;Hare in Ward 41), so they describe a building, not a neighborhood. Types that close almost instantly citywide stay on the board with that fact stated.</li>
     </ul>
   </section>
 
   <section class="method">
     <h2>Questions &amp; comments</h2>
-    <p>Corrections, ideas, and complaints about our complaint rankings: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a>. Answered after hours, which is when Chicago fills out forms anyway.</p>
+    <p>Corrections, ideas, and questions: <a href="mailto:after.hours.builder@gmail.com">after.hours.builder@gmail.com</a>.</p>
   </section>
 
   <section class="method">
@@ -93,14 +93,14 @@
     <h2>Terms</h2>
     <ul>
       <li>ChiWardBoard is an independent project and is <strong>not affiliated with the City of Chicago</strong>.</li>
-      <li>The numbers describe how requests were recorded, which is not always how work happened. Provided as-is, for information, with no warranty. Check the receipts before you quote us at a community meeting - that&rsquo;s what they&rsquo;re for.</li>
+      <li>The numbers describe how requests were recorded, which is not always how work happened. Provided as-is, for information, with no warranty. Every figure links to the rows behind it, so check them before quoting one.</li>
       <li>Underlying records are public data provided by the City of Chicago under its <a href="https://www.chicago.gov/city/en/narr/foia/data_disclaimer.html">data terms</a>.</li>
     </ul>
   </section>
 
   <footer class="foot">
     <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago. <a href="about.html">About</a> &middot; <a href="privacy.html">Privacy</a> &middot; <a href="terms.html">Terms</a></p>
-    <p>Made in Chicago. The data is public; the potholes are personal.</p>
+    <p>Made in Chicago.</p>
   </footer>
 </main>
 <script defer src="/_vercel/insights/script.js"></script>
