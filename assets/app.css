@@ -209,8 +209,15 @@ tr.thin .bar { background: var(--bar-thin); }
 .method ul { margin: 0; padding-left: 1.2em; color: var(--ink-2); font-size: 14px; max-width: 82ch; }
 .method > p { max-width: 82ch; }
 .method li { margin: 0 0 6px; }
-.foot { margin-top: 42px; padding-top: 14px; border-top: 1px solid var(--grid); color: var(--muted); font-size: 12.5px; }
-.foot p { margin: 0 0 6px; }
+.foot { margin-top: 60px; padding-top: 26px; border-top: 1px solid var(--grid); color: var(--muted); font-size: 12.5px; }
+.foot p { margin: 0 0 11px; max-width: 78ch; }
+.foot p:last-child { margin-bottom: 0; }
+/* Navigation was the tail of a prose sentence, which is where nobody looks for
+   it. On its own line it is findable, and the sign-off gets a little air. */
+.foot-nav { margin: 0 0 11px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.foot-nav a { color: var(--muted); }
+.foot-nav span { color: var(--grid); }
+.foot-sign { margin-top: 16px; opacity: 0.85; }
 
 /* shared: subpages, ward labels, share */
 .wrap.narrow { max-width: 720px; }
@@ -413,9 +420,13 @@ td.c-ward a:hover { color: var(--accent); }
 }
 
 /* footer utility: quiet, grouped, not a feature */
-.links { margin: 34px 0 0; padding-top: 16px; border-top: 1px solid var(--grid); }
-.links h2 { font-family: var(--display); text-transform: uppercase; font-size: 15px; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 10px; }
-.links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px 26px; max-width: 620px; }
+/* Below the board the page changes register three times: methodology, then
+   utility links, then site chrome. They were all 34-42px apart, so the whole
+   tail read as one grey run. The break between zones is now clearly larger
+   than the break between sections inside a zone. */
+.links { margin: 60px 0 0; padding-top: 26px; border-top: 1px solid var(--grid); }
+.links h2 { font-family: var(--display); text-transform: uppercase; font-size: 15px; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 14px; }
+.links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 20px 26px; max-width: 620px; }
 .links h3 { font: 600 12px var(--sans); color: var(--ink-2); margin: 0 0 4px; }
 .links ul { margin: 0; padding-left: 1.05em; }
 .links li { font-size: 13px; margin: 0 0 2px; }
