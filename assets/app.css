@@ -354,7 +354,10 @@ td.c-ward a:hover { color: var(--accent); }
 /* 620, not 560: the five-column table needs about 555px and the page keeps
    ~42px of padding, so anything under ~600px viewport still overflowed. */
 @media (max-width: 620px) {
-  .c-tail { display: none; }
+  /* Of the two numeric columns only one fits. The share closed in a week says
+     how the ward is doing; the raw request count is sample size, and the
+     too-few-to-rank tag already flags a ward too small to trust. */
+  .c-num:not(.c-tail) { display: none; }
   /* Percent widths cannot hold a table that is already wider than its box, so
      the remaining four columns are given fixed shares and the text wraps into
      them rather than pushing the table sideways. */
