@@ -196,6 +196,7 @@
       rankOf: eligible.length,
       hasData: !!w,
       n: w ? w.n : 0,
+      open: w ? w.openShare : null,
       delta: w ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '',
     };
   });
@@ -213,6 +214,7 @@
     city: (r) => r.cityVal,
     rank: (r) => (r.rankIdx === null ? Infinity : r.rankIdx),
     n:    (r) => r.n,
+    open: (r) => (r.open === null ? -1 : r.open),
   };
 
   function renderRows() {
@@ -232,8 +234,9 @@
       <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div></td>
       <td class="c-num">${d2(r.wardVal)}</td>
       <td class="c-num">${d2(r.cityVal)}</td>
-      <td class="c-num">${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? '<span class="unranked">unranked</span>' : '-')}</td>
+      <td class="c-num"${r.rankIdx === null && r.hasData ? ' title="Too few of these in this ward to rank it"' : ''}>${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? '<span class="unranked">too few</span>' : '-')}</td>
       <td class="c-num c-vol">${fmt(r.n)}</td>
+      <td class="c-num c-vol">${r.open === null ? '-' : Math.round(r.open) + '%'}</td>
     </tr>`).join('');
 
     document.querySelectorAll('#card thead th').forEach((th) => {
