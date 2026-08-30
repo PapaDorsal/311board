@@ -1,4 +1,4 @@
-// chiwardboard front page. Renders the build-time snapshot (data/leaderboard.json)
+// ChiWardBoard front page. Renders the build-time snapshot (data/leaderboard.json)
 // and ward map (data/wards.geojson). Every figure comes from the snapshot, and the
 // address lookup resolves against a shipped index: the page makes no live calls.
 (async function () {
@@ -606,10 +606,10 @@
     // a shared line that closely, and it makes the sentence look like a readout.
     const days = (v) => Math.round(Number(v));
     const text = h && h.slowest.p50 >= 1.5
-      ? `Ward ${h.slowest.ward} takes ${days(h.slowest.p50)} days on ${T.plain}. Ward ${h.fastest.ward}: ${days(h.fastest.p50)}. - chiwardboard`
-      : `Chicago's ${T.plain}, ranked by ward - chiwardboard`;
+      ? `Ward ${h.slowest.ward} takes ${days(h.slowest.p50)} days on ${T.plain}. Ward ${h.fastest.ward}: ${days(h.fastest.p50)}. - ChiWardBoard`
+      : `Chicago's ${T.plain}, ranked by ward - ChiWardBoard`;
     try {
-      if (navigator.share) { await navigator.share({ title: 'chiwardboard', text, url }); return; }
+      if (navigator.share) { await navigator.share({ title: 'ChiWardBoard', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
       $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
     } catch { /* user cancelled */ }

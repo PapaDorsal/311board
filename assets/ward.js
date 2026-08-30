@@ -236,7 +236,7 @@
 
   $('share').onclick = async () => {
     const url = location.href;
-    const text = `Ward ${ward}'s 311 report card - chiwardboard`;
+    const text = `Ward ${ward}'s 311 report card - ChiWardBoard`;
     try {
       if (navigator.share) { await navigator.share({ title: text, url }); return; }
       await navigator.clipboard.writeText(url);
