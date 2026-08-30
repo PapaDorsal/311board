@@ -53,11 +53,25 @@ async function q(params, label) {
   throw new Error(`exhausted ${MAX_ATTEMPTS} attempts [${label}]`);
 }
 
+// Paging MUST carry an explicit order. Socrata does not guarantee a stable row
+// order across $offset pages without one, and on a bad draw it returns the same
+// rows twice while silently skipping others: an observed run duplicated 4,468 of
+// 40,819 tree-debris rows, which moved per-ward counts and medians. Ordering by
+// the row id makes the page boundary deterministic. The duplicate check below is
+// belt and braces - if the invariant ever breaks again it should fail loudly
+// rather than quietly publish wrong numbers.
 async function fetchAll(params, label, pageSize = 25000) {
   const rows = [];
+  const seen = new Set();
   for (let off = 0; ; off += pageSize) {
-    const page = await q({ ...params, $limit: String(pageSize), $offset: String(off) }, `${label}#${off}`);
-    rows.push(...page);
+    const page = await q({ ...params, $order: ':id', $limit: String(pageSize), $offset: String(off) }, `${label}#${off}`);
+    for (const r of page) {
+      if (r[':id'] !== undefined) {
+        if (seen.has(r[':id'])) throw new Error(`paging returned a duplicate row [${label}] - refusing to publish`);
+        seen.add(r[':id']);
+      }
+      rows.push(r);
+    }
     if (page.length < pageSize) break;
   }
   return rows;
@@ -82,43 +96,90 @@ async function profile({ key, official, plain }) {
   }, `${key}:statuses`);
 
   const rows = await fetchAll({
-    $select: 'ward, created_date, closed_date, status, duplicate',
-    $where: `${Y} AND sr_type='${esc(official)}' AND closed_date IS NOT NULL`,
+    $select: ':id, ward, created_date, closed_date, status, duplicate',
+    $where: `${Y} AND sr_type='${esc(official)}'`,
   }, `${key}:rows`);
+  // The extract is only as current as the newest row in it. Open requests are
+  // censored at that moment, not at wall-clock now.
+  const asOfRow = await q({ $select: 'max(last_modified_date) as t' }, `${key}:asof`);
+  const AS_OF = Date.parse(asOfRow[0].t);
 
   const byWard = new Map();
   const all = [];
   let dropNotCompleted = 0, dropNoWard = 0, dropBadDate = 0, dropNeg = 0, dupRows = 0, sameSecond = 0, timed = 0;
+  let openRows = 0, canceledRows = 0;
   for (const r of rows) {
     // Duplicates are excluded from every figure. A duplicate report is the same
     // physical problem reported twice, so counting it twice both inflates volume
     // and re-times one repair as if it were two. The city excludes them in its
     // own Open311 tooling; including them made us the outlier.
     if (r.duplicate === true || r.duplicate === 'true') { dupRows++; continue; }
-    if (!/^completed/i.test(String(r.status || ''))) { dropNotCompleted++; continue; }
-    const c = Date.parse(r.created_date), d = Date.parse(r.closed_date);
-    if (!Number.isFinite(c) || !Number.isFinite(d)) { dropBadDate++; continue; }
-    if (d === c) sameSecond++;
-    const days = (d - c) / 86400000;
-    if (days < 0) { dropNeg++; continue; }
+    const st = String(r.status || '');
+    const done = /^completed/i.test(st);
+    const c = Date.parse(r.created_date);
+    if (!Number.isFinite(c)) { dropBadDate++; continue; }
+    // An open request is not missing data, it is a request that has not finished
+    // yet: we know its wait is AT LEAST this long. Dropping it was survivor bias -
+    // the slowest cases were simply absent from the denominator. It is carried as
+    // a censored observation instead. A cancelled request is censored the same way
+    // at its close: the work did not happen, so its true wait is unknown.
+    let days, event;
+    if (done) {
+      const d = Date.parse(r.closed_date);
+      if (!Number.isFinite(d)) { dropBadDate++; continue; }
+      if (d === c) sameSecond++;
+      days = (d - c) / 86400000; event = true;
+      if (days < 0) { dropNeg++; continue; }
+    } else if (/^open/i.test(st)) {
+      days = (AS_OF - c) / 86400000; event = false; openRows++;
+      if (days < 0) { dropNeg++; continue; }
+    } else if (/^cancel/i.test(st)) {
+      const d = Date.parse(r.closed_date);
+      if (!Number.isFinite(d)) { dropNotCompleted++; continue; }
+      days = (d - c) / 86400000; event = false; canceledRows++;
+      if (days < 0) { dropNeg++; continue; }
+    } else { dropNotCompleted++; continue; }
     const w = Number(r.ward);
     if (!Number.isFinite(w) || w === 0) { dropNoWard++; continue; }
-    timed++;
-    all.push(days);
+    if (event) timed++;
+    all.push([days, event]);
     if (!byWard.has(w)) byWard.set(w, []);
-    byWard.get(w).push(days);
+    byWard.get(w).push([days, event]);
+  }
+
+  // Kaplan-Meier: the share still waiting after t days, given that some requests
+  // are still waiting when the data was pulled. The quantile is the first day the
+  // curve crosses (1 - p). With no censoring this reduces to the plain quantile,
+  // so the fast types read exactly as they did before.
+  function kmQuantile(obs, p) {
+    const s = obs.slice().sort((a, b) => a[0] - b[0] || (a[1] ? 1 : 0) - (b[1] ? 1 : 0));
+    let atRisk = s.length, surv = 1, i = 0;
+    while (i < s.length) {
+      const t = s[i][0];
+      let events = 0, tied = 0;
+      while (i + tied < s.length && s[i + tied][0] === t) { if (s[i + tied][1]) events++; tied++; }
+      if (events > 0) {
+        surv *= (1 - events / atRisk);
+        if (surv <= 1 - p) return t;
+      }
+      atRisk -= tied; i += tied;
+    }
+    return null;   // the curve never gets there: more than (1-p) never closed
   }
 
   const wards = [...byWard.entries()].map(([w, arr]) => {
-    const s = arr.slice().sort((a, b) => a - b);
+    const closed = arr.filter((o) => o[1]).length;
+    const p50 = kmQuantile(arr, 0.5), p75 = kmQuantile(arr, 0.75), p90 = kmQuantile(arr, 0.9);
     return {
-      ward: w, n: s.length,
-      p50: r2(quantile(s, 0.5)), p75: r2(quantile(s, 0.75)), p90: r2(quantile(s, 0.9)),
-      thin: s.length < MIN_WARD_N,
+      ward: w, n: closed, nAll: arr.length,
+      openShare: r2(100 * (arr.length - closed) / arr.length),
+      p50: p50 === null ? null : r2(p50), p75: p75 === null ? null : r2(p75), p90: p90 === null ? null : r2(p90),
+      // A ward whose curve never reaches the median cannot be ranked on it.
+      thin: closed < MIN_WARD_N || p50 === null,
     };
-  }).sort((a, b) => a.p50 - b.p50);
+  }).sort((a, b) => (a.p50 === null) - (b.p50 === null) || a.p50 - b.p50);
 
-  const sortedAll = all.slice().sort((a, b) => a - b);
+  const sortedAll = all;
   const eligible = wards.filter(w => !w.thin);
   const f = eligible[0], sl = eligible[eligible.length - 1];
   const headline = eligible.length >= 2 ? {
@@ -139,8 +200,9 @@ async function profile({ key, official, plain }) {
       statuses: Object.fromEntries(statuses.map(s => [s.status, Number(s.c)])),
     },
     exclusions: { duplicates: dupRows, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
-    diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed },
-    citywide: { p50: r2(quantile(sortedAll, 0.5)), p75: r2(quantile(sortedAll, 0.75)), p90: r2(quantile(sortedAll, 0.9)) },
+    diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed,
+                   stillOpen: openRows, canceled: canceledRows, censored: openRows + canceledRows },
+    citywide: { p50: r2(kmQuantile(sortedAll, 0.5)), p75: r2(kmQuantile(sortedAll, 0.75)), p90: r2(kmQuantile(sortedAll, 0.9)) },
     headline, wards,
   };
 }
@@ -148,7 +210,7 @@ async function profile({ key, official, plain }) {
 const types = [];
 for (const t of TYPES) types.push(await profile(t));
 
-// Who runs each ward — the city's Ward Offices dataset. "Last, First" -> "First Last".
+// Who runs each ward - the city's Ward Offices dataset. "Last, First" -> "First Last".
 const OFFICES = 'https://data.cityofchicago.org/resource/htai-wnw4.json';
 const offRes = await fetch(`${OFFICES}?$limit=60`, { signal: AbortSignal.timeout(60000) });
 const offices = offRes.ok ? await offRes.json() : [];
