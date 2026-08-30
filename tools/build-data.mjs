@@ -15,15 +15,15 @@ const MIN_WARD_N = 200;      // headline endpoints only from wards at/above this
 
 // The suite. Featured first. plain = how the page says it; official = the record's term.
 const TYPES = [
-  { key: 'abandoned-vehicle', official: 'Abandoned Vehicle Complaint', plain: 'abandoned vehicles' },
-  { key: 'pothole', official: 'Pothole in Street Complaint', plain: 'potholes' },
-  { key: 'rodent', official: 'Rodent Baiting/Rat Complaint', plain: 'rat complaints' },
-  { key: 'graffiti', official: 'Graffiti Removal Request', plain: 'graffiti' },
+  { key: 'abandoned-vehicle', official: 'Abandoned Vehicle Complaint', plain: 'abandoned car removal' },
+  { key: 'pothole', official: 'Pothole in Street Complaint', plain: 'pothole repair' },
+  { key: 'rodent', official: 'Rodent Baiting/Rat Complaint', plain: 'rat baiting' },
+  { key: 'graffiti', official: 'Graffiti Removal Request', plain: 'graffiti removal' },
   { key: 'garbage-cart', official: 'Garbage Cart Maintenance', plain: 'garbage cart repairs' },
-  { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street lights out' },
-  { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris' },
+  { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street light repair' },
+  { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris cleanup' },
   { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation violations' },
-  { key: 'fly-dumping', official: 'Fly Dumping Complaint', plain: 'illegal dumping' },
+  { key: 'fly-dumping', official: 'Fly Dumping Complaint', plain: 'illegal dumping cleanup' },
   { key: 'missed-pickup', official: 'Missed Garbage Pick-Up Complaint', plain: 'missed garbage pickups' },
 ];
 
