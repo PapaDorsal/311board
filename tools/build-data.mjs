@@ -19,7 +19,7 @@ const TYPES = [
   { key: 'pothole', official: 'Pothole in Street Complaint', plain: 'potholes' },
   { key: 'rodent', official: 'Rodent Baiting/Rat Complaint', plain: 'rat complaints' },
   { key: 'graffiti', official: 'Graffiti Removal Request', plain: 'graffiti' },
-  { key: 'garbage-cart', official: 'Garbage Cart Maintenance', plain: 'garbage carts' },
+  { key: 'garbage-cart', official: 'Garbage Cart Maintenance', plain: 'garbage cart repairs' },
   { key: 'street-light', official: 'Street Light Out Complaint', plain: 'street lights out' },
   { key: 'tree-debris', official: 'Tree Debris Clean-Up Request', plain: 'tree debris' },
   { key: 'sanitation', official: 'Sanitation Code Violation', plain: 'sanitation violations' },

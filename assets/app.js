@@ -42,7 +42,7 @@
   // Deadpan phrasing per type: what "closing" one of these means in English.
   const VERB = {
     'abandoned-vehicle': 'to deal with an abandoned car', 'pothole': 'to fill a pothole',
-    'rodent': 'to bait a rat complaint', 'graffiti': 'to remove graffiti',
+    'rodent': 'to bait for rats', 'graffiti': 'to remove graffiti',
     'garbage-cart': 'to fix a garbage cart', 'street-light': 'to fix a street light',
     'tree-debris': 'to clear tree debris', 'sanitation': 'to close a sanitation violation',
     'fly-dumping': 'to clear an illegally dumped pile', 'missed-pickup': 'to come back for a missed pickup',
