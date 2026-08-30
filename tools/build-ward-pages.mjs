@@ -19,7 +19,18 @@
 import { readFileSync, writeFileSync, readdirSync, unlinkSync } from 'node:fs';
 
 const BASE = 'https://chiwardboard.com';
-const shell = readFileSync('ward.html', 'utf8');
+let shell = readFileSync('ward.html', 'utf8');
+
+// A ward page is what Google indexes, so someone landing on one from a search
+// should get the same standing resources the board offers rather than a dead
+// end. The block lives in index.html; ward.html carries a copy so the legacy
+// ward.html?w= page has it too, and this overwrites that copy on every build so
+// the two can never drift. Throwing beats silently shipping two versions.
+const LINKS = /  <section class="links">[\s\S]*?\n  <\/section>\n/;
+const boardLinks = readFileSync('index.html', 'utf8').match(LINKS);
+if (!boardLinks) throw new Error('useful-links block not found in index.html - markup changed?');
+if (!LINKS.test(shell)) throw new Error('useful-links block not found in ward.html - markup changed?');
+shell = shell.replace(LINKS, boardLinks[0]);
 const D = JSON.parse(readFileSync('data/leaderboard.json', 'utf8'));
 const NB = JSON.parse(readFileSync('data/ward-neighborhoods.json', 'utf8')).wards || {};
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
