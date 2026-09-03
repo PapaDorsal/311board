@@ -13,6 +13,13 @@ const fail = [], warn = [];
 
 if (!Array.isArray(d.types) || d.types.length !== 10) fail.push(`expected 10 types, got ${d.types?.length}`);
 if (!d.window?.from || !d.window?.to) fail.push('window missing');
+// The rolling build is the one that must move: pass EXPECT_WINDOW_TO (the first
+// of the current month) and a snapshot that stopped rolling is refused rather
+// than committed. The monthly refresh once rebuilt the same twelve months for
+// a full cycle because the default window was a pair of literal dates.
+if (process.env.EXPECT_WINDOW_TO && d.window?.to !== process.env.EXPECT_WINDOW_TO) {
+  fail.push(`window ends ${d.window?.to}, expected ${process.env.EXPECT_WINDOW_TO} - the rolling window did not roll`);
+}
 if (!d.generatedAt) fail.push('generatedAt missing');
 if (Object.keys(d.aldermen || {}).length < 50) fail.push(`expected 50 ward offices, got ${Object.keys(d.aldermen || {}).length}`);
 
@@ -34,7 +41,7 @@ for (const t of d.types || []) {
   const ranked = wards.filter((w) => !w.thin).length;
   if (ranked < 2) fail.push(`${tag}: only ${ranked} ranked wards, no headline possible`);
   if (t.headline && !(t.headline.gapDays >= 0)) fail.push(`${tag}: negative gap`);
-  if (!(t.citywide?.p50 >= 0)) fail.push(`${tag}: citywide p50 missing`);
+  if (!(t.citywide?.p50 > 0)) fail.push(`${tag}: citywide p50 missing or zero`);
   if (!(t.diagnostics?.rowsTimed > 0)) fail.push(`${tag}: nothing timed`);
 }
 

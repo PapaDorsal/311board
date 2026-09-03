@@ -2,10 +2,17 @@
 // and ward map (data/wards.geojson). Every figure comes from the snapshot, and the
 // address lookup resolves against a shipped index: the page makes no live calls.
 (async function () {
+  const $ = (id) => document.getElementById(id);
   const [dataRes, geoRes, nbRes, stRes] = await Promise.all([
     fetch('data/leaderboard.json'), fetch('data/wards.geojson'), fetch('data/ward-neighborhoods.json'),
     fetch('data/streets.geojson')]);
-  if (!dataRes.ok || !geoRes.ok) return;
+  if (!dataRes.ok || !geoRes.ok) {
+    // A blank page says nothing. Name the failure where the hook would be.
+    $('hook-line').textContent = 'The data did not load.';
+    $('hook-sub').textContent = 'Reload the page. If it keeps happening, the snapshot at data/leaderboard.json is what this page reads.';
+    $('hook').hidden = false;
+    return;
+  }
   const GEO = await geoRes.json();
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
@@ -33,7 +40,6 @@
   }
   adoptData(winCache.get('rolling'));
 
-  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n).toLocaleString('en-US');
   const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
@@ -60,20 +66,16 @@
   const d1 = (v) => (v === null || v === undefined ? '-'
     : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
 
+  // Days, then weeks, then months: "about nine weeks" is a figure nobody says
+  // out loud, and the brief's own example is "a month and a half".
   function human(days) {
     if (days < 1) return 'under a day';
     if (days < 6) { const d = Math.round(days); return d === 1 ? 'about a day' : `about ${word(d)} days`; }
-    const w = Math.round(days / 7);
-    return w <= 1 ? 'about a week' : `about ${word(w)} weeks`;
-  }
-  function receiptUrl(type, ward) {
-    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
-      ` AND sr_type='${type.official.replace(/'/g, "''")}' AND status='Completed' AND ward=${ward}`;
-    const p = new URLSearchParams({
-      $select: 'sr_number,street_address,created_date,closed_date',
-      $where: where, $order: 'created_date DESC', $limit: '1000',
-    });
-    return `${D.source.api}?${p}`;
+    if (days < 40) { const w = Math.round(days / 7); return w <= 1 ? 'about a week' : `about ${word(w)} weeks`; }
+    const m = days / 30.44;
+    if (m < 1.75) return 'about a month and a half';
+    const n = Math.round(m);
+    return n < WORDS.length ? `about ${word(n)} months` : `about ${n} months`;
   }
 
   // ---- map projection: equirectangular over the wards' bounding box ----
@@ -156,11 +158,14 @@
     $('windows').hidden = false;
   }
 
+  // The wards a colour can be read for: ranked ones. A thin ward is drawn grey
+  // whatever its median, and a ward whose median does not exist has null for
+  // it, which sorted as zero and dragged the lowest band down to "same day".
+  const ranked = (T) => T.wards.filter((w) => !w.thin && w.p50 !== null);
   function bins(T) {
-    // quintile breaks over ward medians, so every type's map has spread
-    const v = T.wards.map((w) => w.p50).sort((a, b) => a - b);
-    const qq = [0.2, 0.4, 0.6, 0.8].map((p) => v[Math.floor(p * (v.length - 1))]);
-    return qq;
+    // quintile breaks over ranked ward medians, so every type's map has spread
+    const v = ranked(T).map((w) => w.p50).sort((a, b) => a - b);
+    return [0.2, 0.4, 0.6, 0.8].map((p) => v[Math.floor(p * (v.length - 1))]);
   }
   function binColor(v, breaks) {
     let i = 0; while (i < breaks.length && v > breaks[i]) i++;
@@ -171,7 +176,10 @@
     const breaks = bins(T);
     const byWard = new Map(T.wards.map((w) => [w.ward, w]));
     $('map-title').textContent = `Typical days on the map`;
-    $('map-hint').textContent = 'Hover any ward for its number. Click for its full report card.';
+    // A click selects the ward here - card above the map, row lit in the table -
+    // and the card carries the link to the full report card. Saying "click for
+    // the report card" promised a page the click never opened.
+    $('map-hint').textContent = 'Hover any ward for its number. Click to pick it out in the table.';
     const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
     const placedWardBoxes = [];
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
@@ -209,7 +217,8 @@
         if (name) seen.add(name);
       }
     });
-    const lo = Math.min(...T.wards.map((w) => w.p50)), hi = Math.max(...T.wards.map((w) => w.p50));
+    const rv = ranked(T).map((w) => w.p50);
+    const lo = Math.min(...rv), hi = Math.max(...rv);
     // On a type the city closes almost instantly, the fastest quintiles are all
     // fractions of a day and one decimal renders them "0.0-0.0" - a band that
     // says nothing. A band that ends inside the same day is named for that, and
@@ -241,7 +250,7 @@
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
-        `<br><span class="tip-cta">Source: City of Chicago 311 records. Click for the rows behind this.</span>`;
+        `<br><span class="tip-cta">Source: City of Chicago 311 records. Click to select this ward.</span>`;
       const r = box.getBoundingClientRect();
       tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
       tip.style.top = (e.clientY - r.top + 14) + 'px';
@@ -352,25 +361,16 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
-  // One decimal, fixed, so the column still aligns on the point: a bare "6"
-  // beside "5.0" reads as a different kind of number. The second decimal was
-  // real but it was false precision - these are medians over a few hundred
-  // requests, and 10.89 against 10.73 invites a reading the sample cannot
-  // support. It also cost four glyphs in a column a phone can barely spare.
-  // The one exception is a value that is small but not zero: rounded to one
-  // decimal it would be indistinguishable from the wards that genuinely close
-  // these the same day, so it says so instead.
-  const d2 = d1;
   function renderTable(T) {
     $('board-title').textContent = `All 50 wards, ranked`;
     const thin = T.wards.filter((w) => w.thin).length;
     $('board-note').innerHTML = `Fastest first. ` + (thin
       ? `The ${word(thin)} ward${thin > 1 ? 's' : ''} marked <em>too few to rank</em> handled fewer than <span class="fig">${D.minWardN}</span> of these all year: listed, but too thin to rank.`
       : `Every ward handled at least <span class="fig">${D.minWardN}</span> of these requests, enough for the numbers to mean something.`);
-    const maxP50 = Math.max(...T.wards.map((w) => w.p50));
+    const maxP50 = Math.max(...T.wards.map((w) => w.p50 || 0));
     let rank = 0;
     $('lb-body').innerHTML = T.wards.map((w) => {
-      const pct = Math.max(1.5, (w.p50 / (maxP50 || 1)) * 100);
+      const pct = Math.max(1.5, ((w.p50 || 0) / (maxP50 || 1)) * 100);
       const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
       // A ward can sit mid-table on the median while a fifth of its requests
       // have never been closed at all. The median is estimated with those
@@ -384,7 +384,7 @@
         <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${back}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
-        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d2(w.p50)}</span></div></td>
+        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${d1(w.p50)}</span></div></td>
         <td class="c-num c-tail">${w.week}%</td>
         <td class="c-num">${fmt(w.n)}</td>
       </tr>`;
@@ -633,7 +633,8 @@
 
   $('share').onclick = async () => {
     const T = type();
-    const url = `${location.origin}${location.pathname}#${T.key}`;
+    // The same hash the address bar carries, so a shared 2024 view opens as 2024.
+    const url = `${location.origin}${location.pathname}${hashFor()}`;
     const h = T.headline;
     // Whole days in a text message: the table's one decimal is right for a
     // column you are comparing down, but it makes a sentence look like a readout.

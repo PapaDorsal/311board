@@ -7,8 +7,21 @@ const BASE = 'https://data.cityofchicago.org/resource/v6vf-nfxy.json';
 // Rolling 12 months ending at the most recent COMPLETE month, so the board never
 // mixes a part-filled month into a median. The city's own published median dataset
 // (u6fz-87ei) uses the same rolling-12-month shape.
-const WINDOW_FROM = process.env.WINDOW_FROM || '2025-08-01';
-const WINDOW_TO   = process.env.WINDOW_TO   || '2026-08-01';   // exclusive
+//
+// The default is computed from today, not written down: it used to be a pair of
+// literal dates, and the monthly workflow (which passes no override for the
+// rolling build) rebuilt the same twelve months every time. The window must
+// move on its own or the refresh is theatre. A calendar year is still selected
+// by passing WINDOW_FROM and WINDOW_TO explicitly.
+const ym = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`;
+const NOW = new Date();
+const DEFAULT_TO = ym(new Date(Date.UTC(NOW.getUTCFullYear(), NOW.getUTCMonth(), 1)));
+const DEFAULT_FROM = ym(new Date(Date.UTC(NOW.getUTCFullYear(), NOW.getUTCMonth() - 12, 1)));
+const WINDOW_FROM = process.env.WINDOW_FROM || DEFAULT_FROM;
+const WINDOW_TO   = process.env.WINDOW_TO   || DEFAULT_TO;     // exclusive
+if (!/^\d{4}-\d{2}-01$/.test(WINDOW_FROM) || !/^\d{4}-\d{2}-01$/.test(WINDOW_TO) || WINDOW_FROM >= WINDOW_TO) {
+  throw new Error(`bad window ${WINDOW_FROM}..${WINDOW_TO}: both must be the first of a month, from before to`);
+}
 const YEAR = Number(WINDOW_FROM.slice(0, 4));
 const Y = `created_date >= '${WINDOW_FROM}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00'`;
 const MIN_WARD_N = 200;      // headline endpoints only from wards at/above this
@@ -82,7 +95,9 @@ function quantile(sorted, p) {
   const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
   return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
 }
-const r2 = (x) => Math.round(x * 100) / 100;
+// null stays null: a quantile the survival curve never reaches is "does not
+// exist", and Math.round(null * 100) would have quietly published it as 0.
+const r2 = (x) => (x === null || x === undefined ? null : Math.round(x * 100) / 100);
 
 async function profile({ key, official, plain }) {
   const totals = await q({
@@ -189,14 +204,13 @@ async function profile({ key, official, plain }) {
     return {
       ward: w, n: closed, nAll: arr.length,
       openShare: r2(100 * (arr.length - closed) / arr.length),
-      p50: p50 === null ? null : r2(p50), p75: p75 === null ? null : r2(p75), p90: p90 === null ? null : r2(p90),
+      p50: r2(p50), p75: r2(p75), p90: r2(p90),
       week: Math.round(kmClosedWithin(arr, 7)),
       // A ward whose curve never reaches the median cannot be ranked on it.
       thin: closed < MIN_WARD_N || p50 === null,
     };
   }).sort((a, b) => (a.p50 === null) - (b.p50 === null) || a.p50 - b.p50);
 
-  const sortedAll = all;
   const eligible = wards.filter(w => !w.thin);
   const f = eligible[0], sl = eligible[eligible.length - 1];
   const headline = eligible.length >= 2 ? {
@@ -219,8 +233,8 @@ async function profile({ key, official, plain }) {
     exclusions: { duplicates: dupRows, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
     diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed,
                    stillOpen: openRows, canceled: canceledRows, censored: openRows + canceledRows },
-    citywide: { p50: r2(kmQuantile(sortedAll, 0.5)), p75: r2(kmQuantile(sortedAll, 0.75)), p90: r2(kmQuantile(sortedAll, 0.9)),
-                week: Math.round(kmClosedWithin(sortedAll, 7)) },
+    citywide: { p50: r2(kmQuantile(all, 0.5)), p75: r2(kmQuantile(all, 0.75)), p90: r2(kmQuantile(all, 0.9)),
+                week: Math.round(kmClosedWithin(all, 7)) },
     headline, wards,
   };
 }

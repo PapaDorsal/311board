@@ -51,11 +51,14 @@ jobs:
           node tools/check-snapshot.mjs data/leaderboard.json data/leaderboard-2025.json
           mv data/leaderboard.json data/leaderboard-2025.json
 
+      # The rolling window is computed from today inside build-data.mjs; the
+      # check pins it to the first of this month so a build that stopped rolling
+      # fails here instead of being committed as a refresh.
       - name: Rebuild the rolling window
         run: |
           git show HEAD:data/leaderboard.json > /tmp/prev-rolling.json
           node tools/build-data.mjs
-          node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
+          EXPECT_WINDOW_TO="$(date -u +%Y-%m-01)" node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
 
       # Ward page titles carry neighbourhood and alderperson names from the
       # snapshot, so they are regenerated whenever the data is.
