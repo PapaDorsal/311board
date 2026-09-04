@@ -42,7 +42,10 @@
 
   // Per-ward identity so tabs, browser history and shared links are distinguishable.
   const BASE = 'https://chiwardboard.com';
-  const wTitle = `Ward ${ward} - ChiWardBoard`;
+  const wHoods = ((NB[ward] || {}).names || []).join(', ');
+  // The same shape build-ward-pages.mjs bakes into the file, so the tab title
+  // does not lose the neighbourhood names the moment the script runs.
+  const wTitle = `Ward ${ward}${wHoods ? `: ${wHoods.split(', ').slice(0, 3).join(', ')}` : ''} - ChiWardBoard`;
   const aldName = ((D.aldermen || {})[ward] || {}).name;
   const wDesc = `How fast the city closes 311 requests in Chicago's Ward ${ward}` +
     (aldName ? ` (Alderperson ${aldName})` : '') +
@@ -72,7 +75,6 @@
   setMeta('meta[name="twitter:description"]', 'content', wDesc);
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
-  const wHoods = ((NB[ward] || {}).names || []).join(', ');
   function renderSub() {
     $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
       (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
@@ -175,13 +177,6 @@
     return `${D.source.api}?${p}`;
   }
 
-  function receiptUrl(type) {
-    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
-      ` AND sr_type='${type.official.replace(/'/g, "''")}' AND status='Completed' AND ward=${ward}`;
-    const p = new URLSearchParams({ $select: 'sr_number,street_address,created_date,closed_date', $where: where, $order: 'created_date DESC', $limit: '1000' });
-    return `${D.source.api}?${p}`;
-  }
-
   // Build the rows as data first, so sorting is a re-render rather than DOM surgery.
   let rows = [];
   const buildRows = () => D.types.map((T) => {
@@ -197,13 +192,16 @@
       hasData: !!w,
       n: w ? w.n : 0,
       open: w ? w.openShare : null,
-      delta: w ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '',
+      // A ward whose curve never reached the median has no figure to compare;
+      // null <= anything is true, and it used to read "faster than the city".
+      delta: w && w.p50 !== null && T.citywide.p50 !== null
+        ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '',
     };
   });
 
-  // One decimal, matching the board. See the note on d2 in app.js: the second
-  // decimal is false precision on a median over a few hundred requests, and a
-  // small-but-nonzero value says so rather than rounding into the same-day wards.
+  // One decimal, matching the board's d1: the second decimal is false precision
+  // on a median over a few hundred requests, and a small-but-nonzero value says
+  // so rather than rounding into the same-day wards.
   const d2 = (v) => (v === null || v === undefined ? '-'
     : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
 

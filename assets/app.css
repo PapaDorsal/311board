@@ -115,24 +115,12 @@ a { color: inherit; }
 }
 .addr-go:hover { border-color: var(--accent); }
 .finder-label { display: block; font: 700 10.5px/1 var(--sans); text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 6px; }
-.finder-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.finder-row input {
-  flex: 1 1 220px; font: 13.5px var(--sans); color: var(--ink);
-  background: var(--page); border: 1px solid var(--grid); border-radius: 6px; padding: 6px 10px;
-}
-.finder-row input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-.finder-row button {
-  font: 600 13px var(--sans); border-radius: 6px; padding: 6px 12px; cursor: pointer;
-  background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent);
-}
-.finder-row button#finder-gps { background: transparent; color: var(--accent); }
 .finder-note { color: var(--muted); font-size: 11px; line-height: 1.35; margin: 5px 0 0; }
 
 /* your-ward card */
 .mine { margin: 8px 0 0; padding: 10px 12px; border-left: 4px solid var(--chi-red); background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .mine h3 { font-family: var(--display); text-transform: uppercase; font-size: 20px; margin: 0 0 4px; }
 .mine p { margin: 0; color: var(--ink-2); }
-.mine .err { color: var(--ink-2); }
 
 /* board layout */
 .board-grid {
@@ -212,8 +200,6 @@ td.c-ward .open-tag {
   margin-left: 7px; white-space: nowrap;
 }
 td.c-num { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
-td.c-src { font-size: 12px; }
-td.c-src a { color: var(--muted); }
 .barcell { display: flex; align-items: center; gap: 8px; min-width: 150px; }
 .bar {
   height: 9px; background: var(--bar);
@@ -288,8 +274,6 @@ td.c-ward a:hover { color: var(--accent); }
 }
 .card-table td, .card-table th { padding-left: 8px; padding-right: 8px; }
 
-@media (max-width: 480px) {
-}
 /* On a 320px screen the flag plus a 25px wordmark is 8px wider than the page,
    and the flex row had nothing that would give. Both step down together. */
 @media (max-width: 340px) {
