@@ -26,6 +26,38 @@ const YEAR = Number(WINDOW_FROM.slice(0, 4));
 const Y = `created_date >= '${WINDOW_FROM}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00'`;
 const MIN_WARD_N = 200;      // headline endpoints only from wards at/above this
 
+// ---- backlog types ----------------------------------------------------------
+// Most request types on this board close eventually and differ only in how fast,
+// so days-to-close is the only axis worth ranking them on. Measured over two
+// years, the share still open after six months is 0.0% for potholes, rats, tree
+// debris, sanitation, fly dumping and missed pickups, and under 1.3% for the
+// rest. A backlog column across those would be a column of zeros.
+//
+// Sidewalk inspections are the exception in the whole dataset: 32% of them are
+// still open six months on, and the per-ward spread runs 18% to 60%. They also
+// cannot be ranked on speed - the city completes so few (about 22 per ward a
+// year, against a floor of 200) that a speed ranking would rest on noise. The
+// same fact makes them unrankable one way and worth ranking the other.
+//
+// So a backlog type is ranked on the share of its requests still open, and
+// carries metric:'backlog' so the page knows to read it that way.
+const MIN_BACKLOG_N = 100;   // mature requests per ward before it can be ranked
+const MATURITY_DAYS = 180;   // a request younger than this is not late, just new
+// The filing window has to outrun the maturity cut. Requests from the last six
+// months are excluded as too new to judge, so a 24-month window only leaves 18
+// months of judgeable filings - thin enough that 11 wards fell under the floor.
+// 30 months in leaves a full 24 months of them, and every ward clears it.
+const BACKLOG_MONTHS = 30;
+
+const BACKLOG_TYPES = [
+  { key: 'sidewalk', official: 'Sidewalk Inspection Request', plain: 'sidewalk repairs' },
+];
+
+// The ward map changed in May 2023. A backlog window reaching back past that
+// would compare areas that were not the same ward, so the type is dropped from
+// any snapshot whose lookback crosses it rather than quietly published.
+const WARD_MAP_FROM = '2023-05-01';
+
 // The suite. Featured first. plain = how the page says it; official = the record's term.
 const TYPES = [
   { key: 'abandoned-vehicle', official: 'Abandoned Vehicle Complaint', plain: 'abandoned car removal' },
@@ -239,8 +271,80 @@ async function profile({ key, official, plain }) {
   };
 }
 
+// A backlog type asks a different question of the same records: not how long the
+// finished ones took, but what share of them the city has not finished at all.
+// That needs no closure timestamps, which is exactly why it works on a type the
+// city rarely closes. Only requests at least MATURITY_DAYS old are counted, so a
+// ward that simply received a lot of requests last month does not read as a ward
+// that ignores them.
+function monthsBefore(iso, n) {
+  const d = new Date(iso + 'T00:00:00Z');
+  return ym(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - n, 1)));
+}
+
+async function profileBacklog({ key, official, plain }) {
+  const from = monthsBefore(WINDOW_TO, BACKLOG_MONTHS);
+  if (from < WARD_MAP_FROM) {
+    console.log(`${key}: skipped - a ${BACKLOG_MONTHS}-month lookback from ${WINDOW_TO} starts ${from}, before the ${WARD_MAP_FROM} ward map`);
+    return null;
+  }
+  const where = `created_date >= '${from}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00' AND sr_type='${esc(official)}'`;
+  const rows = await fetchAll({ $select: ':id, ward, created_date, status, duplicate', $where: where }, `${key}:rows`);
+  const asOfRow = await q({ $select: 'max(last_modified_date) as t' }, `${key}:asof`);
+  const AS_OF = Date.parse(asOfRow[0].t);
+  const cutoff = AS_OF - MATURITY_DAYS * 86400000;
+
+  const byWard = new Map();
+  let filed = 0, mature = 0, open = 0, dupRows = 0, dropNoWard = 0, tooNew = 0;
+  for (const r of rows) {
+    if (r.duplicate === true || r.duplicate === 'true') { dupRows++; continue; }
+    const c = Date.parse(r.created_date);
+    if (!Number.isFinite(c)) continue;
+    const w = Number(r.ward);
+    if (!Number.isFinite(w) || w === 0) { dropNoWard++; continue; }
+    filed++;
+    if (c > cutoff) { tooNew++; continue; }
+    const isOpen = /^open/i.test(String(r.status || ''));
+    mature++; if (isOpen) open++;
+    if (!byWard.has(w)) byWard.set(w, { mature: 0, open: 0 });
+    const s = byWard.get(w); s.mature++; if (isOpen) s.open++;
+  }
+
+  const wards = [...byWard.entries()].map(([w, s]) => {
+    const p = s.open / s.mature;
+    return {
+      ward: w, mature: s.mature, open: s.open,
+      pct: r2(100 * p),
+      // 95% interval on the share, so the page can say how firm each figure is.
+      ci: r2(100 * 1.96 * Math.sqrt(p * (1 - p) / s.mature)),
+      thin: s.mature < MIN_BACKLOG_N,
+    };
+  }).sort((a, b) => b.pct - a.pct);   // worst first: the backlog is the subject
+
+  const eligible = wards.filter((w) => !w.thin);
+  const worst = eligible[0], best = eligible[eligible.length - 1];
+  const headline = eligible.length >= 2
+    ? { worst: { ward: worst.ward, pct: worst.pct, mature: worst.mature },
+        best: { ward: best.ward, pct: best.pct, mature: best.mature },
+        gapPoints: r2(worst.pct - best.pct) }
+    : null;
+
+  console.log(`${key}: filed=${filed} mature=${mature} open=${open} (${(100 * open / mature).toFixed(1)}%) wards=${wards.length} eligible=${eligible.length}` +
+    (headline ? ` worst=${worst.ward}@${worst.pct}% best=${best.ward}@${best.pct}%` : ''));
+
+  return {
+    key, official, plain, metric: 'backlog',
+    window: { from, to: WINDOW_TO, maturityDays: MATURITY_DAYS },
+    minWardN: MIN_BACKLOG_N,
+    totals: { filed, mature, open, tooNew, duplicates: dupRows, nullOrZeroWard: dropNoWard },
+    citywide: { pct: r2(100 * open / mature), mature, open },
+    headline, wards,
+  };
+}
+
 const types = [];
-for (const t of TYPES) types.push(await profile(t));
+for (const t of TYPES) types.push({ ...await profile(t), metric: 'speed' });
+for (const t of BACKLOG_TYPES) { const b = await profileBacklog(t); if (b) types.push(b); }
 
 // Corrections to the city's directory, applied after it is read.
 //

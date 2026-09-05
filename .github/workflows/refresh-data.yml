@@ -60,6 +60,21 @@ jobs:
           node tools/build-data.mjs
           EXPECT_WINDOW_TO="$(date -u +%Y-%m-01)" node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
 
+      # Cycling context for the ward pages. Separate datasets on their own
+      # cadence, and a failure here must not cost us the 311 refresh: the ward
+      # pages already treat the file as optional, so a stale one is survivable
+      # where a half-written one is not.
+      - name: Refresh the cycling context
+        continue-on-error: true
+        run: |
+          node tools/build-bike-context.mjs
+          node -e 'const d=require("./data/bike-context.json");
+            const w=Object.keys(d.wards).length;
+            if(w!==50) throw new Error("expected 50 wards, got "+w);
+            if(!(d.citywide.crashes>500)) throw new Error("implausible crash count: "+d.citywide.crashes);
+            if(!(d.citywide.laneMiles>100)) throw new Error("implausible lane mileage: "+d.citywide.laneMiles);
+            console.log("bike context ok:",d.citywide.crashes,"crashes,",d.citywide.laneMiles,"mi");'
+
       # Ward page titles carry neighbourhood and alderperson names from the
       # snapshot, so they are regenerated whenever the data is.
       - name: Regenerate the per-ward pages
@@ -75,7 +90,7 @@ jobs:
             echo "No change in the data, nothing to commit."
             exit 0
           fi
-          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json ward-*.html
+          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json data/bike-context.json ward-*.html
           git commit -m "Monthly data refresh
 
           Rebuilt from the City of Chicago 311 dataset by .github/workflows/refresh-data.yml.
