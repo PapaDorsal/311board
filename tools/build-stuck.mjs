@@ -36,8 +36,11 @@ const HISTORY = 'data/stuck-history.json';
 const OUT = 'data/stuck.json';
 
 // Infrastructure the city owns. See the public-way rule above before adding.
-const PUBLIC_WAY = [
+// Being on this list only makes a type eligible; the speed test below decides.
+const CANDIDATES = [
   { official: 'Sidewalk Inspection Request', plain: 'Sidewalk repair' },
+  { official: 'Sign Repair Request - All Other Signs', plain: 'Street sign repair' },
+  { official: 'Protected Bike Lane - Debris Removal', plain: 'Bike lane debris' },
   { official: 'Street Light Out Complaint', plain: 'Street light out' },
   { official: 'Pothole in Street Complaint', plain: 'Pothole' },
   { official: 'Abandoned Vehicle Complaint', plain: 'Abandoned vehicle' },
@@ -45,10 +48,28 @@ const PUBLIC_WAY = [
   { official: 'Fly Dumping Complaint', plain: 'Illegal dumping' },
   { official: 'Alley Light Out Complaint', plain: 'Alley light out' },
   { official: 'Street Light Pole Damage Complaint', plain: 'Damaged light pole' },
-  { official: 'Protected Bike Lane - Debris Removal', plain: 'Bike lane debris' },
   { official: 'Sign Repair Request - Stop Sign', plain: 'Stop sign repair' },
+  { official: 'Traffic Signal Out Complaint', plain: 'Traffic signal out' },
 ];
-const PLAIN = Object.fromEntries(PUBLIC_WAY.map((t) => [t.official, t.plain]));
+
+// THE SPEED TEST, WHICH IS WHY THIS LIST IS NOT HAND-PICKED.
+//
+// A year-old open request only means "nobody came" if a year is a strange length
+// of time for that type. It is not, for a sidewalk: the city takes a median of
+// about ten months to finish one, so a request still open at twelve is an
+// ordinary continuation of a slow process. It is very strange for a traffic
+// signal, which the city closes in a median of five hours and completes 97% of
+// the time - a signal request open for a year in a system that fast almost
+// certainly means a crew fixed it and never closed the ticket. That is a
+// bookkeeping ghost, and listing it under a heading that says nobody came would
+// be a claim the data cannot support.
+//
+// An earlier version of this file hand-picked the types and got it wrong: it
+// shipped 863 damaged-light-pole and 149 stop-sign entries, both types the city
+// closes in a matter of hours. So the build now measures each candidate instead
+// of trusting the list, and prints its reasoning. If the city speeds up a type,
+// it drops out on the next refresh without anyone noticing it should.
+const MIN_MEDIAN_DAYS = 30;  // below this, an old open ticket is about the paperwork
 
 const STUCK_DAYS = 365;      // open longer than this to qualify
 const WARD_MAP_FROM = '2023-05-01';   // the current ward boundaries
@@ -87,6 +108,28 @@ async function qAll(params, label, page = 25000) {
 const now = new Date();
 const TODAY = day(now);
 const cutoff = day(new Date(now.getTime() - STUCK_DAYS * 86400000));
+
+// Run the speed test before fetching anything else: only the types that pass it
+// are worth pulling stuck rows for.
+const PUBLIC_WAY = [];
+const rejected = [];
+for (const t of CANDIDATES) {
+  const where = `sr_type='${esc(t.official)}' AND created_date > '${WARD_MAP_FROM}T00:00:00'` +
+    ` AND status like 'Completed%' AND (duplicate IS NULL OR duplicate = false)`;
+  const rows = await q({ $select: 'created_date, closed_date', $where: where, $order: ':id', $limit: '600' }, `speed:${t.official}`);
+  const days = rows.map((r) => (Date.parse(r.closed_date) - Date.parse(r.created_date)) / 86400000)
+    .filter((d) => Number.isFinite(d) && d >= 0).sort((a, b) => a - b);
+  const median = days.length ? days[Math.floor(days.length / 2)] : NaN;
+  if (Number.isFinite(median) && median >= MIN_MEDIAN_DAYS) { PUBLIC_WAY.push({ ...t, medianDays: Math.round(median) }); }
+  else { rejected.push({ ...t, medianDays: Number.isFinite(median) ? Math.round(median * 10) / 10 : null }); }
+}
+console.log('types that qualify (city normally takes a month or more):');
+for (const t of PUBLIC_WAY) console.log(`   ${t.plain} - median ${t.medianDays} days to close`);
+console.log('types rejected (closed too fast for a year-old ticket to mean nobody came):');
+for (const t of rejected) console.log(`   ${t.plain} - median ${t.medianDays} days`);
+if (!PUBLIC_WAY.length) throw new Error('no candidate type passed the speed test - refusing to publish an empty list');
+
+const PLAIN = Object.fromEntries(PUBLIC_WAY.map((t) => [t.official, t.plain]));
 const typeClause = PUBLIC_WAY.map((t) => `sr_type='${esc(t.official)}'`).join(' OR ');
 
 // Everything on a city-owned asset that has been open longer than a year.
@@ -124,7 +167,7 @@ for (const r of rows) {
 // either been closed or has aged out. Ask the records which, in batches, so a
 // resolved ticket can be reported as resolved rather than quietly vanishing.
 const gone = Object.keys(H).filter((id) => !seenNow.has(id) && !H[id].d);
-let resolved = 0;
+let resolved = 0, canceled = 0, dropped = 0;
 for (let i = 0; i < gone.length; i += 150) {
   const batch = gone.slice(i, i + 150);
   const list = batch.map((id) => `'${esc(id)}'`).join(',');
@@ -135,22 +178,32 @@ for (let i = 0; i < gone.length; i += 150) {
   for (const r of found) {
     const h = H[r.sr_number];
     if (!h) continue;
-    if (/^completed/i.test(String(r.status || '')) && r.closed_date) {
+    const status = String(r.status || '');
+    if (/^completed/i.test(status) && r.closed_date) {
       h.d = r.closed_date.slice(0, 10);
       h.w = Math.round((Date.parse(r.closed_date) - Date.parse(r.created_date)) / 86400000);
       h.t = PLAIN[r.sr_type] || r.sr_type;
       h.a = r.street_address || null;
       h.wd = Number(r.ward) || null;
       resolved++;
+    } else if (/^open/i.test(status)) {
+      // Still open, but no longer in our set - its TYPE stopped qualifying, not
+      // the request. Marking it resolved would be a lie about a request that is
+      // sitting there right now, so it leaves the archive entirely. This is not
+      // hypothetical: adding the speed test dropped nine types at once, and 2,137
+      // live requests were recorded as "gone" before this branch existed.
+      delete H[r.sr_number];
+      dropped++;
     } else {
       // Cancelled, or otherwise no longer open without being completed. Recorded
       // as gone rather than as finished work: the difference matters.
       h.d = TODAY; h.w = null; h.t = PLAIN[r.sr_type] || r.sr_type;
       h.a = r.street_address || null; h.wd = Number(r.ward) || null;
+      canceled++;
     }
   }
 }
-console.log(`no longer stuck: ${gone.length} (${resolved} completed since we started watching)`);
+console.log(`no longer stuck: ${gone.length} - ${resolved} completed, ${canceled} cancelled, ${dropped} dropped (type no longer qualifies)`);
 
 // Keep the archive bounded: a ticket resolved long ago has told its story.
 const pruneBefore = day(new Date(now.getTime() - CLOSED_KEEP_DAYS * 86400000));
@@ -206,9 +259,11 @@ for (const r of rows) { const k = PLAIN[r.sr_type] || r.sr_type; byType[k] = (by
 const out = {
   generatedAt: now.toISOString(),
   watchingSince: history.started,
-  rule: `Requests on city-owned infrastructure still open more than ${STUCK_DAYS} days, oldest first. Complaints about private property are never listed.`,
+  rule: `Requests on city-owned infrastructure still open more than ${STUCK_DAYS} days, oldest first. Only types the city normally takes a month or more to close. Complaints about private property are never listed.`,
   stuckDays: STUCK_DAYS,
-  types: PUBLIC_WAY.map((t) => t.plain),
+  minMedianDays: MIN_MEDIAN_DAYS,
+  types: PUBLIC_WAY.map((t) => ({ name: t.plain, medianDays: t.medianDays })),
+  excludedTypes: rejected.map((t) => ({ name: t.plain, medianDays: t.medianDays })),
   citywide: { total: rows.length, byType, oldest: sorted.slice(0, CITYWIDE).map(ticket) },
   closed,
   wards: byWard,

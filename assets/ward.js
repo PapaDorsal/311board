@@ -373,7 +373,12 @@
           `Crash counts follow how much cycling a ward carries and what kind of streets it has, so they are printed here as facts about this place, not as a score. ` +
           `Citywide over the same ${yrs} years: <span class="fig">${fmt(BC.citywide.crashes)}</span> crashes, <span class="fig">${fmt(BC.citywide.serious)}</span> serious or fatal, ` +
           `across <span class="fig">${BC.citywide.laneMiles.toFixed(0)}</span> miles of bike route. ` +
-          `From the city's <a href="${esc(BC.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BC.sources.routes.portal)}" rel="noopener">bike route</a> datasets, placed into wards by their coordinates.`;
+          `From the city's <a href="${esc(BC.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BC.sources.routes.portal)}" rel="noopener">bike route</a> datasets, placed into wards by their coordinates. ` +
+          // Somewhere to go, rather than a number and a shrug. Reporting a
+          // blocked lane leads because it is the one thing 311 has no category
+          // for at all, which is the gap this site cannot close on its own.
+          `If a lane here is blocked, <a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a> - the city's 311 has no category for it. ` +
+          `<a href="https://activetrans.org/" rel="noopener">Active Transportation Alliance</a> works on street safety citywide.`;
         $('bike').hidden = false;
       }
     }

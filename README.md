@@ -99,13 +99,25 @@ So: it is committed on every refresh, the workflow validates it before commit
 `build-stuck.mjs` records at most one observation per calendar day so re-running
 a build by hand cannot inflate a count into a claim the data will not support.
 
-**The public-way rule.** Only request types about infrastructure the city owns
-are eligible for that list — a street light, a sidewalk, a pothole. Sanitation
-code and building violations are complaints against a private owner at their own
-home, and publishing "this address has an open complaint" is a different act
-with a different target. The list in `tools/build-stuck.mjs` is the whole
-enforcement; the workflow also fails the build if a banned type ever reaches the
-rendered output. Adding a type means checking it against that line first.
+**Two rules gate that list, and both are in `tools/build-stuck.mjs`.**
+
+*The public-way rule.* Only request types about infrastructure the city owns are
+eligible — a street light, a sidewalk, a pothole. Sanitation code and building
+violations are complaints against a private owner at their own home, and
+publishing "this address has an open complaint" is a different act with a
+different target. The candidate list is the whole enforcement; the workflow also
+fails the build if a banned type ever reaches the rendered output.
+
+*The speed test.* Being on the candidate list only makes a type eligible. The
+build then measures how long the city normally takes to close that type and
+drops any that finish in under 30 days. A year-old open request means "nobody
+came" only if a year is strange for that job — it is not for a sidewalk (median
+~10 months), and it very much is for a traffic signal (median **five hours**,
+97% completed), where an old open ticket almost certainly means a crew fixed it
+and never closed the record. The first version of this file hand-picked its
+types and got that wrong, shipping 863 damaged-light-pole and 149 stop-sign
+entries the city closes in hours. The build now measures instead of trusting the
+list, and prints its reasoning on every run.
 
 ## Figures written into prose
 

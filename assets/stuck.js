@@ -22,8 +22,17 @@
   const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
 
   const oldest = D.citywide.oldest[0];
+  // Named from the data, not written down. The list of qualifying types is
+  // decided by a measurement at build time, so a sentence naming them by hand
+  // goes wrong the moment the city speeds one up - as it did when street lights
+  // dropped out and the copy still claimed them.
+  const kinds = (D.types || []).map((t) => {
+    const s = String(t.name || t).toLowerCase().replace(/ (repair|out|debris)$/, '');
+    return s.endsWith('s') ? s : s + 's';
+  });
+  const kindList = kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}` : kinds[0] || 'infrastructure';
   $('lead').innerHTML =
-    `<span class="fig">${fmt(D.citywide.total)}</span> requests about Chicago&rsquo;s own street lights, sidewalks and roads ` +
+    `<span class="fig">${fmt(D.citywide.total)}</span> requests about Chicago&rsquo;s own ${esc(kindList)} ` +
     `have been open more than a year. The oldest has been waiting <span class="fig">${ago(oldest.days)}</span>.`;
 
   const byType = Object.entries(D.citywide.byType).sort((a, b) => b[1] - a[1]);
@@ -48,6 +57,20 @@
     `Oldest first, every one of them, with no picking. Each ward page carries its own list. ` +
     `Figures from the city&rsquo;s public 311 records, refreshed ${esc(D.generatedAt.slice(0, 10))}.`;
   $('stuck').hidden = false;
+
+  // The share text carries the finding, not the page name. A link that arrives
+  // saying "Nobody came for these" is a title; one that says how many and for
+  // how long is the reason to open it.
+  $('share').onclick = async () => {
+    const url = 'https://chiwardboard.com/stuck.html';
+    const text = `${fmt(D.citywide.total)} requests about Chicago's own ${kindList} have been open more than a year. ` +
+      `The oldest has been waiting ${ago(oldest.days)}.`;
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Nobody came for these - ChiWardBoard', text, url }); return; }
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
+    } catch { /* user cancelled */ }
+  };
 
   // The payoff, and it only exists because the site kept watching. Empty on the
   // first run by definition: nothing has been observed twice yet.

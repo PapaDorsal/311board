@@ -828,7 +828,8 @@
         $('bike-note').innerHTML =
           `Every ward page carries its own version of these. They are never ranked: a ward with more crashes is usually a ward with more cycling, ` +
           `and correcting for that would need ridership figures nobody publishes. ` +
-          `Bike lane obstructions are not here at all - the city logs about 630 a year across all 50 wards, too few to say anything about any one of them. ` +
+          `Bike lane obstructions are not here at all - the city logs about 630 a year across all 50 wards, too few to say anything about any one of them, ` +
+          `and 311 has no category whatsoever for a vehicle parked in a lane. <a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a>. ` +
           `From the city's <a href="${esc(BIKE.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BIKE.sources.routes.portal)}" rel="noopener">bike route</a> datasets.`;
         $('bike').hidden = false;
       } catch { /* the board stands on its own without it */ }
@@ -838,8 +839,15 @@
       const S = STUCK = await sRes.json();
       const list = (S.citywide.oldest || []).slice(0, 4);
       if (!list.length) return;
+      // Type names come from the data: which types qualify is decided by a
+      // measurement at build time, so naming them in prose goes stale silently.
+      const kinds = (S.types || []).map((t) => {
+        const s = String(t.name || t).toLowerCase().replace(/ (repair|out|debris)$/, '');
+        return s.endsWith('s') ? s : s + 's';
+      });
+      const kindList = kinds.length > 1 ? `${kinds.slice(0, -1).join(', ')} and ${kinds[kinds.length - 1]}` : kinds[0] || 'infrastructure';
       $('stuck-lead').innerHTML =
-        `<span class="fig">${fmt(S.citywide.total)}</span> requests about the city&rsquo;s own street lights, sidewalks and roads ` +
+        `<span class="fig">${fmt(S.citywide.total)}</span> requests about the city&rsquo;s own ${esc(kindList)} ` +
         `have been open more than a year. The oldest few:`;
       $('stuck-list').innerHTML = list.map((t) => `<li class="stuck-item">
         <div class="stuck-head"><a class="stuck-ward" href="ward-${t.ward}.html">Ward ${t.ward}</a> &middot; ` +
