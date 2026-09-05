@@ -755,6 +755,31 @@
     renderAll();
   });
 
+  // A handful of the oldest unfinished requests, under the board. The table
+  // above says which wards are slow; this says which corner, which is the part
+  // a person recognises. Independent of the selected type and window - these
+  // are specific cases, not a cut of the aggregate.
+  (async function stuckTeaser() {
+    try {
+      const r = await fetch('data/stuck.json');
+      if (!r.ok) return;
+      const S = await r.json();
+      const list = (S.citywide.oldest || []).slice(0, 4);
+      if (!list.length) return;
+      const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
+      $('stuck-lead').innerHTML =
+        `<span class="fig">${fmt(S.citywide.total)}</span> requests about the city&rsquo;s own street lights, sidewalks and roads ` +
+        `have been open more than a year. The oldest few:`;
+      $('stuck-list').innerHTML = list.map((t) => `<li class="stuck-item">
+        <div class="stuck-head"><a class="stuck-ward" href="ward-${t.ward}.html">Ward ${t.ward}</a> &middot; ` +
+        `<strong>${esc(t.type)}</strong>${t.address ? ` &middot; ${esc(t.address)}` : ''}</div>
+        <div class="stuck-meta">Reported ${esc(t.created)} &middot; open <span class="fig">${ago(t.days)}</span> &middot; ` +
+        `<span class="stuck-sr">${esc(t.sr)}</span></div></li>`).join('');
+      $('stuck-note').innerHTML = `<a href="stuck.html">The longest waits in Chicago, and the ones that finally got fixed &rarr;</a>`;
+      $('stuck').hidden = false;
+    } catch { /* the board stands on its own without it */ }
+  })();
+
   // Footer
   function renderFoot() {
     $('foot-line').innerHTML = `Covering ${PERIOD}${winKey === 'rolling' ? ', a rolling 12 months' : ''}. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;

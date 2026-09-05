@@ -60,6 +60,24 @@ jobs:
           node tools/build-data.mjs
           EXPECT_WINDOW_TO="$(date -u +%Y-%m-01)" node tools/check-snapshot.mjs data/leaderboard.json /tmp/prev-rolling.json
 
+      # The stuck list, and the archive behind it. This one is NOT allowed to
+      # fail quietly: data/stuck-history.json is the only record of how long the
+      # site has been watching each request, and it can only be rebuilt by
+      # waiting. A run that half-writes it would reset every observation count
+      # to one, so the build validates the file before it can be committed.
+      - name: Refresh the stuck list
+        run: |
+          node tools/build-stuck.mjs
+          node -e 'const s=require("./data/stuck.json"), h=require("./data/stuck-history.json");
+            if(!(s.citywide.total>100)) throw new Error("implausibly few stuck requests: "+s.citywide.total);
+            if(Object.keys(s.wards).length!==50) throw new Error("expected 50 wards");
+            const n=Object.keys(h.tickets).length;
+            if(!(n>=s.citywide.total)) throw new Error("archive smaller than the current list: "+n);
+            const forbidden=["Sanitation Code Violation","Building Violation"];
+            for(const t of s.citywide.oldest) if(forbidden.some(f=>String(t.type).includes(f)))
+              throw new Error("private-property type leaked into the public list: "+t.type);
+            console.log("stuck ok:",s.citywide.total,"open,",n,"tracked, watching since",s.watchingSince);'
+
       # Cycling context for the ward pages. Separate datasets on their own
       # cadence, and a failure here must not cost us the 311 refresh: the ward
       # pages already treat the file as optional, so a stale one is survivable
@@ -90,7 +108,8 @@ jobs:
             echo "No change in the data, nothing to commit."
             exit 0
           fi
-          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json data/bike-context.json ward-*.html
+          git add data/leaderboard.json data/leaderboard-2024.json data/leaderboard-2025.json \
+                  data/bike-context.json data/stuck.json data/stuck-history.json ward-*.html
           git commit -m "Monthly data refresh
 
           Rebuilt from the City of Chicago 311 dataset by .github/workflows/refresh-data.yml.
