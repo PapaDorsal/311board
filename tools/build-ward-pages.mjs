@@ -30,7 +30,15 @@ const LINKS = /  <section class="links">[\s\S]*?\n  <\/section>\n/;
 const boardLinks = readFileSync('index.html', 'utf8').match(LINKS);
 if (!boardLinks) throw new Error('useful-links block not found in index.html - markup changed?');
 if (!LINKS.test(shell)) throw new Error('useful-links block not found in ward.html - markup changed?');
-shell = shell.replace(LINKS, boardLinks[0]);
+const synced = shell.replace(LINKS, boardLinks[0]);
+// Write the template back too, not just the copy in memory. This used to patch
+// only the shell it was about to render fifty pages from, so ward.html itself
+// kept whatever links it was last saved with - and ward.html?w=47, which is
+// still a live URL for anyone who shared one before the per-ward pages existed,
+// served a stale block. The two can only be prevented from drifting by actually
+// writing one of them.
+if (synced !== shell) { writeFileSync('ward.html', synced); console.log('ward.html links block re-synced from index.html'); }
+shell = synced;
 const D = JSON.parse(readFileSync('data/leaderboard.json', 'utf8'));
 const NB = JSON.parse(readFileSync('data/ward-neighborhoods.json', 'utf8')).wards || {};
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

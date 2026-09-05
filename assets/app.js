@@ -475,7 +475,7 @@
         `Wards with fewer than <span class="fig">${T.minWardN}</span> requests old enough to judge are shown but not ranked. ` +
         `${T.totals.duplicates > 0 ? `Reports the city flagged as duplicates are excluded: <span class="fig">${fmt(T.totals.duplicates)}</span>. ` : ''}` +
         `${T.totals.nullOrZeroWard > 0 ? `Rows with no ward dropped: <span class="fig">${fmt(T.totals.nullOrZeroWard)}</span>.` : ''}`,
-        `What this cannot tell you: whether an open request means nobody came, or whether the city keeps the case open while a repair waits its turn in a capital programme. The records show status, not intent. Read it as work the city has not signed off on.`,
+        `What this cannot tell you: whether an open request means nobody came, or whether the repair is waiting on a programme with its own queue. Most residential sidewalk repair runs through the city's Shared Cost Sidewalk Program, where the property owner pays a share and applications open on a single day each January. What the records do show is that closing one of these is not a formality - the completed ones take a median of about five months. Read an open one as work the city has not signed off on.`,
       ].map((s) => `<li>${s}</li>`).join('');
       $('method').hidden = false;
       return;
