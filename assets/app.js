@@ -516,6 +516,22 @@
 
   // ---- find-your-ward ----
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  // What this ward's own page holds beyond the board: the requests nobody came
+  // for, and what riding here has cost. Stated flatly and in that order - the
+  // stuck count is this site's own subject, the crash count is context.
+  function mineExtras(ward) {
+    const bits = [];
+    const st = STUCK && (STUCK.wards || {})[ward];
+    if (st && st.total > 0) {
+      bits.push(`<span class="fig">${fmt(st.total)}</span> request${st.total === 1 ? '' : 's'} open more than a year`);
+    }
+    const bk = BIKE && (BIKE.wards || {})[ward];
+    if (bk && bk.crashes > 0) {
+      bits.push(`<span class="fig">${fmt(bk.crashes)}</span> bike crash${bk.crashes === 1 ? '' : 'es'} in ${BIKE.window.years} years`);
+    }
+    if (!bits.length) return '';
+    return `<p class="mine-extra">Also on its page: ${bits.join(', ')}.</p>`;
+  }
   // `jump` is only set when the visitor picked a ward off the map. Locating
   // yourself by address or GPS should leave you where you are - the card answers
   // the question on its own, and on a phone the table is a screen and a half
@@ -539,7 +555,19 @@
           (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> worst of the ${rankedW.length} ranked wards.` : ` - too few to rank.`) + `</p>`
         : `<p>For ${esc(T.plain)}: typically <span class="fig">${d1(w.p50)}</span> days, <span class="fig">${fmt(w.n)}</span> completed over ${PERIOD}` +
           (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> fastest of the ${rankedW.length} ranked wards.` : ` - too few to rank.`) + `</p>`)
-      : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`);
+      : `<p>No data for this type in Ward ${myWard} over ${PERIOD}.</p>`) +
+      // The one moment a visitor has raised their hand: they have found their
+      // own ward and are reading about it. Naming what else is on its page here
+      // beats putting either figure in front of the board, where it would push
+      // the ranking below the fold for everyone to reach the few who care.
+      mineExtras(myWard);
+    // Location and address lookups resolve after the first paint, so these two
+    // files may still be in flight. Re-render once they land rather than
+    // blocking the card that answers the question.
+    if ((!STUCK || !BIKE) && !renderMine._retry) {
+      renderMine._retry = true;
+      setTimeout(() => { renderMine._retry = false; if (myWard) renderMine(note, false); }, 700);
+    }
     box.hidden = false;
     if (!jump) return;
     const row = document.getElementById(`wrow-${myWard}`);
@@ -772,18 +800,44 @@
     renderAll();
   });
 
-  // A handful of the oldest unfinished requests, under the board. The table
-  // above says which wards are slow; this says which corner, which is the part
-  // a person recognises. Independent of the selected type and window - these
-  // are specific cases, not a cut of the aggregate.
-  (async function stuckTeaser() {
+  // Everything below the board: the oldest unfinished requests, and the city's
+  // cycling figures. Both are context rather than ranking, so they sit after the
+  // table rather than in front of it - anything between the hook and the map
+  // pushes the comparison the site exists for below the fold, worst on a phone.
+  // They are also what a visitor never discovers otherwise: the board is
+  // legible enough that people read it and leave, never learning a ward page
+  // carries more. STUCK and BIKE are shared with the ward card below.
+  let STUCK = null, BIKE = null;
+  const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
+
+  (async function belowTheBoard() {
+    const [sRes, bRes] = await Promise.all([
+      fetch('data/stuck.json').catch(() => null),
+      fetch('data/bike-context.json').catch(() => null),
+    ]);
+    if (bRes && bRes.ok) {
+      try {
+        BIKE = await bRes.json();
+        const c = BIKE.citywide, yrs = BIKE.window.years;
+        const stat = (v, label, sub) =>
+          `<div class="bstat"><div class="bstat-v">${v}</div><div class="bstat-k">${label}</div>${sub ? `<div class="bstat-s">${sub}</div>` : ''}</div>`;
+        $('bike-stats').innerHTML =
+          stat(fmt(c.crashes), 'crashes involving someone on a bike', `in the last ${yrs} years`) +
+          stat(fmt(c.serious), 'left someone seriously hurt or killed', 'of those crashes') +
+          stat(`${Math.round(c.laneMiles)} mi`, 'of bike route citywide', `${Math.round(c.protectedLaneMiles)} mi of it physically protected`);
+        $('bike-note').innerHTML =
+          `Every ward page carries its own version of these. They are never ranked: a ward with more crashes is usually a ward with more cycling, ` +
+          `and correcting for that would need ridership figures nobody publishes. ` +
+          `Bike lane obstructions are not here at all - the city logs about 630 a year across all 50 wards, too few to say anything about any one of them. ` +
+          `From the city's <a href="${esc(BIKE.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BIKE.sources.routes.portal)}" rel="noopener">bike route</a> datasets.`;
+        $('bike').hidden = false;
+      } catch { /* the board stands on its own without it */ }
+    }
     try {
-      const r = await fetch('data/stuck.json');
-      if (!r.ok) return;
-      const S = await r.json();
+      if (!sRes || !sRes.ok) return;
+      const S = STUCK = await sRes.json();
       const list = (S.citywide.oldest || []).slice(0, 4);
       if (!list.length) return;
-      const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
       $('stuck-lead').innerHTML =
         `<span class="fig">${fmt(S.citywide.total)}</span> requests about the city&rsquo;s own street lights, sidewalks and roads ` +
         `have been open more than a year. The oldest few:`;
