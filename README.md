@@ -107,6 +107,21 @@ with a different target. The list in `tools/build-stuck.mjs` is the whole
 enforcement; the workflow also fails the build if a banned type ever reaches the
 rendered output. Adding a type means checking it against that line first.
 
+## Figures written into prose
+
+Almost every number on the site is rendered from the snapshot, so it moves on
+its own. Four are typed into hand-written copy and will drift:
+
+| Where | Claim | Check against |
+| --- | --- | --- |
+| `about.html`, `index.html` | sidewalks "about a third" unfinished | `types[metric=backlog].citywide.pct` |
+| `about.html`, `index.html` | "about 630 [bike lane obstructions] a year" | 311, `Protected Bike Lane - Debris Removal` |
+
+Both are deliberately vague enough to survive ordinary movement. If either goes
+badly wrong, fix the sentence rather than adding another live figure to a page
+that is meant to read as prose. (The precise version of the first is always on
+the sidewalk board itself.)
+
 ## Things that need a human
 
 - **Ward office overrides.** `OFFICE_FIXES` in `tools/build-data.mjs` corrects

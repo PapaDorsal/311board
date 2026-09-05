@@ -58,6 +58,13 @@
   const OPEN_TAG = 20;
   // Sequential blue ramp (light steps 100..600 of the validated palette).
   const RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#2a78d6', '#184f95'];
+  // Backlog boards get red. Not decoration: blue reads as "how fast", and this
+  // axis is not measuring speed at all - it is measuring work the city never
+  // came back for. Giving the two metrics one palette let a reader carry the
+  // wrong instinct from one board to the next. Same five lightness steps, so
+  // the map is read the same way; only the meaning changes.
+  const RAMP_BACKLOG = ['#fddcd8', '#f9aca2', '#f2776a', '#dc3f2c', '#a3200f'];
+  const rampFor = (T) => (isBacklog(T) ? RAMP_BACKLOG : RAMP);
 
   // One decimal everywhere a duration is shown, prose included. These lines used
   // to interpolate the raw value, so the same figure read 68.18 in the sentence
@@ -150,15 +157,20 @@
     const h = T.headline;
     if (!h) { $('hook').hidden = true; return; }
     const past = winKey !== 'rolling';
+    // The official term used to close every one of these lines. It is there so
+    // a reader can match a figure against the city's own records, which is a
+    // real need - but it is a need a person has while checking the method, not
+    // while reading the headline, and in the second line of the page it was the
+    // most bureaucratic sentence on the most-read part of the site. It now sits
+    // in "How we counted", where someone verifying is already looking.
     if (isBacklog(T)) {
-      const yrs = Math.round((Date.parse(T.window.to) - Date.parse(T.window.from)) / 31557600000);
       $('hook-line').textContent =
         `Ward ${h.worst.ward} has left ${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. Ward ${h.best.ward} has left ${pctTxt(h.best.pct)}.`;
       $('hook-sub').innerHTML =
-        `Share of requests still open at least ${T.window.maturityDays} days after they were filed, over ${yrs} years: ` +
-        `<span class="fig">${pctTxt(h.worst.pct)}</span> in Ward ${h.worst.ward}, <span class="fig">${pctTxt(h.best.pct)}</span> in Ward ${h.best.ward}. ` +
-        `Citywide it is <span class="fig">${pctTxt(T.citywide.pct)}</span>. ` +
-        `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
+        `<span class="fig">${pctTxt(h.worst.pct)}</span> of requests still open in Ward ${h.worst.ward}, ` +
+        `<span class="fig">${pctTxt(h.best.pct)}</span> in Ward ${h.best.ward}, ` +
+        `<span class="fig">${pctTxt(T.citywide.pct)}</span> across the city. ` +
+        `Counting only requests filed at least six months ago, because a new one is not late yet.`;
       $('hook').hidden = false;
       return;
     }
@@ -170,13 +182,11 @@
     } else if (past) {
       $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days. ` +
-        `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
+        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
       $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days. ` +
-        `Official request type: &ldquo;${esc(T.official)}&rdquo;.`;
+        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
     }
     $('hook').hidden = false;
   }
@@ -199,9 +209,9 @@
     const v = ranked(T).map((w) => val(T, w)).sort((a, b) => a - b);
     return [0.2, 0.4, 0.6, 0.8].map((p) => v[Math.floor(p * (v.length - 1))]);
   }
-  function binColor(v, breaks) {
+  function binColor(v, breaks, ramp) {
     let i = 0; while (i < breaks.length && v > breaks[i]) i++;
-    return RAMP[i];
+    return (ramp || RAMP)[i];
   }
 
   function renderMap(T) {
@@ -216,7 +226,7 @@
     const placedWardBoxes = [];
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
       const w = byWard.get(ward);
-      const fill = w && !w.thin && val(T, w) !== null ? binColor(val(T, w), breaks) : 'var(--map-empty)';
+      const fill = w && !w.thin && val(T, w) !== null ? binColor(val(T, w), breaks, rampFor(T)) : 'var(--map-empty)';
       return `<path d="${d}" fill="${fill}" data-ward="${ward}" class="${ward === myWard ? 'sel' : ''}"></path>`;
     }).join('') + [...labels.entries()].map(([ward, [lon, lat]]) => {
       // A number crammed into a sliver of a ward is noise. Draw it only where the
@@ -266,9 +276,9 @@
       return f === t ? `${f}%` : `${f}–${t}%`;
     };
     $('legend').innerHTML =
-      `<span class="key-lead">${isBacklog(T) ? 'Share still unfinished' : 'Typical days'}, in five equal groups of wards:</span>` +
-      RAMP.map((c, i) => {
-        const from = i === 0 ? lo : breaks[i - 1], to = i === RAMP.length - 1 ? hi : breaks[i];
+      `<span class="key-lead">${isBacklog(T) ? 'Share unfinished' : 'Typical days'}, in five equal groups of wards:</span>` +
+      rampFor(T).map((c, i) => {
+        const from = i === 0 ? lo : breaks[i - 1], to = i === rampFor(T).length - 1 ? hi : breaks[i];
         return `<span class="key"><span class="sw" style="background:${c}"></span>${isBacklog(T) ? pctBand(from, to) : band(from, to)}</span>`;
       }).join('') +
       `<span class="key"><span class="sw" style="background:var(--map-empty)"></span>under ${isBacklog(T) ? T.minWardN : D.minWardN} requests</span>`;
@@ -411,10 +421,13 @@
     // The bar is proportional to the figure being ranked, so the longest bar is
     // always the worst ward on whichever axis this type uses.
     const maxV = Math.max(...T.wards.map((w) => val(T, w) || 0));
-    // Column heads follow the metric: a percentage is not a count of days.
-    $('th-bar').textContent = back ? 'Still unfinished' : 'Typical days';
-    $('th-tail').textContent = back ? 'Requests judged' : 'Closed in a week';
-    $('th-n').textContent = back ? 'Never closed' : 'Completed';
+    // Column heads follow the metric, and on a backlog board they state the
+    // arithmetic the row already shows: 140 unfinished out of 232 requests is
+    // 60%. The earlier pair named a filtering step nobody had asked about and a
+    // count that read like a verdict.
+    $('th-bar').textContent = back ? 'Share unfinished' : 'Typical days';
+    $('th-tail').textContent = back ? 'Requests' : 'Closed in a week';
+    $('th-n').textContent = back ? 'Unfinished' : 'Completed';
     let rank = 0;
     $('lb-body').innerHTML = T.wards.map((w) => {
       const v = val(T, w);
@@ -434,28 +447,31 @@
         <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${openTag}` +
         `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
         `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
-        <td class="c-bar"><div class="barcell"><div class="bar" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${back ? pctTxt(w.pct) : d1(w.p50)}</span></div></td>
+        <td class="c-bar"><div class="barcell"><div class="bar${back ? ' bar-back' : ''}" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${back ? pctTxt(w.pct) : d1(w.p50)}</span></div></td>
         <td class="c-num c-tail">${back ? fmt(w.mature) : w.week + '%'}</td>
         <td class="c-num">${fmt(back ? w.open : w.n)}</td>
       </tr>`;
     }).join('');
     $('table-gloss').textContent = back
-      ? 'Still unfinished = the share of requests the city has not closed, counting only those filed long enough ago to be judged. Requests judged = how many that is. Never closed = how many of them are still open today.'
+      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those the city still has not closed. The share is one divided by the other. Click any ward for its full report card.'
       : 'Typical days = the middle request: half close faster, half slower. Closed in a week = the share shut within seven days. Requests still open count toward both. Click any ward for its full report card.';
     $('board').hidden = false;
   }
 
   function renderMethod(T) {
     if (isBacklog(T)) {
-      const yrs = Math.round((Date.parse(T.window.to) - Date.parse(T.window.from)) / 31557600000);
+      // Months, not rounded years: the window is 30 months, and "3 years" was
+      // both wrong and a rounding the reader had no way to check.
+      const months = Math.round((Date.parse(T.window.to) - Date.parse(T.window.from)) / 2629800000);
       const from = new Date(T.window.from + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
       $('method-list').innerHTML = [
-        `This type is ranked on what the city has <em>not</em> finished, not on how long the finished ones took. Nearly everything else on this board closes eventually and differs only in speed; measured over two years, the share of potholes, rat complaints or tree debris still open after six months is effectively zero. Sidewalk requests are the exception, and the backlog is the story.`,
-        `Since ${from} the city logged <span class="fig">${fmt(T.totals.filed)}</span> of these. ` +
+        `This board is ranked on what the city has <em>not</em> finished, rather than on how long the finished ones took. Everything else here closes eventually and differs only in speed - measured over two years, the share of potholes, rat complaints or tree debris still open after six months is effectively zero. Sidewalk requests are the one exception in the whole dataset, so for them the backlog is the story.`,
+        `The city files these as &ldquo;${esc(T.official)}&rdquo;, which is the term to search for in the records. ` +
+        `Since ${from} it logged <span class="fig">${fmt(T.totals.filed)}</span> of them. ` +
         `<span class="fig">${fmt(T.totals.mature)}</span> were filed at least <span class="fig">${T.window.maturityDays}</span> days ago, which is the set judged here; ` +
         `<span class="fig">${fmt(T.totals.open)}</span> of those are still open, or <span class="fig">${pctTxt(T.citywide.pct)}</span> citywide.`,
         `A request filed last month is not late, it is new. Only requests old enough to have been dealt with are counted, so a ward that simply received a lot of them recently does not read as a ward that ignores them.`,
-        `Why ${yrs} years and not one: over twelve months a typical ward has too few of these to measure a share against. Over ${yrs} the median ward has enough that its figure moves by only a few points either way.`,
+        `Why ${months} months and not twelve: the six-month wait before a request counts eats into whatever window you pick, and over a single year a typical ward is left with too few to measure a share against. Over ${months} the median ward has enough that its figure moves only a few points either way.`,
         `Wards with fewer than <span class="fig">${T.minWardN}</span> requests old enough to judge are shown but not ranked. ` +
         `${T.totals.duplicates > 0 ? `Reports the city flagged as duplicates are excluded: <span class="fig">${fmt(T.totals.duplicates)}</span>. ` : ''}` +
         `${T.totals.nullOrZeroWard > 0 ? `Rows with no ward dropped: <span class="fig">${fmt(T.totals.nullOrZeroWard)}</span>.` : ''}`,
@@ -467,7 +483,8 @@
     const ex = T.exclusions, dg = T.diagnostics, st = T.totals.statuses;
     const canceled = st.Canceled || 0;
     $('method-list').innerHTML = [
-      `&ldquo;Closed&rdquo; means status Completed. Over ${PERIOD} the city logged <span class="fig">${fmt(T.totals.requests)}</span> of these. ` +
+      `&ldquo;Closed&rdquo; means status Completed. The city files these as &ldquo;${esc(T.official)}&rdquo;, which is the term to search for in the records. ` +
+      `Over ${PERIOD} it logged <span class="fig">${fmt(T.totals.requests)}</span> of them. ` +
       `${T.totals.duplicates > 0 ? `Of those, <span class="fig">${fmt(T.totals.duplicates)}</span> were flagged by the city as duplicates and are excluded; ` : `None were flagged as duplicates; `}` +
       `<span class="fig">${fmt(dg.rowsTimed)}</span> of them are finished and timed here.`,
       `Days to close runs from when a request is opened to when the city marks it closed (the <code>created_date</code> and <code>closed_date</code> fields in the records).` +

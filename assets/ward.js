@@ -205,7 +205,7 @@
       // A ward whose curve never reached the median has no figure to compare;
       // null <= anything is true, and it used to read "faster than the city".
       delta: wv === null || cv === null ? ''
-        : back ? (wv <= cv ? 'less unfinished than the city' : 'more unfinished than the city')
+        : back ? (wv <= cv ? 'less left unfinished than the city' : 'more left unfinished than the city')
         : (wv <= cv ? 'faster than the city' : 'slower than the city'),
     };
   });
