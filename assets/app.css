@@ -10,6 +10,7 @@
   --grid: #e7e6e0;
   --border: rgba(11, 11, 11, 0.10);
   --bar: #2a78d6;
+  --backlog: #dc3f2c;       /* the unfinished-work axis, matching its map ramp */
   --bar-thin: #c3c2b7;
   --chi-blue: #7cc6e8;      /* flag stripe */
   --chi-red: #e4002b;       /* flag star */
@@ -30,6 +31,7 @@
     --grid: #2c2c31;
     --border: rgba(255, 255, 255, 0.10);
     --bar: #3987e5;
+    --backlog: #f2776a;
     --bar-thin: #52514e;
     --chi-blue: #5da8cc;
     --chi-red: #ef3d5d;
@@ -121,6 +123,7 @@ a { color: inherit; }
 .mine { margin: 8px 0 0; padding: 10px 12px; border-left: 4px solid var(--chi-red); background: var(--surface); border-radius: 0 10px 10px 0; border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .mine h3 { font-family: var(--display); text-transform: uppercase; font-size: 20px; margin: 0 0 4px; }
 .mine p { margin: 0; color: var(--ink-2); }
+.mine .mine-extra { margin-top: 5px; font-size: 12.5px; color: var(--muted); }
 
 /* board layout */
 .board-grid {
@@ -207,6 +210,9 @@ td.c-num { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabu
   flex: none;
   max-width: calc(100% - 4em);  /* the tip label always fits */
 }
+/* A backlog bar is red for the same reason its map is: it measures work the
+   city never came back for, not how quick it was. */
+.bar-back { background: var(--backlog); }
 tr.thin .bar { background: var(--bar-thin); }
 .bar-val { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
 
