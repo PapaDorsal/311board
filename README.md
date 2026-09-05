@@ -21,6 +21,7 @@ methodology a visitor sees is on `about.html` and, per type, on the board.
 | `data/leaderboard.json` | The rolling 12-month snapshot. `leaderboard-2024.json` and `-2025.json` are the calendar years. |
 | `data/wards.geojson`, `data/streets.geojson` | Ward outlines and arterial streets for the map. |
 | `data/ward-neighborhoods.json` | Which community areas each ward's requests come from. |
+| `data/bike-context.json` | Per-ward bike crashes and bike route mileage. Context on ward pages, never ranked. |
 | `data/address-index.json` | Hundred-block to ward index, so an address resolves in the browser. |
 | `tools/` | The build scripts below. `spike-311*.mjs` and `311-findings*.md` are the original feasibility work. |
 
@@ -42,6 +43,10 @@ node tools/check-snapshot.mjs data/leaderboard.json previous.json
 # The fifty ward pages, from ward.html and the snapshot.
 node tools/build-ward-pages.mjs
 
+# Cycling context for the ward pages (crashes + bike route miles, ward-assigned
+# by coordinate against data/wards.geojson). Runs monthly, failure is survivable.
+node tools/build-bike-context.mjs
+
 # Rarely: map geometry, neighbourhood context, address index, share cards.
 node tools/prep-wards-geo.mjs
 node tools/prep-streets-geo.mjs        # see tools/README-streets.md
@@ -54,6 +59,27 @@ node tools/build-og.mjs && node tools/build-ward-og.mjs   # needs playwright
 every month and commits straight to `main` if the snapshots pass the check.
 The rolling build is additionally required to end at the first of the current
 month, so a window that stops rolling fails the run instead of shipping.
+
+## Two metrics, deliberately
+
+Most types are ranked on **days to close**. Sidewalk repairs are ranked on the
+**share still unfinished** and carry `metric: 'backlog'` in the snapshot; every
+renderer branches on that field. The reason is in the header of
+`tools/build-data.mjs`, and short: measured over two years, the share of
+potholes, rat complaints or tree debris still open after six months is
+effectively zero, so a backlog column across those types would be zeros. Sidewalk
+is the one type in the dataset where the city finishes too few to time (about 22
+per ward a year against a floor of 200) and leaves 43% open. Same question,
+answer inverted.
+
+A backlog type is dropped from any snapshot whose 24-month lookback would cross
+the May 2023 ward remap, so the 2024 board has no sidewalk pill and the board
+falls back to the featured type if you switch to it while sidewalk is selected.
+
+**Cycling figures are never ranked.** A ward with more bike crashes is usually a
+ward with more cycling; correcting for that needs ridership nobody publishes.
+They are printed as facts about a place on the ward page and kept out of every
+leaderboard.
 
 ## Things that need a human
 

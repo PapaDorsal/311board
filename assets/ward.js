@@ -180,22 +180,33 @@
   // Build the rows as data first, so sorting is a re-render rather than DOM surgery.
   let rows = [];
   const buildRows = () => D.types.map((T) => {
+    // A backlog type is ranked on the share the city never finished rather than
+    // on how long the finished ones took, so its row carries percentages and its
+    // rank runs worst-first. See the note in tools/build-data.mjs.
+    const back = T.metric === 'backlog';
     const w = T.wards.find((x) => x.ward === ward);
     const eligible = T.wards.filter((x) => !x.thin);
     const idx = w && !w.thin ? eligible.findIndex((x) => x.ward === ward) : -1;
+    const wv = w ? (back ? w.pct : w.p50) : null;
+    const cv = back ? T.citywide.pct : T.citywide.p50;
     return {
-      key: T.key, plain: T.plain, href: `./#${T.key}${winKey === 'rolling' ? '' : `-${winKey}`}`,
-      wardVal: w ? w.p50 : null,
-      cityVal: T.citywide.p50,
+      key: T.key, plain: T.plain, back,
+      href: `./#${T.key}${winKey === 'rolling' ? '' : `-${winKey}`}`,
+      wardVal: wv, cityVal: cv,
       rankIdx: idx >= 0 ? idx + 1 : null,
       rankOf: eligible.length,
       hasData: !!w,
-      n: w ? w.n : 0,
-      open: w ? w.openShare : null,
+      // Every column keeps one unit down its length: "Completed" is always a
+      // count of requests the city finished, "Still open" always a share. On a
+      // backlog row the finished count is the judged set minus the ones still
+      // open, since that type carries no separate completion total.
+      n: w ? (back ? w.mature - w.open : w.n) : 0,
+      open: w ? (back ? w.pct : w.openShare) : null,
       // A ward whose curve never reached the median has no figure to compare;
       // null <= anything is true, and it used to read "faster than the city".
-      delta: w && w.p50 !== null && T.citywide.p50 !== null
-        ? (w.p50 <= T.citywide.p50 ? 'faster than the city' : 'slower than the city') : '',
+      delta: wv === null || cv === null ? ''
+        : back ? (wv <= cv ? 'less unfinished than the city' : 'more unfinished than the city')
+        : (wv <= cv ? 'faster than the city' : 'slower than the city'),
     };
   });
 
@@ -204,6 +215,8 @@
   // so rather than rounding into the same-day wards.
   const d2 = (v) => (v === null || v === undefined ? '-'
     : (v > 0 && v < 0.05 ? '<0.1' : Number(v).toFixed(1)));
+  // A backlog row is a percentage, so it never takes the days formatting.
+  const cell = (r, v) => (v === null || v === undefined ? '-' : r.back ? `${Math.round(v)}%` : d2(v));
 
   let sortKey = null, sortDir = 'asc';   // null = the published order below
   const VAL = {
@@ -230,8 +243,8 @@
     }
     $('card-body').innerHTML = list.map((r) => `<tr>
       <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div></td>
-      <td class="c-num">${d2(r.wardVal)}</td>
-      <td class="c-num">${d2(r.cityVal)}</td>
+      <td class="c-num">${cell(r, r.wardVal)}</td>
+      <td class="c-num">${cell(r, r.cityVal)}</td>
       <td class="c-num"${r.rankIdx === null && r.hasData ? ' title="Too few of these in this ward to rank it"' : ''}>${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? '<span class="unranked">too few</span>' : '-')}</td>
       <td class="c-num c-vol">${fmt(r.n)}</td>
       <td class="c-num c-vol">${r.open === null ? '-' : Math.round(r.open) + '%'}</td>
@@ -299,6 +312,36 @@
     try { history.replaceState(null, '', winKey === 'rolling' ? `ward-${ward}.html` : `ward-${ward}.html#${winKey}`); } catch { /* file:// */ }
     renderCard();
   });
+
+  // ---- cycling context ----
+  // Deliberately not a rank and never sorted against other wards. A ward with
+  // more crashes is usually a ward with more cycling: the Loop leads the city
+  // because that is where people ride, not because it is run worse. Correcting
+  // for that needs ridership per ward, which nobody publishes. So this states
+  // what happened here and leaves the comparison alone. See the header of
+  // tools/build-bike-context.mjs.
+  try {
+    const bcRes = await fetch('data/bike-context.json');
+    if (bcRes.ok) {
+      const BC = await bcRes.json();
+      const b = (BC.wards || {})[ward];
+      if (b && (b.crashes > 0 || b.laneMiles > 0)) {
+        const yrs = BC.window.years;
+        const stat = (v, label, sub) =>
+          `<div class="bstat"><div class="bstat-v">${v}</div><div class="bstat-k">${label}</div>${sub ? `<div class="bstat-s">${sub}</div>` : ''}</div>`;
+        $('bike-stats').innerHTML =
+          stat(fmt(b.crashes), `crashes involving someone on a bike`, `in the last ${yrs} years`) +
+          stat(fmt(b.serious), `left someone seriously hurt or killed`, `of those crashes`) +
+          stat(`${b.laneMiles.toFixed(1)} mi`, `of bike route in this ward`, `${b.protectedLaneMiles.toFixed(1)} mi of it physically protected`);
+        $('bike-note').innerHTML =
+          `Crash counts follow how much cycling a ward carries and what kind of streets it has, so they are printed here as facts about this place, not as a score. ` +
+          `Citywide over the same ${yrs} years: <span class="fig">${fmt(BC.citywide.crashes)}</span> crashes, <span class="fig">${fmt(BC.citywide.serious)}</span> serious or fatal, ` +
+          `across <span class="fig">${BC.citywide.laneMiles.toFixed(0)}</span> miles of bike route. ` +
+          `From the city's <a href="${esc(BC.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BC.sources.routes.portal)}" rel="noopener">bike route</a> datasets, placed into wards by their coordinates.`;
+        $('bike').hidden = false;
+      }
+    }
+  } catch { /* the card stands on its own without it */ }
 
   $('card').hidden = false;
 
