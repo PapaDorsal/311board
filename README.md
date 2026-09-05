@@ -22,6 +22,9 @@ methodology a visitor sees is on `about.html` and, per type, on the board.
 | `data/wards.geojson`, `data/streets.geojson` | Ward outlines and arterial streets for the map. |
 | `data/ward-neighborhoods.json` | Which community areas each ward's requests come from. |
 | `data/bike-context.json` | Per-ward bike crashes and bike route mileage. Context on ward pages, never ranked. |
+| `stuck.html`, `assets/stuck.js` | "Nobody came for these": individual requests open over a year, citywide. |
+| `data/stuck.json` | What those pages read: citywide oldest, per-ward lists, recently resolved. |
+| `data/stuck-history.json` | **The archive.** One entry per stuck request, counting how many refreshes have seen it still open. Cannot be reconstructed — only accumulated. |
 | `data/address-index.json` | Hundred-block to ward index, so an address resolves in the browser. |
 | `tools/` | The build scripts below. `spike-311*.mjs` and `311-findings*.md` are the original feasibility work. |
 
@@ -42,6 +45,9 @@ node tools/check-snapshot.mjs data/leaderboard.json previous.json
 
 # The fifty ward pages, from ward.html and the snapshot.
 node tools/build-ward-pages.mjs
+
+# The stuck list and its archive. Run monthly; see the warning below.
+node tools/build-stuck.mjs
 
 # Cycling context for the ward pages (crashes + bike route miles, ward-assigned
 # by coordinate against data/wards.geojson). Runs monthly, failure is survivable.
@@ -80,6 +86,26 @@ falls back to the featured type if you switch to it while sidewalk is selected.
 ward with more cycling; correcting for that needs ridership nobody publishes.
 They are printed as facts about a place on the ward page and kept out of every
 leaderboard.
+
+## The stuck archive is the one irreplaceable file
+
+`data/stuck-history.json` records, per request, how many refreshes have found it
+still open. That number cannot be computed from any snapshot — it can only be
+accumulated by having watched, one refresh at a time. Lose the file and every
+count resets to one, and the only way back is to wait another year.
+
+So: it is committed on every refresh, the workflow validates it before commit
+(and unlike the cycling context, that step is **not** `continue-on-error`), and
+`build-stuck.mjs` records at most one observation per calendar day so re-running
+a build by hand cannot inflate a count into a claim the data will not support.
+
+**The public-way rule.** Only request types about infrastructure the city owns
+are eligible for that list — a street light, a sidewalk, a pothole. Sanitation
+code and building violations are complaints against a private owner at their own
+home, and publishing "this address has an open complaint" is a different act
+with a different target. The list in `tools/build-stuck.mjs` is the whole
+enforcement; the workflow also fails the build if a banned type ever reaches the
+rendered output. Adding a type means checking it against that line first.
 
 ## Things that need a human
 

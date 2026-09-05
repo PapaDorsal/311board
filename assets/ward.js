@@ -313,6 +313,42 @@
     renderCard();
   });
 
+  // ---- what nobody came for ----
+  // The aggregates above say a ward is slow or unfinished. This says which
+  // corner. Every entry is a city-owned asset - a light, a sidewalk, a pothole -
+  // so naming the address names a place and not a neighbour. See the public-way
+  // rule at the top of tools/build-stuck.mjs.
+  const sv = (ll) => (ll ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${ll[0]},${ll[1]}` : null);
+  const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
+  try {
+    const skRes = await fetch('data/stuck.json');
+    if (skRes.ok) {
+      const SK = await skRes.json();
+      const mine = (SK.wards || {})[ward];
+      if (mine && mine.total > 0) {
+        $('stuck-lead').innerHTML =
+          `<span class="fig">${fmt(mine.total)}</span> request${mine.total === 1 ? '' : 's'} on city property in Ward ${ward} ` +
+          `${mine.total === 1 ? 'has' : 'have'} been open more than a year. The oldest ${mine.tickets.length === 1 ? 'one' : `${mine.tickets.length}`}:`;
+        $('stuck-list').innerHTML = mine.tickets.map((t) => {
+          const pano = sv(t.ll);
+          return `<li class="stuck-item">
+            <div class="stuck-head"><strong>${esc(t.type)}</strong>${t.address ? ` &middot; ${esc(t.address)}` : ''}</div>
+            <div class="stuck-meta">Reported ${esc(t.created)} &middot; open <span class="fig">${ago(t.days)}</span>` +
+            `${t.checks > 1 ? ` &middot; still open at <span class="fig">${t.checks}</span> checks since ${esc(t.watchedSince)}` : ''}` +
+            `${t.dept ? ` &middot; ${esc(t.dept.replace(/ - .*$/, ''))}` : ''}</div>
+            <div class="stuck-meta"><span class="stuck-sr">${esc(t.sr)}</span>` +
+            `${pano ? ` &middot; <a href="${esc(pano)}" rel="noopener nofollow">see the spot</a>` : ''}</div>
+          </li>`;
+        }).join('');
+        $('stuck-note').innerHTML =
+          `Oldest first, no picking: every request on city-owned infrastructure still open past a year. ` +
+          `Complaints about private property are never listed here. ` +
+          `<a href="stuck.html">The longest waits citywide &rarr;</a>`;
+        $('stuck').hidden = false;
+      }
+    }
+  } catch { /* the card stands on its own without it */ }
+
   // ---- cycling context ----
   // Deliberately not a rank and never sorted against other wards. A ward with
   // more crashes is usually a ward with more cycling: the Loop leads the city

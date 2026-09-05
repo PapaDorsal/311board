@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nobody came for these - ChiWardBoard</title>
+<meta name="description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
+<link rel="canonical" href="https://chiwardboard.com/stuck.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<meta property="og:site_name" content="ChiWardBoard">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://chiwardboard.com/stuck.html">
+<meta property="og:title" content="Nobody came for these - ChiWardBoard">
+<meta property="og:description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
+<meta property="og:image" content="https://chiwardboard.com/assets/og.png?v=2">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ChiWardBoard - Chicago 311 response times, ranked by ward">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Nobody came for these - ChiWardBoard">
+<meta name="twitter:description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
+<meta name="twitter:image" content="https://chiwardboard.com/assets/og.png?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<main class="wrap narrow stuck-page">
+  <header class="masthead">
+    <div class="wordmark">
+      <a class="home" href="./" aria-label="ChiWardBoard home">
+        <svg class="flag" viewBox="0 0 64 20" aria-hidden="true">
+          <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
+          <g class="stars" transform="translate(6,5) scale(0.5)">
+            <path d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(28,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(56,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+            <path transform="translate(84,0)" d="M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z"/>
+          </g>
+        </svg>
+        <h1>chi<span class="wm-accent">ward</span>board</h1>
+      </a>
+    </div>
+  </header>
+
+  <p class="crumb"><a href="./">&larr; Back to the board</a></p>
+
+  <section class="method">
+    <h2>Nobody came for these</h2>
+    <p id="lead" class="ward-sub">Loading the list&hellip;</p>
+    <div class="stuck-sum" id="summary"></div>
+  </section>
+
+  <section class="stuck" id="stuck" hidden>
+    <h3 class="office-h" id="stuck-title">The longest waits in Chicago</h3>
+    <ul class="stuck-list" id="stuck-list"></ul>
+    <p class="office-note" id="stuck-note"></p>
+  </section>
+
+  <section class="stuck stuck-closed" id="closed" hidden>
+    <h3 class="office-h">Finished since we started watching</h3>
+    <p class="stuck-lead" id="closed-lead"></p>
+    <ul class="stuck-list" id="closed-list"></ul>
+  </section>
+
+  <section class="method">
+    <h2>How this list is made</h2>
+    <ul>
+      <li><strong>One rule, no editing.</strong> Every 311 request on city-owned infrastructure that is still open more than a year after it was filed, oldest first. Nothing is chosen for being interesting, and nothing is left off for being dull. Anyone can re-run the query against the city&rsquo;s own dataset and get the same list.</li>
+      <li><strong>City property only.</strong> Street lights, sidewalks, potholes, light poles, stop signs, tree debris, abandoned vehicles, illegal dumping, bike lane debris. Every one of these is a complaint about something the city owns and maintains, so naming the address names a place. Complaints filed against private property and its owners &ndash; sanitation code and building violations &ndash; are deliberately never listed here, however long they have been open.</li>
+      <li><strong>Duplicates removed</strong>, the same as everywhere else on this site, and only requests filed since the May 2023 ward map so a case sits in the ward it was actually filed in.</li>
+      <li><strong>What &ldquo;checks&rdquo; means.</strong> The site records which of these it finds still open every time the data is refreshed. A request that has sat through several checks has been seen open on several separate occasions, months apart. That count starts from the day the watching started, not from the day the request was filed.</li>
+      <li><strong>What an open request does and does not prove.</strong> The records carry a status, not an intention. A request may be open because nobody came, or because the city keeps the case open while the work waits its turn in a larger programme. Read it as work the city has not signed off on, and check the case number against the city&rsquo;s own records before quoting it harder than that.</li>
+      <li><strong>&ldquo;See the spot&rdquo;</strong> opens Google Street View at the coordinates the city recorded. The imagery is whenever Google last drove past, so it shows the place rather than the problem. It is an ordinary link; this site loads nothing from Google on the page.</li>
+    </ul>
+  </section>
+
+  <noscript><p class="board-note">This page renders a published data snapshot with JavaScript. The underlying list is readable directly at <a href="data/stuck.json">data/stuck.json</a>.</p></noscript>
+
+  <footer class="foot">
+    <p>Built from the City of Chicago&rsquo;s public <a href="https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy">311 Service Requests dataset</a>. Not affiliated with the City of Chicago.</p>
+    <nav class="foot-nav" aria-label="Site"><a href="./">All wards</a> <span aria-hidden="true">&middot;</span> <a href="about.html">About</a> <span aria-hidden="true">&middot;</span> <a href="privacy.html">Privacy</a> <span aria-hidden="true">&middot;</span> <a href="terms.html">Terms</a> <span aria-hidden="true">&middot;</span> <a href="mailto:after.hours.builder@gmail.com?subject=ChiWardBoard">Questions or corrections</a></nav>
+    <p class="foot-sign">Made in Chicago.</p>
+  </footer>
+</main>
+<script src="assets/stuck.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

@@ -345,6 +345,29 @@ td.c-ward a:hover { color: var(--accent); }
 
 .table-gloss { font-size: 12.5px; color: var(--muted); margin: 10px 2px 0; max-width: 78ch; }
 
+/* stuck tickets: a list of specific places, so it reads as a list of things
+   rather than as another table of figures */
+.stuck { margin-top: 22px; padding: 16px 18px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; border-left: 4px solid var(--chi-red); }
+.stuck .office-h { margin-bottom: 8px; }
+.stuck-lead { font-size: 14px; color: var(--ink-2); margin: 0 0 12px; max-width: 78ch; }
+.stuck-list { list-style: none; margin: 0; padding: 0; }
+.stuck-item { padding: 9px 0; border-top: 1px solid var(--grid); }
+.stuck-item:first-child { border-top: 0; }
+.stuck-head { font-size: 14.5px; color: var(--ink); line-height: 1.35; }
+.stuck-meta { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-top: 2px; }
+.stuck-meta a { color: var(--accent); }
+.stuck-sr { font-family: var(--mono); font-size: 11.5px; }
+.stuck .office-note { margin-top: 14px; max-width: 78ch; }
+.stuck .office-note a { color: var(--accent); }
+/* the citywide page: same rows, plus a ward column */
+.stuck-page .stuck { border-left-width: 4px; }
+.stuck-ward { display: inline-block; font-weight: 650; color: var(--ink-2); }
+.stuck-sum { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0 0 18px; font-size: 13px; color: var(--ink-2); }
+.stuck-sum b { color: var(--ink); font-weight: 650; }
+.stuck-closed { margin-top: 26px; }
+.stuck-closed .stuck-item { border-top-color: var(--grid); }
+
 /* cycling context on a ward card: three plain figures, deliberately not styled
    like the ranked table above them - these are facts about a place, not a score */
 .bike { margin-top: 22px; padding: 16px 18px; background: var(--surface);
