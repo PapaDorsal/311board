@@ -377,7 +377,7 @@ td.c-ward a:hover { color: var(--accent); }
 /* cycling context on a ward card: three plain figures, deliberately not styled
    like the ranked table above them - these are facts about a place, not a score */
 .bike { margin-top: 22px; padding: 16px 18px; background: var(--surface);
-  border: 1px solid var(--border); border-radius: 10px; }
+  border: 1px solid var(--border); border-radius: 10px; border-left: 4px solid var(--accent); }
 .bike .office-h { margin-bottom: 12px; }
 .bike-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px 22px; }
 .bstat-v { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1.05; color: var(--ink); }
