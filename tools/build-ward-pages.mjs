@@ -76,7 +76,7 @@ for (let w = 1; w <= 50; w++) {
   // Its own card, rendered by build-ward-og.mjs. Versioned like the shared one:
   // crawlers cache the picture hard, and these replace an image they have
   // already fetched for this URL.
-  const img = `${BASE}/assets/og/ward-${w}.png?v=1`;
+  const img = `${BASE}/assets/og/ward-${w}.png?v=2`;
   const cardHoods = ((NB[w] || {}).names || []).slice(0, 2).join(' & ');
   const imgAlt = `Ward ${w}${cardHoods ? `, ${cardHoods}` : ''} - ChiWardBoard`;
   sub(/<meta property="og:image" content="[^"]*">/, `<meta property="og:image" content="${img}">`);
