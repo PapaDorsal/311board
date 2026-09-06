@@ -413,7 +413,11 @@ async function auditWardSites(map) {
       try {
         const r = await fetch(a.website, { redirect: 'follow', headers: { 'user-agent': UA }, signal: AbortSignal.timeout(15000) });
         if (r.ok) return null;
-        if (r.status === 403) return [w, a.website, '403 (bot protection? verify in a browser)'];
+        // A 403 is what a bot-protected but perfectly healthy site returns to a
+        // bare fetch, so it is not evidence of rot. Reporting it as a warning
+        // every month trains the reader to ignore the warnings that matter, so
+        // it is noted separately and only the first time a host does it.
+        if (r.status === 403) return [w, a.website, '403', true];
         if (attempt === 2) return [w, a.website, `HTTP ${r.status}`];
       } catch (e) {
         if (attempt === 2) return [w, a.website, e.name === 'TimeoutError' ? 'timed out' : 'unreachable'];
@@ -421,8 +425,12 @@ async function auditWardSites(map) {
     }
     return null;
   });
-  const bad = (await Promise.all(checks)).filter(Boolean);
-  console.log(`ward websites checked: ${sites.length}, not returning 200: ${bad.length}`);
+  const all = (await Promise.all(checks)).filter(Boolean);
+  const guarded = all.filter((x) => x[3]);
+  const bad = all.filter((x) => !x[3]);
+  console.log(`ward websites checked: ${sites.length}, reachable: ${sites.length - all.length}, ` +
+    `bot-protected: ${guarded.length}, not resolving: ${bad.length}`);
+  for (const [w, url] of guarded) console.log(`   ward ${w} answers 403 to a bare fetch (bot protection, loads in a browser): ${url}`);
   for (const [w, url, why] of bad) console.warn(`!! ward ${w} website ${why}: ${url}`);
 }
 await auditWardSites(aldermen);

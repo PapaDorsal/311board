@@ -32,24 +32,35 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 // list, and a third name shrinks the line past where it is worth having.
 const hoodsFor = (w) => ((NB[w] || {}).names || []).slice(0, 2).join(' & ');
 
+// WHY THE CARD IS CENTRED AND NARROW. The 1200x630 card is only ever seen
+// whole on a link preview. Reddit, and several other feeds, crop it to a
+// SQUARE thumbnail - the middle 630px - and a left-aligned card loses its
+// first letters to that crop: "Ward 42" arrives as "ard 42". So everything
+// sits centred inside a 600px safe box that survives the square crop, and the
+// ward number is measured after layout and stepped down if it would spill.
+const SAFE = 600;
+
 function card(w) {
   const hoods = hoodsFor(w);
   return `<!doctype html><meta charset="utf-8">
 <style>
   body { margin:0; width:1200px; height:630px; background:#fbfbf9; box-sizing:border-box;
          font-family:system-ui,sans-serif; display:flex; flex-direction:column;
-         justify-content:center; padding:0 90px; }
+         align-items:center; justify-content:center; text-align:center; }
+  .safe { width:${SAFE}px; display:flex; flex-direction:column; align-items:center; }
   .flag { width:210px; height:66px; margin-bottom:40px; }
   .stripe { fill:#7cc6e8; } .stars path { fill:#e4002b; }
-  h1 { font-size:150px; line-height:0.95; margin:0; font-weight:800;
+  h1 { font-size:150px; line-height:0.95; margin:0; font-weight:800; white-space:nowrap;
        letter-spacing:-.02em; color:#14141a; }
   .hoods { font-size:46px; line-height:1.15; color:#14141a; margin:22px 0 0; font-weight:600; }
   .rule { width:150px; height:9px; background:#e4002b; margin:38px 0 26px; }
-  .wm { font-size:31px; color:#52514e; margin:0; font-weight:600; }
+  .wm { font-size:31px; color:#52514e; margin:0; font-weight:600; line-height:1.35; }
+  .wm em { display:block; font-style:normal; font-size:26px; color:#52514e; font-weight:600; }
   .wm b { color:#0e6ba8; font-weight:800; }
   .wm span { color:#14141a; font-weight:800; }
 </style>
 <body>
+ <div class="safe">
   <svg class="flag" viewBox="0 0 64 20">
     <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
     <g class="stars" transform="translate(6,5) scale(0.5)">
@@ -60,9 +71,26 @@ function card(w) {
   <h1>Ward ${w}</h1>
   ${hoods ? `<p class="hoods">${esc(hoods)}</p>` : ''}
   <div class="rule"></div>
-  <p class="wm"><span>Chi</span><b>Ward</b><span>Board</span> &middot; 311 response times, ranked by ward</p>
+  <p class="wm"><span>Chi</span><b>Ward</b><span>Board</span><em>311 response times, ranked by ward</em></p>
+ </div>
 </body>`;
 }
+
+// Nothing may stick out of the safe box. Measure what the browser actually laid
+// out and step the type down until it fits, rather than trusting an estimate of
+// how wide "Ward 42" renders in whatever font this machine has.
+const fitToSafe = async (p) => {
+  for (const sel of ['h1', '.hoods', '.wm em']) {
+    await p.$eval(sel, (el, safe) => {
+      if (!el) return;
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      while (el.scrollWidth > safe && size > 12) {
+        size -= 2;
+        el.style.fontSize = `${size}px`;
+      }
+    }, SAFE).catch(() => {});
+  }
+};
 
 mkdirSync(OUT_DIR, { recursive: true });
 const exe = process.env.CHROME_PATH || undefined;
@@ -71,6 +99,7 @@ const p = await b.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleF
 let n = 0;
 for (let w = 1; w <= 50; w++) {
   await p.setContent(card(w), { waitUntil: 'load' });
+  await fitToSafe(p);
   writeFileSync(`${OUT_DIR}/ward-${w}.png`, await p.screenshot({ type: 'png' }));
   n++;
   process.stdout.write(`\rrendered ${n}/50`);

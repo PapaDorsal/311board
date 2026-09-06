@@ -16,14 +16,14 @@
 <meta property="og:url" content="https://chiwardboard.com/ward-37.html">
 <meta property="og:title" content="Ward 37: Austin, Humboldt Park - ChiWardBoard">
 <meta property="og:description" content="How fast the city closes 311 requests in Chicago's Ward 37 (Austin, Humboldt Park), represented by Emma Mitts: 11 request types ranked against the other 49 wards, from public records.">
-<meta property="og:image" content="https://chiwardboard.com/assets/og/ward-37.png?v=1">
+<meta property="og:image" content="https://chiwardboard.com/assets/og/ward-37.png?v=2">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Ward 37, Austin &amp; Humboldt Park - ChiWardBoard">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Ward 37: Austin, Humboldt Park - ChiWardBoard">
 <meta name="twitter:description" content="How fast the city closes 311 requests in Chicago's Ward 37 (Austin, Humboldt Park), represented by Emma Mitts: 11 request types ranked against the other 49 wards, from public records.">
-<meta name="twitter:image" content="https://chiwardboard.com/assets/og/ward-37.png?v=1">
+<meta name="twitter:image" content="https://chiwardboard.com/assets/og/ward-37.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:opsz,wght@10..72,500;10..72,700;10..72,800&display=swap" rel="stylesheet">
@@ -96,17 +96,21 @@
     <p class="table-gloss">Typical days to close, still-open requests included: the middle request, half faster and half slower. Rank counts only the wards with enough of that type to compare, so the number it is out of changes from row to row. Still open is the share never closed at all, which is the difference between a ward that is slow and one that does not finish. Sidewalk repairs are the exception: the city finishes so few of them that the share left unfinished is what gets ranked, so that row reads in percent.</p>
     <p class="table-src" id="table-src"></p>
 
+    <!-- Bike before stuck on purpose. The stuck card ends with the only
+         outbound link on the page ("The longest waits citywide"), so it earns
+         the last slot; and three airy figures read better straight after the
+         dense table than a list of addresses does. -->
+    <section class="bike" id="bike" hidden>
+      <h3 class="office-h">On a bike here</h3>
+      <div class="bike-stats" id="bike-stats"></div>
+      <p class="office-note" id="bike-note"></p>
+    </section>
+
     <section class="stuck" id="stuck" hidden>
       <h3 class="office-h">Nobody came for these</h3>
       <p class="stuck-lead" id="stuck-lead"></p>
       <ul class="stuck-list" id="stuck-list"></ul>
       <p class="office-note" id="stuck-note"></p>
-    </section>
-
-    <section class="bike" id="bike" hidden>
-      <h3 class="office-h">On a bike here</h3>
-      <div class="bike-stats" id="bike-stats"></div>
-      <p class="office-note" id="bike-note"></p>
     </section>
   </section>
 
@@ -134,6 +138,19 @@
           <li><a href="https://parkchicago.com/" rel="noopener">ParkChicago (meter payment)</a> &middot; <a href="https://apps.apple.com/us/app/parkchicago/id686658594" rel="noopener">iPhone</a> &middot; <a href="https://play.google.com/store/apps/details?id=com.passportparking.mobile.parkchicago" rel="noopener">Android</a></li>
           <li><a href="https://map.chicagometers.com/" rel="noopener">Chicago meter map</a></li>
           <li><a href="https://www.ventrachicago.com/" rel="noopener">Ventra (CTA and Pace fares)</a></li>
+        </ul>
+      </div>
+      <div>
+        <!-- Placed beside the crash figures deliberately. These are places to
+             act, not instructions for the person who got hit: Chicago's main
+             advocacy group leads with "why education for drivers isn't enough",
+             and a be-careful-out-there link under a fatality count reads as
+             blame pointed at the one party with no armour. -->
+        <h3>On a bike</h3>
+        <ul>
+          <li><a href="https://www.bikelaneuprising.com/submit" rel="noopener">Report a blocked bike lane</a> (Bike Lane Uprising)</li>
+          <li><a href="https://activetrans.org/" rel="noopener">Active Transportation Alliance</a></li>
+          <li><a href="https://www.chicago.gov/city/en/sites/complete-streets-chicago/home/bike-program.html" rel="noopener">CDOT Bikeways Program</a></li>
         </ul>
       </div>
     </div>

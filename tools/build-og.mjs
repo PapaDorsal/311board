@@ -19,23 +19,32 @@ const OUT = 'assets/og.png';
 // site is. This line also has to make sense under a ward page's title, since
 // every page shares this one card.
 const TAGLINE = 'Chicago 311 response times, ranked by ward.';
+// WHY IT IS CENTRED IN A NARROW BOX. Reddit and several other feeds crop a
+// 1200x630 card to a SQUARE thumbnail - the middle 630px - and a left-aligned
+// card loses its first words to that crop: this one used to arrive as
+// "WardBoard" with half a flag. Everything sits centred inside a 600px box
+// that survives the square crop, and the type is measured after layout and
+// stepped down if anything would spill out of it.
+const SAFE = 600;
 const STAR = 'M10,0 L7.6,5.84 L1.34,5 L5.2,10 L1.34,15 L7.6,14.16 L10,20 ' +
   'L12.4,14.16 L18.66,15 L14.8,10 L18.66,5 L12.4,5.84 Z';
 
-const html = `<!doctype html><meta charset="utf-8">
+const html = () => `<!doctype html><meta charset="utf-8">
 <style>
   body { margin:0; width:1200px; height:630px; background:#fbfbf9; box-sizing:border-box;
          font-family:system-ui,sans-serif; display:flex; flex-direction:column;
-         justify-content:center; padding:0 90px; }
+         align-items:center; justify-content:center; text-align:center; }
+  .safe { width:${SAFE}px; display:flex; flex-direction:column; align-items:center; }
   .flag { width:300px; height:94px; margin-bottom:52px; }
   .stripe { fill:#7cc6e8; } .stars path { fill:#e4002b; }
-  h1 { font-size:96px; line-height:1; margin:0 0 30px; font-weight:800;
+  h1 { font-size:96px; line-height:1; margin:0 0 30px; font-weight:800; white-space:nowrap;
        letter-spacing:-.01em; color:#14141a; }
   h1 span { color:#0e6ba8; }
   p  { font-size:40px; line-height:1.25; color:#52514e; margin:0; }
   .rule { width:150px; height:9px; background:#e4002b; margin-top:44px; }
 </style>
 <body>
+ <div class="safe">
   <svg class="flag" viewBox="0 0 64 20">
     <rect y="3" width="64" height="4" class="stripe"/><rect y="13" width="64" height="4" class="stripe"/>
     <g class="stars" transform="translate(6,5) scale(0.5)">
@@ -46,12 +55,21 @@ const html = `<!doctype html><meta charset="utf-8">
   <h1>Chi<span>Ward</span>Board</h1>
   <p>${TAGLINE}</p>
   <div class="rule"></div>
+ </div>
 </body>`;
 
 const exe = process.env.CHROME_PATH || undefined;
 const b = await chromium.launch(exe ? { executablePath: exe } : {});
 const p = await b.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
-await p.setContent(html, { waitUntil: 'load' });
+await p.setContent(html(), { waitUntil: 'load' });
+// Nothing may stick out of the safe box. Measure the real layout rather than
+// guessing how wide the name renders in whatever font this machine has.
+for (const sel of ['h1', 'p']) {
+  await p.$eval(sel, (el, safe) => {
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    while (el.scrollWidth > safe && size > 12) { size -= 2; el.style.fontSize = `${size}px`; }
+  }, SAFE).catch(() => {});
+}
 writeFileSync(OUT, await p.screenshot({ type: 'png' }));
 await b.close();
 console.log(`${OUT} written`);
