@@ -24,7 +24,25 @@ if (!/^\d{4}-\d{2}-01$/.test(WINDOW_FROM) || !/^\d{4}-\d{2}-01$/.test(WINDOW_TO)
 }
 const YEAR = Number(WINDOW_FROM.slice(0, 4));
 const Y = `created_date >= '${WINDOW_FROM}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00'`;
-const MIN_WARD_N = 200;      // headline endpoints only from wards at/above this
+// Two floors, because ranking and the headline are not the same claim.
+//
+// RANKING, 100. Measured against the real distributions, a median from 100
+// completed requests is comfortably good enough to place a ward in the table.
+// Bootstrapped over a year of records, 50 identical wards of 100 requests each
+// produce a fastest-to-slowest spread of about 2d on missed pickups, 4d on
+// potholes and 4.6d on fly dumping - against real published spreads of 20d,
+// 56d and 71d. The signal is an order of magnitude above the noise, and the
+// floor was excluding 61 ward-rows that have something to say.
+//
+// THE HEADLINE, 200. The endpoints are a different matter: they name one ward
+// as the best or worst in Chicago, and they are picked by taking a maximum,
+// which is exactly the operation that finds noise. At 100 the fly-dumping
+// headline would change hands on a margin of 0.05 days, and the rodent
+// headline by 1.03d in a field whose whole ranked spread is 2.25d. So the
+// endpoints keep the higher bar; a ward between the two floors is ranked and
+// shown, but cannot be called the fastest or slowest in the city.
+const MIN_RANK_N = 100;      // a ward is ranked in the table at or above this
+const MIN_HEADLINE_N = 200;  // fastest/slowest endpoints only from wards at/above this
 
 // ---- backlog types ----------------------------------------------------------
 // Most request types on this board close eventually and differ only in how fast,
@@ -239,19 +257,22 @@ async function profile({ key, official, plain }) {
       p50: r2(p50), p75: r2(p75), p90: r2(p90),
       week: Math.round(kmClosedWithin(arr, 7)),
       // A ward whose curve never reaches the median cannot be ranked on it.
-      thin: closed < MIN_WARD_N || p50 === null,
+      thin: closed < MIN_RANK_N || p50 === null,
     };
   }).sort((a, b) => (a.p50 === null) - (b.p50 === null) || a.p50 - b.p50);
 
   const eligible = wards.filter(w => !w.thin);
-  const f = eligible[0], sl = eligible[eligible.length - 1];
-  const headline = eligible.length >= 2 ? {
+  // Endpoints come from the higher floor, so a thinly-evidenced ward can be
+  // ranked without being named the best or worst in the city.
+  const stout = eligible.filter((w) => w.n >= MIN_HEADLINE_N);
+  const f = stout[0], sl = stout[stout.length - 1];
+  const headline = stout.length >= 2 ? {
     fastest: { ward: f.ward, p50: f.p50, n: f.n },
     slowest: { ward: sl.ward, p50: sl.p50, n: sl.n },
     gapDays: r2(sl.p50 - f.p50),
   } : null;
 
-  console.log(`${key}: rows=${rows.length} timed=${timed} wards=${wards.length} eligible=${eligible.length}` +
+  console.log(`${key}: rows=${rows.length} timed=${timed} wards=${wards.length} ranked=${eligible.length} headline-eligible=${stout.length}` +
     (headline ? ` gap=${headline.gapDays}d (${f.ward}@${f.p50} .. ${sl.ward}@${sl.p50})` : ''));
 
   return {
@@ -442,7 +463,8 @@ const out = {
   window: { from: WINDOW_FROM, to: WINDOW_TO,
             label: new Date(WINDOW_FROM + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
               + ' to ' + new Date(new Date(WINDOW_TO + 'T00:00:00Z').getTime() - 86400000).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) },
-  minWardN: MIN_WARD_N,
+  minWardN: MIN_RANK_N,
+  minHeadlineN: MIN_HEADLINE_N,
   featured: 'pothole',
   aldermen,
   types,

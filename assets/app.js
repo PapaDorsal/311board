@@ -497,6 +497,10 @@
         `A duplicate is the same physical problem reported twice, so counting it would time one repair as two. The city excludes them in its own tooling.`,
       ] : []),
       `Citywide, half of these close within <span class="fig">${d1(T.citywide.p50)}</span> days, and <span class="fig">${T.citywide.week}%</span> are shut inside a week. Every figure is computed from the records themselves.`,
+      // Two floors, and the reader is told both. The endpoints are picked with a
+      // maximum, which is the operation that finds noise, so they answer to the
+      // higher one - see the header of tools/build-data.mjs.
+      `A ward needs <span class="fig">${D.minWardN}</span> completed requests of a type to be ranked on it; below that it is listed and marked too few to rank. The fastest and slowest named above the board answer to a higher bar of <span class="fig">${D.minHeadlineN}</span>, because naming one ward the best or worst in the city means taking a maximum, and a maximum is what finds a fluke. A ward between the two is ranked in the table but never named at the top of the page.`,
       ...(dg.censored > 0 ? [
         `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
         (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +
