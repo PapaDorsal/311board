@@ -128,18 +128,30 @@ a { color: inherit; }
 /* board layout */
 .board-grid {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(540px, 600px);
-  grid-template-areas: "left table";
+  /* Two rows so the context cards can take the column beside the table. The
+     table is ~4,000px tall on a desktop and the left column only ~1,300, so
+     that space was blank for most of the page. */
+  grid-template-areas: "left table" "cards table";
+  grid-template-rows: auto 1fr;
   gap: 18px 26px; align-items: start;
 }
+.board-grid > .board-cards { grid-area: cards; min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+/* They open the column rather than continuing the page, so no top margin here. */
+.board-cards > .stuck, .board-cards > .bike { margin-top: 0; }
 .board-grid > .board-left { grid-area: left; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .board-left > #types { margin: 0; }
 
 .board-grid > .table-pane { grid-area: table; }
-@media (max-width: 820px) { .board-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "left" "table"; } }
-.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: clamp(19px, 2.2vw, 26px); margin: 0 0 8px; }
-.map-pane { position: sticky; top: 14px; min-width: 0; }
+/* Stacked: the board still comes first, and the cards follow it. */
 @media (max-width: 820px) {
-  .map-pane { position: static; }
+  .board-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "left" "table" "cards"; grid-template-rows: auto auto auto; }
+}
+.pane-title { font-family: var(--display); text-transform: uppercase; font-weight: 700; font-size: clamp(19px, 2.2vw, 26px); margin: 0 0 8px; }
+/* Not sticky: the left column is content-height inside an align-items:start
+   grid, so a sticky map here scrolls away with the column and only ever
+   travelled a few hundred pixels. The cards below it fill that column now. */
+.map-pane { min-width: 0; }
+@media (max-width: 820px) {
   /* stacked layout: keep the map a readable panel, not a full-screen column */
   .map-box { max-width: min(100%, 460px); margin-left: auto; margin-right: auto; }
 }

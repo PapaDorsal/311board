@@ -107,24 +107,26 @@
         </div>
         <p class="table-gloss" id="table-gloss">Typical days = the middle request: half close faster, half slower. Closed in a week = the share shut within seven days. Requests still open count toward both. Click any ward for its full report card.</p>
       </div>
+      <!-- In the left column beside the table, not stacked under the whole
+           board. The table runs ~4,000px on a desktop, so anything after it
+           was effectively unreachable, while the column beside it sat empty
+           for most of that height. On a narrow screen the grid puts these
+           back after the table, where the board still comes first. -->
+      <div class="board-cards">
+        <section class="bike" id="bike" hidden>
+          <h3 class="office-h">On a bike in Chicago</h3>
+          <div class="bike-stats" id="bike-stats"></div>
+          <p class="office-note" id="bike-note"></p>
+        </section>
+
+        <section class="stuck" id="stuck" hidden>
+          <h3 class="office-h">Open more than a year</h3>
+          <p class="stuck-lead" id="stuck-lead"></p>
+          <ul class="stuck-list" id="stuck-list"></ul>
+          <p class="office-note" id="stuck-note"></p>
+        </section>
+      </div>
     </div>
-  </section>
-
-  <!-- Order on the front page: the two context cards, then the methodology.
-       The cards are findings and the methodology is reference, so the reference
-       goes last; and bike sits above stuck for the same reason as on a ward
-       page - the stuck card ends with the only outbound link of the three. -->
-  <section class="bike" id="bike" hidden>
-    <h3 class="office-h">On a bike in Chicago</h3>
-    <div class="bike-stats" id="bike-stats"></div>
-    <p class="office-note" id="bike-note"></p>
-  </section>
-
-  <section class="stuck" id="stuck" hidden>
-    <h3 class="office-h">Open more than a year</h3>
-    <p class="stuck-lead" id="stuck-lead"></p>
-    <ul class="stuck-list" id="stuck-list"></ul>
-    <p class="office-note" id="stuck-note"></p>
   </section>
 
   <div class="method-row">
