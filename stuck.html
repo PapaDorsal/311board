@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nobody came for these - ChiWardBoard</title>
+<title>Open more than a year - ChiWardBoard</title>
 <meta name="description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
 <link rel="canonical" href="https://chiwardboard.com/stuck.html">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -14,14 +14,14 @@
 <meta property="og:site_name" content="ChiWardBoard">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://chiwardboard.com/stuck.html">
-<meta property="og:title" content="Nobody came for these - ChiWardBoard">
+<meta property="og:title" content="Open more than a year - ChiWardBoard">
 <meta property="og:description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
 <meta property="og:image" content="https://chiwardboard.com/assets/og.png?v=3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="ChiWardBoard - Chicago 311 response times, ranked by ward">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Nobody came for these - ChiWardBoard">
+<meta name="twitter:title" content="Open more than a year - ChiWardBoard">
 <meta name="twitter:description" content="Chicago 311 requests on city property - street lights, sidewalks, potholes - still open more than a year, with the address and the case number. From public records.">
 <meta name="twitter:image" content="https://chiwardboard.com/assets/og.png?v=3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,7 +51,7 @@
   <p class="crumb"><a href="./">&larr; Back to the board</a></p>
 
   <section class="method">
-    <h2>Nobody came for these</h2>
+    <h2>Open more than a year</h2>
     <p id="lead" class="ward-sub">Loading the list&hellip;</p>
     <div class="stuck-sum" id="summary"></div>
     <div class="ward-actions">
@@ -75,13 +75,13 @@
   <section class="method">
     <h2>How this list is made</h2>
     <ul>
-      <li><strong>One rule, no editing.</strong> Every 311 request on city-owned infrastructure that is still open more than a year after it was filed, oldest first. Nothing is chosen for being interesting, and nothing is left off for being dull. Anyone can re-run the query against the city&rsquo;s own dataset and get the same list.</li>
-      <li><strong>Only work the city is normally slow at.</strong> A year-old request means &ldquo;nobody came&rdquo; only if a year is a strange length of time for that kind of job. It is not, for a sidewalk: the city takes a median of about ten months to finish one, so a request still open at twelve is an ordinary continuation of a slow process. It is very strange for a traffic signal, which the city closes in a median of <strong>five hours</strong> and completes 97% of the time - a signal request open for a year in a system that fast almost certainly means a crew fixed it and never closed the ticket. That is a bookkeeping artefact, not a dark intersection, and listing it here would be a claim the records cannot support. So a request type appears on this page only if the city normally takes <strong>a month or more</strong> to close one. The build measures that itself on every refresh rather than trusting a hand-written list, and a type that speeds up drops off on its own.</li>
-      <li><strong>City property only.</strong> Street lights, sidewalks, potholes, light poles, stop signs, tree debris, abandoned vehicles, illegal dumping, bike lane debris. Every one of these is a complaint about something the city owns and maintains, so naming the address names a place. Complaints filed against private property and its owners &ndash; sanitation code and building violations &ndash; are deliberately never listed here, however long they have been open.</li>
-      <li><strong>Duplicates removed</strong>, the same as everywhere else on this site, and only requests filed since the May 2023 ward map so a case sits in the ward it was actually filed in.</li>
-      <li><strong>What &ldquo;checks&rdquo; means.</strong> The site records which of these it finds still open every time the data is refreshed. A request that has sat through several checks has been seen open on several separate occasions, months apart. That count starts from the day the watching started, not from the day the request was filed.</li>
-      <li><strong>What an open request does and does not prove.</strong> The records carry a status, not an intention. A request may be open because nobody came, or because the work is waiting on a programme with its own queue - most sidewalk repairs run through CDOT&rsquo;s <a href="https://www.chicago.gov/city/en/depts/cdot/provdrs/street/svcs/shared_cost_sidewalkprogram.html">Shared Cost Sidewalk Program</a>, where the property owner pays a share and applications open one day a year. Read it as work the city has not signed off on, and check the case number against the city&rsquo;s own records before quoting it harder than that.</li>
-      <li><strong>&ldquo;See the spot&rdquo;</strong> opens Google Street View at the coordinates the city recorded. The imagery is whenever Google last drove past, so it shows the place rather than the problem. It is an ordinary link; this site loads nothing from Google on the page.</li>
+      <li><strong>One rule, no editing.</strong> Every 311 request on city-owned infrastructure still open more than a year after it was filed, oldest first. Nothing picked for being interesting, nothing left off for being dull. Anyone can re-run the query against the city&rsquo;s dataset and get this list.</li>
+      <li><strong>Only work the city is normally slow at.</strong> A year is unremarkable for a sidewalk, which takes a median of about ten months. It is very strange for a traffic signal, which the city closes in a median of <strong>five hours</strong> - a year-old signal ticket almost certainly means a crew fixed it and never closed the record. So types the city normally closes in under a month are left off. The build measures that on every refresh, and a type that speeds up drops off on its own.</li>
+      <li><strong>City property only.</strong> Sidewalks, street signs, bike lane debris and the like - things the city owns and maintains, so naming the address names a place. Complaints against private property and its owners are never listed here, however long they have been open.</li>
+      <li><strong>Duplicates removed</strong>, and only requests filed since the May 2023 ward map, so a case sits in the ward it was filed in.</li>
+      <li><strong>&ldquo;Checks&rdquo;</strong> is how many refreshes have found a request still open, months apart. It counts from when the watching started, not from when the request was filed.</li>
+      <li><strong>What an open request proves.</strong> The records carry a status, not an intention. A request may be open because nobody came, or because the work is queued - most sidewalk repairs run through CDOT&rsquo;s <a href="https://www.chicago.gov/city/en/depts/cdot/provdrs/street/svcs/shared_cost_sidewalkprogram.html">Shared Cost Sidewalk Program</a>, which opens for applications one day a year. Read it as work the city has not signed off on.</li>
+      <li><strong>&ldquo;See the spot&rdquo;</strong> opens Google Street View at the coordinates the city recorded, so it shows the place rather than the problem. It is an ordinary link; this page loads nothing from Google.</li>
     </ul>
   </section>
 

@@ -453,7 +453,7 @@
       </tr>`;
     }).join('');
     $('table-gloss').textContent = back
-      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those the city still has not closed. The share is one divided by the other. Click any ward for its full report card.'
+      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those are still not closed. Click any ward for its full report card.'
       : 'Typical days = the middle request: half close faster, half slower. Closed in a week = the share shut within seven days. Requests still open count toward both. Click any ward for its full report card.';
     $('board').hidden = false;
   }
@@ -465,17 +465,17 @@
       const months = Math.round((Date.parse(T.window.to) - Date.parse(T.window.from)) / 2629800000);
       const from = new Date(T.window.from + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
       $('method-list').innerHTML = [
-        `This board is ranked on what the city has <em>not</em> finished, rather than on how long the finished ones took. Everything else here closes eventually and differs only in speed - measured over two years, the share of potholes, rat complaints or tree debris still open after six months is effectively zero. Sidewalk requests are the one exception in the whole dataset, so for them the backlog is the story.`,
+        `This board ranks what the city has <em>not</em> finished, rather than how long the finished ones took. Everything else here closes eventually and differs only in speed - over two years, the share of potholes, rat complaints or tree debris still open after six months is effectively zero. Sidewalk requests are the one exception in the dataset.`,
         `The city files these as &ldquo;${esc(T.official)}&rdquo;, which is the term to search for in the records. ` +
         `Since ${from} it logged <span class="fig">${fmt(T.totals.filed)}</span> of them. ` +
         `<span class="fig">${fmt(T.totals.mature)}</span> were filed at least <span class="fig">${T.window.maturityDays}</span> days ago, which is the set judged here; ` +
         `<span class="fig">${fmt(T.totals.open)}</span> of those are still open, or <span class="fig">${pctTxt(T.citywide.pct)}</span> citywide.`,
-        `A request filed last month is not late, it is new. Only requests old enough to have been dealt with are counted, so a ward that simply received a lot of them recently does not read as a ward that ignores them.`,
-        `Why ${months} months and not twelve: the six-month wait before a request counts eats into whatever window you pick, and over a single year a typical ward is left with too few to measure a share against. Over ${months} the median ward has enough that its figure moves only a few points either way.`,
+        `A request filed last month is new, not late. Only requests old enough to have been dealt with are counted, so a ward that recently received a lot does not read as a ward that ignores them.`,
+        `Why ${months} months and not twelve: the six-month wait before a request counts eats into any window, and over a single year a typical ward has too few left to measure a share against.`,
         `Wards with fewer than <span class="fig">${T.minWardN}</span> requests old enough to judge are shown but not ranked. ` +
         `${T.totals.duplicates > 0 ? `Reports the city flagged as duplicates are excluded: <span class="fig">${fmt(T.totals.duplicates)}</span>. ` : ''}` +
         `${T.totals.nullOrZeroWard > 0 ? `Rows with no ward dropped: <span class="fig">${fmt(T.totals.nullOrZeroWard)}</span>.` : ''}`,
-        `What this cannot tell you: whether an open request means nobody came, or whether the repair is waiting on a programme with its own queue. Most residential sidewalk repair runs through the city's Shared Cost Sidewalk Program, where the property owner pays a share and applications open on a single day each January. What the records do show is that closing one of these is not a formality - the completed ones take a median of about five months. Read an open one as work the city has not signed off on.`,
+        `What this cannot tell you: whether an open request means nobody came, or whether the repair is queued. Most residential sidewalk repair runs through the city's Shared Cost Sidewalk Program, which opens for applications one day each January. What the records do show is that closing one is no formality - completed ones take a median of about five months. Read an open one as work the city has not signed off on.`,
       ].map((s) => `<li>${s}</li>`).join('');
       $('method').hidden = false;
       return;
@@ -494,15 +494,15 @@
       `${ex.nullOrZeroWard > 0 ? ` Rows with no ward dropped: <span class="fig">${fmt(ex.nullOrZeroWard)}</span>.` : ''}`,
       // The rationale bullet only earns its place when this type actually had duplicates.
       ...(T.totals.duplicates > 0 ? [
-        `Why duplicates are excluded: a duplicate report is the same physical problem reported twice, so counting it would inflate the volume and time one repair as if it were two. The city excludes them in its own tooling.`,
+        `A duplicate is the same physical problem reported twice, so counting it would time one repair as two. The city excludes them in its own tooling.`,
       ] : []),
       `Citywide, half of these close within <span class="fig">${d1(T.citywide.p50)}</span> days, and <span class="fig">${T.citywide.week}%</span> are shut inside a week. Every figure is computed from the records themselves.`,
       ...(dg.censored > 0 ? [
         `Requests that never closed are counted, not dropped. Over ${PERIOD}, <span class="fig">${fmt(dg.stillOpen)}</span> of these were still open when the data was pulled` +
         (dg.canceled > 0 ? ` and <span class="fig">${fmt(dg.canceled)}</span> ${dg.canceled === 1 ? 'was' : 'were'} cancelled` : '') +
-        `. If we dropped them, a ward&rsquo;s unfinished work would disappear from its own figures and make it look faster than it is, so each one counts as a wait of at least that long.`,
+        `. Dropping them would make a ward&rsquo;s unfinished work vanish from its own figures, so each counts as a wait of at least that long.`,
       ] : []),
-      `Two things these numbers cannot separate. The city says it prioritizes arterial streets over side streets when dispatching crews, so a ward with more arterial mileage may close requests faster without anyone working differently. And every row here started with a resident filing a request, so wards that report more, or report different things, will look different for that reason alone. Neither effect is corrected for here.`,
+      `Two things these numbers cannot separate, and neither is corrected for. The city says it prioritizes arterial streets when dispatching crews, so a ward with more arterial mileage may close requests faster without anyone working differently. And every row started with a resident filing, so wards that report more, or report different things, will look different for that alone.`,
     ].map((s) => `<li>${s}</li>`).join('');
     $('method').hidden = false;
   }
@@ -516,9 +516,9 @@
 
   // ---- find-your-ward ----
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-  // What this ward's own page holds beyond the board: the requests nobody came
-  // for, and what riding here has cost. Stated flatly and in that order - the
-  // stuck count is this site's own subject, the crash count is context.
+  // What this ward's own page holds beyond the board: its long-open requests,
+  // and what riding here has cost. Stated flatly and in that order - the
+  // open-past-a-year count is this site's own subject, the crash count is context.
   function mineExtras(ward) {
     const bits = [];
     const st = STUCK && (STUCK.wards || {})[ward];
@@ -826,10 +826,10 @@
           stat(fmt(c.serious), 'left someone seriously hurt or killed', 'of those crashes') +
           stat(`${Math.round(c.laneMiles)} mi`, 'of bike route citywide', `${Math.round(c.protectedLaneMiles)} mi of it physically protected`);
         $('bike-note').innerHTML =
-          `Every ward page carries its own version of these. They are never ranked: a ward with more crashes is usually a ward with more cycling, ` +
-          `and correcting for that would need ridership figures nobody publishes. ` +
-          `Bike lane obstructions are not here at all - the city logs about 630 a year across all 50 wards, too few to say anything about any one of them, ` +
-          `and 311 has no category whatsoever for a vehicle parked in a lane. <a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a>. ` +
+          `Every ward page carries its own version. Never ranked: a ward with more crashes is usually a ward with more cycling, ` +
+          `and correcting for that needs ridership figures nobody publishes. ` +
+          `Blocked lanes are not here at all - 311 has no category for a vehicle parked in one. ` +
+          `<a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a>. ` +
           `From the city's <a href="${esc(BIKE.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BIKE.sources.routes.portal)}" rel="noopener">bike route</a> datasets.`;
         $('bike').hidden = false;
       } catch { /* the board stands on its own without it */ }
