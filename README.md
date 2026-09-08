@@ -22,7 +22,7 @@ methodology a visitor sees is on `about.html` and, per type, on the board.
 | `data/wards.geojson`, `data/streets.geojson` | Ward outlines and arterial streets for the map. |
 | `data/ward-neighborhoods.json` | Which community areas each ward's requests come from. |
 | `data/bike-context.json` | Per-ward bike crashes and bike route mileage. Context on ward pages, never ranked. |
-| `stuck.html`, `assets/stuck.js` | "Nobody came for these": individual requests open over a year, citywide. |
+| `stuck.html`, `assets/stuck.js` | "Open more than a year": individual requests open over a year, citywide. |
 | `data/stuck.json` | What those pages read: citywide oldest, per-ward lists, recently resolved. |
 | `data/stuck-history.json` | **The archive.** One entry per stuck request, counting how many refreshes have seen it still open. Cannot be reconstructed — only accumulated. |
 | `data/address-index.json` | Hundred-block to ward index, so an address resolves in the browser. |

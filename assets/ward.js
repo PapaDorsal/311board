@@ -164,7 +164,7 @@
     if (rows.length) {
       $('office-detail').innerHTML =
         (ald.name ? `<p class="office-name">Alderperson ${esc(ald.name)}</p>` : '') + rows.join('') +
-        `<p class="office-note">Contact details from the City of Chicago&rsquo;s Ward Offices directory, with broken links corrected. The ward office handles service requests filed in Ward ${ward}.</p>`;
+        `<p class="office-note">Contact details from the city&rsquo;s Ward Offices directory, with broken links corrected.</p>`;
       $('office').hidden = false;
     }
   }
@@ -313,7 +313,7 @@
     renderCard();
   });
 
-  // ---- what nobody came for ----
+  // ---- requests open more than a year ----
   // The aggregates above say a ward is slow or unfinished. This says which
   // corner. Every entry is a city-owned asset - a light, a sidewalk, a pothole -
   // so naming the address names a place and not a neighbour. See the public-way
@@ -341,8 +341,7 @@
           </li>`;
         }).join('');
         $('stuck-note').innerHTML =
-          `Oldest first, no picking: every request on city-owned infrastructure still open past a year. ` +
-          `Complaints about private property are never listed here. ` +
+          `Oldest first, no picking. City-owned infrastructure only - complaints about private property are never listed. ` +
           `<a href="stuck.html">The longest waits citywide &rarr;</a>`;
         $('stuck').hidden = false;
       }
@@ -370,14 +369,14 @@
           stat(fmt(b.serious), `left someone seriously hurt or killed`, `of those crashes`) +
           stat(`${b.laneMiles.toFixed(1)} mi`, `of bike route in this ward`, `${b.protectedLaneMiles.toFixed(1)} mi of it physically protected`);
         $('bike-note').innerHTML =
-          `Crash counts follow how much cycling a ward carries and what kind of streets it has, so they are printed here as facts about this place, not as a score. ` +
+          `Crash counts follow how much cycling a ward carries, so these are facts about this place, not a score. ` +
           `Citywide over the same ${yrs} years: <span class="fig">${fmt(BC.citywide.crashes)}</span> crashes, <span class="fig">${fmt(BC.citywide.serious)}</span> serious or fatal, ` +
           `across <span class="fig">${BC.citywide.laneMiles.toFixed(0)}</span> miles of bike route. ` +
-          `From the city's <a href="${esc(BC.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BC.sources.routes.portal)}" rel="noopener">bike route</a> datasets, placed into wards by their coordinates. ` +
+          `From the city's <a href="${esc(BC.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BC.sources.routes.portal)}" rel="noopener">bike route</a> datasets. ` +
           // Somewhere to go, rather than a number and a shrug. Reporting a
           // blocked lane leads because it is the one thing 311 has no category
           // for at all, which is the gap this site cannot close on its own.
-          `If a lane here is blocked, <a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a> - the city's 311 has no category for it. ` +
+          `If a lane here is blocked, <a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a> - 311 has no category for it. ` +
           `<a href="https://activetrans.org/" rel="noopener">Active Transportation Alliance</a> works on street safety citywide.`;
         $('bike').hidden = false;
       }

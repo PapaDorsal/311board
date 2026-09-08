@@ -59,14 +59,14 @@
   $('stuck').hidden = false;
 
   // The share text carries the finding, not the page name. A link that arrives
-  // saying "Nobody came for these" is a title; one that says how many and for
+  // saying "Open more than a year" is a title; one that says how many and for
   // how long is the reason to open it.
   $('share').onclick = async () => {
     const url = 'https://chiwardboard.com/stuck.html';
     const text = `${fmt(D.citywide.total)} requests about Chicago's own ${kindList} have been open more than a year. ` +
       `The oldest has been waiting ${ago(oldest.days)}.`;
     try {
-      if (navigator.share) { await navigator.share({ title: 'Nobody came for these - ChiWardBoard', text, url }); return; }
+      if (navigator.share) { await navigator.share({ title: 'Open more than a year - ChiWardBoard', text, url }); return; }
       await navigator.clipboard.writeText(`${text} ${url}`);
       $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
     } catch { /* user cancelled */ }
