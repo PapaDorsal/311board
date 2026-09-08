@@ -175,9 +175,14 @@
       return;
     }
     if (h.slowest.p50 < 1.5) {
+      // The city does the clearing; a ward is where it happened. Same reason the
+      // tagline says "where the city fills potholes" and not "which ward fixes".
+      // Type names are a mix of singular and plural ("pothole repair", "garbage
+      // cart repairs"), so the verb has to agree or this reads as broken English.
+      const plural = /s$/.test(T.plain);
       $('hook-line').textContent = past
-        ? `In ${winKey}, every ward cleared ${T.plain} in about a day.`
-        : `Every ward clears ${T.plain} in about a day.`;
+        ? `In ${winKey}, ${T.plain} took about a day in every ward.`
+        : `${T.plain[0].toUpperCase()}${T.plain.slice(1)} ${plural ? 'take' : 'takes'} about a day in every ward.`;
       $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${d1(h.fastest.p50)}</span> to <span class="fig">${d1(h.slowest.p50)}</span> days across wards over ${PERIOD}.`;
     } else if (past) {
       $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
