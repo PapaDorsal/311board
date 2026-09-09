@@ -196,9 +196,12 @@ td { padding: 6px 9px; border-bottom: 1px solid var(--grid); }
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); }
 tbody tr.mine-row { background: color-mix(in srgb, var(--chi-red) 7%, transparent); }
-.c-rank { width: 2.4em; }
+/* Rank needs more than the old 2.4em now the head says "Rank" rather than "#".
+   The rest is left to auto layout: width hints on the numeric columns do
+   nothing here, so the header labels are kept short enough to fit instead. */
+.c-rank { width: 4.6em; }
 .c-num, td.c-num, th.c-num { text-align: right; }
-.c-bar { width: 44%; }
+.c-bar { width: 34%; }
 td.c-rank { color: var(--muted); font-family: var(--mono); font-size: 12.5px; }
 td.c-ward { font-weight: 600; }
 td.c-ward > a { display: inline-block; max-width: 15em; }
@@ -403,7 +406,15 @@ td.c-ward a:hover { color: var(--accent); }
 .method code { font-family: var(--mono); font-size: 0.92em; }
 
 /* sortable headers on the ward report card */
-#card thead th { padding: 0; }
+#card thead th, #lb thead th { padding: 0; }
+#lb thead th .sort-btn { padding: 10px 7px; }
+/* Auto layout sizes a column to its content, and these columns hold short
+   numbers, so the header was the thing that wrapped - three lines under a
+   one-line row of figures. Refusing to wrap makes the table widen the column
+   to fit the label instead. */
+#lb thead th .sort-btn > span:first-child { white-space: nowrap; }
+#lb thead th.c-num .sort-btn { text-align: right; }
+#lb thead th.c-rank .sort-btn { text-align: left; }
 .sort-btn {
   display: block; width: 100%; box-sizing: border-box;
   font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;

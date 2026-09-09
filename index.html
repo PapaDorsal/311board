@@ -92,14 +92,18 @@
         <div class="table-scroll">
           <table id="lb">
             <thead>
+              <!-- Sortable, the same pattern the ward report card uses: a real
+                   button inside each th so the header is reachable and operable
+                   by keyboard, with the direction in aria-sort for a screen
+                   reader and an arrow for everyone else. The three on the right
+                   are relabelled per type - a backlog type is ranked on a share
+                   still unfinished, which is not a count of days. -->
               <tr>
-                <th class="c-rank" scope="col">#</th>
-                <th class="c-ward" scope="col">Ward</th>
-                <!-- These three are rewritten per type: a backlog type is ranked
-                     on a share still unfinished, which is not a count of days. -->
-                <th class="c-bar" scope="col" id="th-bar">Typical days</th>
-                <th class="c-num c-tail" scope="col" id="th-tail">Closed in a week</th>
-                <th class="c-num" scope="col" id="th-n">Completed</th>
+                <th class="c-rank" scope="col" aria-sort="ascending" data-sort="rank"><button type="button" class="sort-btn"><span>Rank</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+                <th class="c-ward" scope="col" aria-sort="none" data-sort="ward"><button type="button" class="sort-btn"><span>Ward</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+                <th class="c-bar" scope="col" aria-sort="none" data-sort="bar"><button type="button" class="sort-btn"><span id="th-bar">Typical days</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+                <th class="c-num c-tail" scope="col" aria-sort="none" data-sort="tail"><button type="button" class="sort-btn"><span id="th-tail">Closed in a week</span><span class="sort-ind" aria-hidden="true"></span></button></th>
+                <th class="c-num" scope="col" aria-sort="none" data-sort="n"><button type="button" class="sort-btn"><span id="th-n">Completed</span><span class="sort-ind" aria-hidden="true"></span></button></th>
               </tr>
             </thead>
             <tbody id="lb-body"></tbody>

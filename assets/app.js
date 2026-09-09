@@ -415,6 +415,26 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
+  // Board sort state. Defaults to the ranking itself, ascending - rank 1 first,
+  // which is the order the board is built in.
+  let lbSortKey = 'rank', lbSortDir = 'asc';
+
+  function paintSortHeads() {
+    document.querySelectorAll('#lb thead th').forEach((th) => {
+      const k = th.dataset.sort;
+      const active = k === lbSortKey;
+      th.setAttribute('aria-sort', active ? (lbSortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+      const ind = th.querySelector('.sort-ind');
+      if (ind) ind.textContent = active ? (lbSortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+      const btn = th.querySelector('.sort-btn');
+      if (btn) {
+        const label = (btn.querySelector('span') || {}).textContent || '';
+        btn.setAttribute('aria-label',
+          `${label}: ${active ? (lbSortDir === 'asc' ? 'sorted low to high' : 'sorted high to low') : 'not sorted'}. Activate to sort.`);
+      }
+    });
+  }
+
   function renderTable(T) {
     const back = isBacklog(T);
     $('board-title').textContent = `All 50 wards, ranked`;
@@ -431,10 +451,35 @@
     // 60%. The earlier pair named a filtering step nobody had asked about and a
     // count that read like a verdict.
     $('th-bar').textContent = back ? 'Share unfinished' : 'Typical days';
-    $('th-tail').textContent = back ? 'Requests' : 'Closed in a week';
+    // "Closed in a week" broke to three lines in this column whatever width it
+    // was given - the table is auto-layout and ignores the hint. Shortened here
+    // and spelled out in the gloss under the table instead.
+    $('th-tail').textContent = back ? 'Requests' : 'In a week';
     $('th-n').textContent = back ? 'Unfinished' : 'Completed';
+    // Rank is fixed to the board's own order (fastest first, or most unfinished
+    // first) and assigned before any display sort, so re-sorting by ward or by a
+    // column reorders the rows without renumbering the ranking.
     let rank = 0;
-    $('lb-body').innerHTML = T.wards.map((w) => {
+    const ranked = T.wards.map((w) => ({ w, rank: w.thin ? null : ++rank }));
+    const dir = lbSortDir === 'asc' ? 1 : -1;
+    const KEY = {
+      rank: (r) => (r.rank === null ? Infinity : r.rank),
+      ward: (r) => r.w.ward,
+      bar:  (r) => (val(T, r.w) === null || val(T, r.w) === undefined ? Infinity : val(T, r.w)),
+      tail: (r) => (back ? r.w.mature : r.w.week),
+      n:    (r) => (back ? r.w.open : r.w.n),
+    };
+    const get = KEY[lbSortKey] || KEY.rank;
+    ranked.sort((a, b) => {
+      // Unranked wards stay at the bottom whichever way a column is sorted.
+      if (a.rank === null && b.rank !== null) return 1;
+      if (b.rank === null && a.rank !== null) return -1;
+      const x = get(a), y = get(b);
+      if (x === Infinity && y !== Infinity) return 1;
+      if (y === Infinity && x !== Infinity) return -1;
+      return (x - y) * dir;
+    });
+    $('lb-body').innerHTML = ranked.map(({ w, rank: wRank }) => {
       const v = val(T, w);
       const pct = Math.max(1.5, ((v || 0) / (maxV || 1)) * 100);
       const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
@@ -448,7 +493,7 @@
         ? ` <span class="open-tag">${Math.round(w.openShare)}% still open</span>` : '';
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
-        <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${w.thin ? '' : ++rank}</td>
+        <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${wRank === null ? '' : wRank}</td>
         <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${openTag}` +
         // No alderperson name here. It made every row three lines tall, and fifty
         // of those was most of the page; the name is on the ward's own page,
@@ -460,10 +505,21 @@
       </tr>`;
     }).join('');
     $('table-gloss').textContent = back
-      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those are still not closed. Click any ward for its full report card.'
-      : 'Typical days = the middle request: half close faster, half slower. Closed in a week = the share shut within seven days. Requests still open count toward both. Click any ward for its full report card.';
+      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those are still not closed. Click any column head to sort, or any ward for its full report card.'
+      : 'Typical days = the middle request: half close faster, half slower. In a week = the share of requests closed within seven days. Requests still open count toward both. Click any column head to sort, or any ward for its full report card.';
+    paintSortHeads();
     $('board').hidden = false;
   }
+
+  // Buttons, not click handlers on th, so the headers work by keyboard too.
+  document.querySelectorAll('#lb thead th .sort-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const k = btn.closest('th').dataset.sort;
+      if (lbSortKey === k) lbSortDir = lbSortDir === 'asc' ? 'desc' : 'asc';
+      else { lbSortKey = k; lbSortDir = 'asc'; }
+      renderTable(type());
+    });
+  });
 
   function renderMethod(T) {
     if (isBacklog(T)) {
