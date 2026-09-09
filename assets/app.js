@@ -868,6 +868,17 @@
     } catch { /* the board stands on its own without it */ }
   })();
 
+  // Back to top. Shown only after two screens of scrolling, so it never covers
+  // anything on a short page or before the reader has gone anywhere.
+  (function backToTop() {
+    const btn = $('to-top');
+    if (!btn) return;
+    const show = () => { btn.hidden = window.scrollY < window.innerHeight * 2; };
+    addEventListener('scroll', show, { passive: true });
+    addEventListener('resize', show, { passive: true });
+    show();
+  })();
+
   // Footer
   function renderFoot() {
     $('foot-line').innerHTML = `Covering ${PERIOD}${winKey === 'rolling' ? ', a rolling 12 months' : ''}. Snapshot generated ${new Date(D.generatedAt).toISOString().slice(0, 10)}.`;
