@@ -450,8 +450,10 @@
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
         <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${w.thin ? '' : ++rank}</td>
         <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${openTag}` +
-        `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}` +
-        `${ald && ald.name ? `<div class="row-sub">${esc(ald.name)}</div>` : ''}</a></td>
+        // No alderperson name here. It made every row three lines tall, and fifty
+        // of those was most of the page; the name is on the ward's own page,
+        // next to the contact details that make it useful.
+        `${hoods(w.ward, 2) ? `<div class="row-hood">${esc(hoods(w.ward, 2))}</div>` : ''}</a></td>
         <td class="c-bar"><div class="barcell"><div class="bar${back ? ' bar-back' : ''}" style="width:${pct.toFixed(1)}%"></div><span class="bar-val">${back ? pctTxt(w.pct) : d1(w.p50)}</span></div></td>
         <td class="c-num c-tail">${back ? fmt(w.mature) : w.week + '%'}</td>
         <td class="c-num">${fmt(back ? w.open : w.n)}</td>
@@ -866,17 +868,6 @@
       $('stuck-note').innerHTML = `<a href="stuck.html">The longest waits in Chicago, and the ones that finally got fixed &rarr;</a>`;
       $('stuck').hidden = false;
     } catch { /* the board stands on its own without it */ }
-  })();
-
-  // Back to top. Shown only after two screens of scrolling, so it never covers
-  // anything on a short page or before the reader has gone anywhere.
-  (function backToTop() {
-    const btn = $('to-top');
-    if (!btn) return;
-    const show = () => { btn.hidden = window.scrollY < window.innerHeight * 2; };
-    addEventListener('scroll', show, { passive: true });
-    addEventListener('resize', show, { passive: true });
-    show();
   })();
 
   // Footer
