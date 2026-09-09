@@ -203,7 +203,6 @@ td.c-rank { color: var(--muted); font-family: var(--mono); font-size: 12.5px; }
 td.c-ward { font-weight: 600; }
 td.c-ward > a { display: inline-block; max-width: 15em; }
 td.c-ward > a { white-space: nowrap; }
-td.c-ward .row-sub { white-space: normal; }
 td.c-ward .thin-tag {
   font-weight: 500; font-size: 10.5px; color: var(--muted);
   border: 1px solid var(--grid); border-radius: 4px; padding: 1px 5px; margin-left: 6px;
@@ -469,7 +468,7 @@ td.c-ward a:hover { color: var(--accent); }
      than the numbers, which are what the column is for */
   #lb th { font-size: 10.5px; letter-spacing: 0.02em; }
   td.c-ward > a { max-width: none; white-space: normal; }
-  td.c-ward .row-hood, td.c-ward .row-sub { white-space: normal; }
+  td.c-ward .row-hood { white-space: normal; }
   /* The bar is proportional, so in a column this narrow the fast wards render
      as a 12px nub that reads as nothing. Its width is better spent on the ward
      name, which was wrapping to three lines. The rows are already sorted
