@@ -93,6 +93,34 @@ jobs:
             if(!(d.citywide.laneMiles>100)) throw new Error("implausible lane mileage: "+d.citywide.laneMiles);
             console.log("bike context ok:",d.citywide.crashes,"crashes,",d.citywide.laneMiles,"mi");'
 
+      # The address lookup. Parcels change slowly and ward boundaries only at a
+      # remap, so this is refreshed rather than watched. It is allowed to fail
+      # without costing the 311 refresh, but a half-written file would make the
+      # lookup tell residents the wrong ward, so the previous one is restored
+      # unless the new one passes and still resolves a known address.
+      - name: Refresh the address points
+        continue-on-error: true
+        run: |
+          cp data/address-points.json /tmp/prev-address-points.json
+          if node tools/build-address-points.mjs && node -e '
+            const C=require("./assets/address.js");
+            const ix=C.prepare(require("./data/address-points.json"));
+            const n=Object.keys(ix.streets).length;
+            if(!(n>3000)) throw new Error("implausibly few streets: "+n);
+            let faces=0; for(const v of Object.values(ix.streets)) faces+=v.length/2;
+            if(!(faces>40000)) throw new Error("implausibly few block faces: "+faces);
+            const r=C.lookup("1060 W Addison St",ix);
+            if(r.state!=="CONFIRMED"||r.ward!==44) throw new Error("known address broke: "+JSON.stringify(r));
+            const o=C.lookup("13900 S Torrence Ave",ix);
+            if(o.state==="CONFIRMED") throw new Error("an out-of-city address resolved");
+            console.log("address points ok:",n,"streets,",faces,"block faces");'; then
+            echo "address points refreshed"
+          else
+            echo "address point build failed; keeping the previous file"
+            cp /tmp/prev-address-points.json data/address-points.json
+            exit 1
+          fi
+
       # Ward page titles carry neighbourhood and alderperson names from the
       # snapshot, so they are regenerated whenever the data is.
       - name: Regenerate the per-ward pages

@@ -172,6 +172,42 @@ await check('P3 a shared ward link opens on that ward', async (p) => {
   const c = await card(p);
   if (!/Your ward: 7\b/.test(c.text)) return `card read: ${c.text.slice(0, 80)}`;
 });
+// ---- the typed address stays in the browser ----
+await check('no request carries the typed address', async (p) => {
+  // The page promises a typed address is never sent anywhere. This watches every
+  // request the page makes from the moment the address is typed.
+  const seen = [];
+  p.on('request', (r) => seen.push(r.url()));
+  await look(p, '1060 W Addison St');
+  const leaked = seen.filter((u) => /addison/i.test(u));
+  if (leaked.length) return `these requests carried it: ${leaked.join(', ')}`;
+});
+await check('a lookup reaches no other origin, and its data file only once', async (p) => {
+  // Two things matter: a lookup must not talk to anything off this origin, and the
+  // resolving itself must be local. Same-origin chrome the page would request
+  // anyway (a favicon, an icon) is not part of the lookup and is ignored; the
+  // address-carrying check above is what guards the typed string itself.
+  await p.waitForSelector('#finder:not([hidden])');
+  const seen = [];
+  p.on('request', (r) => seen.push(r.url()));
+  await look(p, '1060 W Addison St');
+  await look(p, '2100 W North Ave');
+  await look(p, '3500 W 26th St');
+  const offOrigin = seen.filter((u) => !u.startsWith(BASE));
+  if (offOrigin.length) return `left this origin: ${offOrigin.join(', ')}`;
+  const data = seen.filter((u) => u.endsWith('/data/address-points.json'));
+  if (data.length !== 1) return `fetched its data file ${data.length} times across 3 lookups, wanted 1`;
+});
+await check('the address data is not fetched until a lookup happens', async (p) => {
+  const urls = [];
+  p.on('request', (r) => urls.push(r.url()));
+  await p.waitForSelector('#finder:not([hidden])');
+  await p.waitForTimeout(1500);
+  if (urls.some((u) => /address-points/.test(u))) return 'fetched on page load, not on first lookup';
+  await look(p, '1060 W Addison St');
+  if (!urls.some((u) => /address-points/.test(u))) return 'never fetched it at all';
+});
+
 await check('P3 a junk ward param is ignored', async (p) => {
   for (const v of ['0', '51', 'abc', '44.5']) {
     await p.goto(`${BASE}/index.html?ward=${v}`, { waitUntil: 'domcontentloaded' });

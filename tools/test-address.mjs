@@ -7,7 +7,7 @@
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const C = require('../assets/address.js');
-const ix = C.prepare(require('../data/address-index.json'));
+const ix = C.prepare(require('../data/address-points.json'));
 const S = C.STATES;
 
 let failed = 0;
@@ -79,7 +79,9 @@ check('the city name is not eaten off a street called Chicago', () => {
   if (r.state === S.NOT_FOUND) return r.message;
 });
 check('a numbered street resolves however it is written', () => {
-  const a = look('400 E 53rd St'), b = look('400 E 53 St');
+  // 300, not the 400 this used to use: the 400 block of E 53rd has no parcel on
+  // either side, so the old text index was the only thing that ever answered it.
+  const a = look('300 E 53rd St'), b = look('300 E 53 St');
   if (a.state !== S.CONFIRMED) return `53rd gave ${a.state}`;
   if (b.state !== S.CONFIRMED || b.ward !== a.ward) return `53 gave ${b.state} ${b.ward}`;
 });
@@ -154,8 +156,10 @@ check('the first number past the grid is rejected', () => {
   if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
 });
 check('the top of the grid still resolves', () => {
-  // 13800 S is the far south end of the city numbering, and it is a real address.
-  const r = look('13800 S Leyden Ave');
+  // The far south end of the city numbering. 13800 S Leyden, which this check
+  // used to assert on, has no parcel: the street stops at 13790. The old index
+  // answered it anyway, from a run with no end.
+  const r = look('13701 S Leyden Ave');
   if (r.state !== S.CONFIRMED) return `state ${r.state}: ${r.message || ''}`;
 });
 check('a house number of zero is rejected', () => {
@@ -164,8 +168,8 @@ check('a house number of zero is rejected', () => {
   if (!/start at 1/.test(r.message)) return `message "${r.message}"`;
 });
 check('an address outside the city is not claimed for a ward', () => {
-  // 27400 S Perry is in Dolton. It reached the index as a stray 311 record and
-  // used to resolve to Ward 6.
+  // 27400 S Perry is in Dolton. It reached the old index as a stray 311 record
+  // and used to resolve to Ward 6.
   const r = look('27400 S Perry Ave');
   if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
 });
@@ -191,24 +195,58 @@ check('only CONFIRMED ever carries a ward', () => {
   }
 });
 
-// ---- known and not yet fixed ----
-// These need a point and a polygon, not a text index: the street exists, the
-// suffix and direction are right, and the number is inside the 13999 grid cap,
-// but the address is past the end of that street or outside the city. The runs
-// record where a ward's stretch starts and never where it stops, so the last run
-// absorbs them. Recorded as expected failures so the gap cannot be lost, and so
-// that the day a coordinate source lands, these flip and say so.
-const KNOWN = [
-  ['13900 S Torrence Ave', 'past 138th St, outside the city'],
-  ['7300 W Addison St', 'west of Harlem, outside the city'],
-  ['9999 W Addison St', 'inside the grid but past the end of Addison'],
-];
-console.log('');
-for (const [addr, why] of KNOWN) {
-  const r = look(addr);
-  const tag = r.state === S.CONFIRMED ? `still CONFIRMED ward ${r.ward}` : `now ${r.state}`;
-  console.log(`known ${addr} (${why}): ${tag}`);
-}
+// ---- the class the point index exists to close ----
+// These three were confident wrong answers for as long as the ward came from a
+// text index: its runs recorded where a ward's stretch of a street began and
+// never where it ended, so the last run absorbed every number above it. The ward
+// now comes from a point-in-polygon test on a real parcel, and a block face the
+// city has no parcel on is not an address.
+//
+// 7300 W Addison St is deliberately not here. It was reported as outside the
+// city, but the city's parcel file has 120 parcels on that stretch and they fall
+// in ward 38, which is Dunning. West of Harlem is not automatically outside
+// Chicago. It is asserted below as a correct answer.
+check('a number past the end of a street is not a ward', () => {
+  const r = look('9999 W Addison St');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+  if (r.state !== S.NOT_FOUND) return `state ${r.state}, wanted NOT_FOUND`;
+});
+check('an address past the south city limit is not a ward', () => {
+  const r = look('13900 S Torrence Ave');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+  if (r.state !== S.NOT_FOUND) return `state ${r.state}, wanted NOT_FOUND`;
+});
+check('the same street inside the limit still resolves', () => {
+  const r = look('10102 S Torrence Ave');
+  if (r.state !== S.CONFIRMED) return `state ${r.state}: ${r.message || ''}`;
+});
+check('7300 W Addison St is in the city and resolves', () => {
+  // Reported as a defect. It is not one: 120 real parcels, ward 38.
+  const r = look('7300 W Addison St');
+  if (r.state !== S.CONFIRMED) return `state ${r.state}: ${r.message || ''}`;
+  if (r.ward !== 38) return `ward ${r.ward}, wanted 38`;
+});
+check('an out-of-range message names the address, not the street name', () => {
+  const r = look('9999 W Addison St');
+  if (/check the street name/i.test(r.message || '')) return r.message;
+});
+
+// ---- one vocabulary ----
+check('spacing in a street name is not treated as a typo', () => {
+  // The city files La Salle with a space. Most people type LaSalle. That is the
+  // same street, not a misspelling, so it must not become a confirmation step.
+  const a = look('121 N LaSalle St'), b = look('121 N La Salle St');
+  if (a.state !== S.CONFIRMED) return `LaSalle gave ${a.state}`;
+  if (b.state !== S.CONFIRMED) return `La Salle gave ${b.state}`;
+  if (a.ward !== b.ward) return `wards differ: ${a.ward} vs ${b.ward}`;
+});
+check('both sides of a boundary street resolve to their own ward', () => {
+  // A ward line runs down S Torrence at the 10100 block, so the even and odd
+  // sides are different wards. A block-level answer would get one of them wrong.
+  const e = look('10102 S Torrence Ave'), o = look('10101 S Torrence Ave');
+  if (e.state !== S.CONFIRMED || o.state !== S.CONFIRMED) return `${e.state} / ${o.state}`;
+  if (e.ward === o.ward) return `both sides gave ward ${e.ward}`;
+});
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

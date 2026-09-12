@@ -734,10 +734,16 @@
   };
 
   // ---- address lookup ----
-  // Resolved entirely in the browser against data/address-index.json, so a typed
+  // Resolved entirely in the browser against data/address-points.json, so a typed
   // address is never sent anywhere - the same promise the location button makes.
-  // The index maps hundred-blocks to wards, which is why a house number with no
-  // 311 record of its own still resolves: its block almost certainly has one.
+  // Every ward in that file came from a point-in-polygon test on a real parcel
+  // centroid against the unsimplified ward boundaries, done at build time by
+  // tools/build-address-points.mjs. A block face the city has no parcel on is not
+  // an address, which is what stopped this lookup answering confidently for
+  // addresses past the end of a street or outside the city.
+  //
+  // Fetched on first lookup rather than at load: most visitors read the board and
+  // never type an address, and they should not pay for this file.
   //
   // The matching itself lives in assets/address.js so that tools/test-address.mjs
   // can check it without a browser. This is the part of the site that can tell a
@@ -746,7 +752,7 @@
   async function addressIndex() {
     if (AX || axFail) return AX;
     try {
-      const r = await fetch('data/address-index.json');
+      const r = await fetch('data/address-points.json');
       if (!r.ok) throw new Error('http ' + r.status);
       AX = ChiAddress.prepare(await r.json());
     } catch { axFail = true; }
