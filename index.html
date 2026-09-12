@@ -63,7 +63,11 @@
           <input id="finder-input" type="search" placeholder="1060 W Addison St" autocomplete="street-address">
           <button type="submit" class="addr-go">Go</button>
         </form>
-        <p class="finder-note" id="finder-note">Location stays in your browser. Or just click a ward on the map.</p>
+        <p class="finder-note" id="finder-note" role="status">Location stays in your browser. Or just click a ward on the map.</p>
+        <!-- The confirmation step for a spelling the city does not list. It sits
+             where the ward card would have gone, because the point is that no
+             card is shown until the resident says which street they meant. -->
+        <div class="finder-ask" id="finder-ask" hidden></div>
       </section>
       <section id="mine" class="mine" hidden></section>
 
@@ -205,6 +209,7 @@
 
   <noscript><p class="board-note">This page renders a data snapshot with JavaScript. The raw snapshot is at <a href="data/leaderboard.json">data/leaderboard.json</a>.</p></noscript>
 </main>
+<script src="assets/address.js"></script>
 <script src="assets/app.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
