@@ -25,7 +25,7 @@ methodology a visitor sees is on `about.html` and, per type, on the board.
 | `stuck.html`, `assets/stuck.js` | "Open more than a year": individual requests open over a year, citywide. |
 | `data/stuck.json` | What those pages read: citywide oldest, per-ward lists, recently resolved. |
 | `data/stuck-history.json` | **The archive.** One entry per stuck request, counting how many refreshes have seen it still open. Cannot be reconstructed — only accumulated. |
-| `data/address-index.json` | Hundred-block to ward index, so an address resolves in the browser. |
+| `data/address-points.json` | Address to ward, so an address resolves in the browser. **The ward comes from a point-in-polygon test on the parcel's own centroid against the unsimplified 2023 ward boundaries, done at build time.** The 311-derived text index this replaced is retired and must not come back, not even as a fallback: it recorded where a ward's stretch of a street began and never where it ended, so it answered confidently for addresses past the end of a street and outside the city. A block face with no parcel is not an address. See `tools/build-address-points.mjs`. |
 | `tools/` | The build scripts below. `spike-311*.mjs` and `311-findings*.md` are the original feasibility work. |
 
 ## Rebuilding
@@ -57,12 +57,16 @@ node tools/build-bike-context.mjs
 node tools/prep-wards-geo.mjs
 node tools/prep-streets-geo.mjs        # see tools/README-streets.md
 node tools/build-neighborhoods.mjs
-node tools/build-address-index.mjs
+node tools/build-address-points.mjs    # ~5 min: 605k parcels, paged
+tools/test-refresh-guard.sh            # proves a bad rebuild cannot be committed
 node tools/build-og.mjs && node tools/build-ward-og.mjs   # needs playwright
 ```
 
-`.github/workflows/refresh-data.yml` runs the first three steps on the 2nd of
-every month and commits straight to `main` if the snapshots pass the check.
+`.github/workflows/refresh-data.yml` runs the first three steps, and the address
+points, on the 2nd of every month and commits straight to `main` if the snapshots
+pass the check. The address rebuild goes through
+`tools/refresh-address-points.sh`, which restores the previous file unless the new
+one builds and still resolves a known address.
 The rolling build is additionally required to end at the first of the current
 month, so a window that stops rolling fails the run instead of shipping.
 
