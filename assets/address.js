@@ -163,18 +163,22 @@ var ChiAddress = (function () {
   // Directions are tried most-specific first and the search stops at the first
   // direction that answers: a wrong "W" for an "N" should not silently outvote
   // the street the visitor actually named.
+  // Every (direction, type) pair under one street name that covers this block,
+  // each tagged with whether it is what the visitor actually typed.
+  //
+  // `exact` is the distinction that matters. A missing suffix may widen: "1060 W
+  // Addison" names no type, so the type the city files is not a substitution. A
+  // wrong suffix may not: "1060 W Addison Ave" names a type Chicago does not use
+  // for that street, and answering from W Addison St would be the resolver
+  // deciding the visitor meant something other than what they wrote. Same for a
+  // direction. Widening still finds those rows, so the confirmation step can
+  // offer them, but they never come back confident.
   function resolve(ix, a, name, block) {
-    // What the visitor left out is widened to what the city actually files under
-    // this name, because the typeless and directionless index entries are sparse:
-    // "W|ADDISON||E" exists but covers blocks 21 to 35, so "1060 W Addison" used
-    // to match a key, find no ward for block 10, and give up without ever trying
-    // "W|ADDISON|ST". Widening is what makes an unambiguous partial resolve.
-    var dirs = dedupe((a.dir ? [a.dir, ''] : ['']).concat(ix.dirsFor[name] || []));
-    var all = [];
+    var dirs = dedupe([a.dir, ''].concat(ix.dirsFor[name] || []));
+    var out = [];
     for (var di = 0; di < dirs.length; di++) {
       var d = dirs[di];
       var types = dedupe([a.type, ''].concat(ix.typesFor[d + '|' + name] || []));
-      var out = [];
       for (var ti = 0; ti < types.length; ti++) {
         var t = types[ti];
         var sides = sidesFor(a.number);
@@ -182,20 +186,17 @@ var ChiAddress = (function () {
           var runs = ix.streets[d + '|' + name + '|' + t + '|' + sides[si]];
           if (!runs) continue;
           var w = wardOnStreet(runs, block);
-          if (w) { out.push({ ward: w, dir: d, type: t }); break; }
+          if (!w) continue;
+          // What the visitor left blank cannot be wrong; what they wrote must match.
+          var isExact = (!a.type || t === a.type) && (!a.dir || d === a.dir);
+          if (!out.some(function (h) { return h.ward === w && h.dir === d && h.type === t; })) {
+            out.push({ ward: w, dir: d, type: t, exact: isExact });
+          }
+          break;
         }
-        // The visitor named a type and that type answered. Nothing less specific
-        // can improve on it, so stop rather than manufacture ambiguity.
-        if (out.length && a.type && t === a.type) break;
       }
-      // Same for a direction they named: a wrong "W" for an "N" must not silently
-      // outvote the street they actually typed.
-      if (out.length && a.dir && d === a.dir) return out;
-      all = all.concat(out);
     }
-    // Nothing was named, so every direction had a say. If they disagree the name
-    // alone does not decide the answer, and lookup() will ask instead of picking.
-    return all;
+    return out;
   }
 
   function titleCase(s) {
@@ -212,6 +213,25 @@ var ChiAddress = (function () {
   // The top of the Chicago address grid, with a block of headroom. 13800 S is the
   // far south end of the numbering; nothing in the city is numbered above this.
   var MAX_HOUSE = 13999;
+
+  // Distinct labels for the confirmation step, in the order they were found.
+  //
+  // The index carries sparse suffix-less rows alongside the real ones, and an
+  // address offered without a suffix reads as broken. Where a direction has any
+  // typed row, its suffix-less row is dropped rather than shown as a second
+  // choice that looks like the same street misprinted.
+  function offer(a, name, hits) {
+    var typed = Object.create(null);
+    for (var i = 0; i < hits.length; i++) if (hits[i].type) typed[hits[i].dir] = 1;
+    var out = [];
+    for (var j = 0; j < hits.length; j++) {
+      var h = hits[j];
+      if (!h.type && typed[h.dir]) continue;
+      var lb = label(a, name, h);
+      if (!out.some(function (c) { return c.label === lb; })) out.push({ ward: h.ward, label: lb });
+    }
+    return out;
+  }
 
   var NOT_FOUND_MSG = function (raw) {
     return 'No Chicago block matches "' + raw + '". Check the street name, or use your location.';
@@ -258,21 +278,20 @@ var ChiAddress = (function () {
     // ward and no warning at all.
     if (ix.nameSet.has(a.name)) {
       var hits = resolve(ix, a, a.name, block);
-      var wards = dedupe(hits.map(function (h) { return h.ward; }));
-      if (wards.length === 1) {
-        return { state: STATES.CONFIRMED, ward: wards[0], matched: label(a, a.name, hits[0]) };
-      }
-      if (wards.length > 1) {
-        // Two streets spelled the same way, differing only in direction or type,
-        // both carry this block number. The spelling cannot choose between them.
-        var seen = [];
-        for (var hi = 0; hi < hits.length; hi++) {
-          var lb = label(a, a.name, hits[hi]);
-          if (!seen.some(function (c) { return c.label === lb; })) {
-            seen.push({ ward: hits[hi].ward, label: lb });
-          }
+      var exact = hits.filter(function (h) { return h.exact; });
+      if (exact.length) {
+        var wards = dedupe(exact.map(function (h) { return h.ward; }));
+        if (wards.length === 1) {
+          return { state: STATES.CONFIRMED, ward: wards[0], matched: label(a, a.name, exact[0]) };
         }
-        return { state: STATES.UNCERTAIN, typed: raw, candidates: seen };
+        // Two streets spelled the same way, differing only in a part the visitor
+        // left blank, both carry this block. The spelling cannot choose between them.
+        return { state: STATES.UNCERTAIN, typed: raw, candidates: offer(a, a.name, exact) };
+      }
+      if (hits.length) {
+        // The street exists but not with the suffix or direction that was typed.
+        // Offer what the city does file, and let the resident confirm it.
+        return { state: STATES.UNCERTAIN, typed: raw, candidates: offer(a, a.name, hits) };
       }
       return { state: STATES.NOT_FOUND, typed: raw, message: NOT_FOUND_MSG(raw) };
     }

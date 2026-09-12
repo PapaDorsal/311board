@@ -97,6 +97,46 @@ check('a missing index is NOT_FOUND, never a ward', () => {
   if (r.state !== S.NOT_FOUND) return `state ${r.state}`;
 });
 
+// ---- wrong suffix is not the same case as a missing one ----
+check('a wrong street suffix is UNCERTAIN, not CONFIRMED', () => {
+  // W Addison is filed as a St. "Ave" is a type this city does not use for it,
+  // and answering from W Addison St would decide the visitor meant something
+  // other than what they wrote.
+  const r = look('1060 W Addison Ave');
+  if (r.state !== S.UNCERTAIN) return `state ${r.state}, wanted UNCERTAIN`;
+  if ('ward' in r) return 'an UNCERTAIN result carried a ward';
+});
+check('a wrong suffix offers the suffix the city uses', () => {
+  const r = look('1060 W Addison Ave');
+  if (!r.candidates.some((c) => c.label === '1060 W Addison St')) {
+    return `offered ${r.candidates.map((c) => c.label).join(', ')}`;
+  }
+});
+check('a missing suffix still resolves, a wrong one does not', () => {
+  // The pair that must not share a path.
+  const missing = look('1060 W Addison'), wrong = look('1060 W Addison Ave');
+  if (missing.state !== S.CONFIRMED) return `missing suffix gave ${missing.state}`;
+  if (wrong.state === S.CONFIRMED) return `wrong suffix gave CONFIRMED ${wrong.ward}`;
+});
+check('a wrong direction is UNCERTAIN, not CONFIRMED', () => {
+  // There is no E LaSalle. This used to answer Lincoln Park, then the Loop.
+  const r = look('102 E Lasalle Dr');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+});
+check('a missing direction still resolves', () => {
+  const r = look('1060 Addison St');
+  if (r.state !== S.CONFIRMED) return `state ${r.state}: ${r.message || ''}`;
+});
+check('no suggestion is offered without a street suffix', () => {
+  // The index carries sparse suffix-less rows; an address shown without one
+  // reads as broken.
+  for (const q of ['1060 W Addison Ave', '102 E Lasalle Dr', '8102 S Lasalle Ave']) {
+    const r = look(q);
+    const bare = (r.candidates || []).filter((c) => !/ (St|Ave|Blvd|Rd|Dr|Pl|Ct|Ln|Pkwy|Ter|Sq|Hwy|Expy|Cres|Row|Plz|Way)$/.test(c.label));
+    if (bare.length) return `${q} offered ${bare.map((c) => c.label).join(', ')}`;
+  }
+});
+
 // ---- house numbers off the end of the grid ----
 // The runs record where each ward's stretch of a street starts and nothing about
 // where it stops, so without a cap the last run absorbs every number above it.
@@ -142,13 +182,33 @@ check('an out-of-range number is not offered as a suggestion either', () => {
 check('only CONFIRMED ever carries a ward', () => {
   const probes = ['1060 W Addison St', '1060 W Adison St', 'hello', '100 W Zyzzyxqq St',
     '1060 W Addison', '1060 W Addison St, Chicago, IL 60613',
-    '9999999 W Addison St', '0 W Addison St', '14000 W Addison St'];
+    '9999999 W Addison St', '0 W Addison St', '14000 W Addison St',
+    '1060 W Addison Ave', '102 E Lasalle Dr', '13900 S Torrence Ave', '7300 W Addison St'];
   for (const s of probes) {
     const r = look(s);
     if (!Object.values(S).includes(r.state)) return `${s} gave unknown state ${r.state}`;
     if (r.ward !== undefined && r.state !== S.CONFIRMED) return `${s}: ${r.state} carried a ward`;
   }
 });
+
+// ---- known and not yet fixed ----
+// These need a point and a polygon, not a text index: the street exists, the
+// suffix and direction are right, and the number is inside the 13999 grid cap,
+// but the address is past the end of that street or outside the city. The runs
+// record where a ward's stretch starts and never where it stops, so the last run
+// absorbs them. Recorded as expected failures so the gap cannot be lost, and so
+// that the day a coordinate source lands, these flip and say so.
+const KNOWN = [
+  ['13900 S Torrence Ave', 'past 138th St, outside the city'],
+  ['7300 W Addison St', 'west of Harlem, outside the city'],
+  ['9999 W Addison St', 'inside the grid but past the end of Addison'],
+];
+console.log('');
+for (const [addr, why] of KNOWN) {
+  const r = look(addr);
+  const tag = r.state === S.CONFIRMED ? `still CONFIRMED ward ${r.ward}` : `now ${r.state}`;
+  console.log(`known ${addr} (${why}): ${tag}`);
+}
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

@@ -81,6 +81,15 @@ await check('P0 the correct spelling is unaffected', async (p) => {
   if ((await asks(p)).length) return 'a confirmed match still asked for confirmation';
 });
 
+// ---- a wrong suffix asks instead of answering ----
+await check('a wrong street suffix renders no ward card', async (p) => {
+  await look(p, '1060 W Addison Ave');
+  const c = await card(p);
+  if (c.shown) return `card was shown reading: ${c.text.slice(0, 80)}`;
+  const opts = await asks(p);
+  if (!opts.includes('1060 W Addison St')) return `offered ${opts.join(', ') || 'nothing'}`;
+});
+
 // ---- P1: a valid partial resolves ----
 await check('P1 an address with no street suffix resolves', async (p) => {
   await look(p, '1060 W Addison');
