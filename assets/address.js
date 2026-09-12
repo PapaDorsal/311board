@@ -209,6 +209,10 @@ var ChiAddress = (function () {
       .filter(Boolean).join(' ');
   }
 
+  // The top of the Chicago address grid, with a block of headroom. 13800 S is the
+  // far south end of the numbering; nothing in the city is numbered above this.
+  var MAX_HOUSE = 13999;
+
   var NOT_FOUND_MSG = function (raw) {
     return 'No Chicago block matches "' + raw + '". Check the street name, or use your location.';
   };
@@ -225,6 +229,26 @@ var ChiAddress = (function () {
     if (!a) {
       return { state: STATES.NOT_FOUND, typed: raw,
         message: 'Type a house number and street, like "1060 W Addison St".' };
+    }
+    // A house number off the end of the grid used to answer with full confidence:
+    // the runs record where each ward's stretch of a street starts and nothing
+    // about where it stops, so the last run absorbs everything above it and
+    // "9999999 W Addison St" came back as Ward 38.
+    //
+    // The cap is the city grid, not the street. Per-street extents are not usable
+    // here: the index is built from observed 311 records, so it under-reports a
+    // street's outer blocks. W Addison is indexed only to block 56 while the
+    // street really runs to about 8700 W, and capping per street would refuse
+    // real addresses. The grid bound is a fact about Chicago instead of a fact
+    // about what got reported: addresses run to 13800 S at the far south end, and
+    // the one index entry above that (27400 S Perry) is in Dolton, not the city.
+    if (a.number < 1) {
+      return { state: STATES.NOT_FOUND, typed: raw,
+        message: 'Chicago house numbers start at 1. Check the number, or use your location.' };
+    }
+    if (a.number > MAX_HOUSE) {
+      return { state: STATES.NOT_FOUND, typed: raw,
+        message: 'Chicago house numbers stop at ' + MAX_HOUSE + '. Check the number, or use your location.' };
     }
     var block = Math.floor(a.number / 100);
 

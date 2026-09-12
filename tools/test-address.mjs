@@ -97,10 +97,52 @@ check('a missing index is NOT_FOUND, never a ward', () => {
   if (r.state !== S.NOT_FOUND) return `state ${r.state}`;
 });
 
+// ---- house numbers off the end of the grid ----
+// The runs record where each ward's stretch of a street starts and nothing about
+// where it stops, so without a cap the last run absorbs every number above it.
+check('an absurd house number is never CONFIRMED', () => {
+  const r = look('9999999 W Addison St');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+  if (r.state !== S.NOT_FOUND) return `state ${r.state}, wanted NOT_FOUND`;
+});
+check('an out-of-range number says so instead of naming the street', () => {
+  const r = look('9999999 W Addison St');
+  if (!/house numbers stop at/.test(r.message)) return `message "${r.message}"`;
+});
+check('the first number past the grid is rejected', () => {
+  const r = look('14000 W Addison St');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+});
+check('the top of the grid still resolves', () => {
+  // 13800 S is the far south end of the city numbering, and it is a real address.
+  const r = look('13800 S Leyden Ave');
+  if (r.state !== S.CONFIRMED) return `state ${r.state}: ${r.message || ''}`;
+});
+check('a house number of zero is rejected', () => {
+  const r = look('0 W Addison St');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+  if (!/start at 1/.test(r.message)) return `message "${r.message}"`;
+});
+check('an address outside the city is not claimed for a ward', () => {
+  // 27400 S Perry is in Dolton. It reached the index as a stray 311 record and
+  // used to resolve to Ward 6.
+  const r = look('27400 S Perry Ave');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+});
+check('the cap does not block a fuzzy match in range', () => {
+  const r = look('1060 W Adison St');
+  if (r.state !== S.UNCERTAIN) return `state ${r.state}`;
+});
+check('an out-of-range number is not offered as a suggestion either', () => {
+  const r = look('9999999 W Adison St');
+  if (r.state === S.CONFIRMED || r.state === S.UNCERTAIN) return `state ${r.state}`;
+});
+
 // ---- the state contract itself ----
 check('only CONFIRMED ever carries a ward', () => {
   const probes = ['1060 W Addison St', '1060 W Adison St', 'hello', '100 W Zyzzyxqq St',
-    '1060 W Addison', '1060 W Addison St, Chicago, IL 60613'];
+    '1060 W Addison', '1060 W Addison St, Chicago, IL 60613',
+    '9999999 W Addison St', '0 W Addison St', '14000 W Addison St'];
   for (const s of probes) {
     const r = look(s);
     if (!Object.values(S).includes(r.state)) return `${s} gave unknown state ${r.state}`;
