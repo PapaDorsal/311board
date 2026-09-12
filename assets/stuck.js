@@ -17,6 +17,11 @@
   }
 
   const sv = (ll) => (ll ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${ll[0]},${ll[1]}` : null);
+  // Street View has no imagery for plenty of Chicago addresses - an alley, a
+  // new build, a stretch the car never drove - and the pano link then lands on
+  // "no imagery available here" with nothing to show. The map pin always
+  // resolves, so it goes alongside rather than instead.
+  const pin = (ll) => (ll ? `https://www.google.com/maps/search/?api=1&query=${ll[0]},${ll[1]}` : null);
   // Years once it is past two, because "1223 days" is a number people have to
   // convert in their head before it means anything.
   const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
@@ -39,7 +44,7 @@
   $('summary').innerHTML = byType.map(([k, v]) => `<span><b>${fmt(v)}</b> ${esc(k.toLowerCase())}</span>`).join('');
 
   const row = (t, showWard) => {
-    const pano = sv(t.ll);
+    const pano = sv(t.ll), mapPin = pin(t.ll);
     return `<li class="stuck-item">
       <div class="stuck-head">${showWard ? `<a class="stuck-ward" href="ward-${t.ward}.html">Ward ${t.ward}</a> &middot; ` : ''}` +
       `<strong>${esc(t.type)}</strong>${t.address ? ` &middot; ${esc(t.address)}` : ''}</div>
@@ -47,7 +52,8 @@
       `${t.checks > 1 ? ` &middot; still open at <span class="fig">${t.checks}</span> checks since ${esc(t.watchedSince)}` : ''}` +
       `${t.dept ? ` &middot; ${esc(t.dept.replace(/ - .*$/, ''))}` : ''}</div>
       <div class="stuck-meta"><span class="stuck-sr">${esc(t.sr)}</span>` +
-      `${pano ? ` &middot; <a href="${esc(pano)}" rel="noopener nofollow">see the spot</a>` : ''}</div>
+      `${pano ? ` &middot; <a href="${esc(pano)}" rel="noopener nofollow">see the spot</a>` : ''}` +
+      `${mapPin ? ` &middot; <a href="${esc(mapPin)}" rel="noopener nofollow">map</a>` : ''}</div>
     </li>`;
   };
 
@@ -61,15 +67,37 @@
   // The share text carries the finding, not the page name. A link that arrives
   // saying "Open more than a year" is a title; one that says how many and for
   // how long is the reason to open it.
+  // Share, with something visible every time. The old version swallowed a
+  // clipboard failure in a bare catch, so a browser that blocks the clipboard
+  // (or any non-secure context) looked identical to a successful copy: nothing
+  // happened at all. Now the control always says what it did, and if the copy
+  // is refused it shows the link so it can be taken by hand.
+  async function shareOrCopy(payload, done) {
+    const say = (msg, ok) => {
+      done.textContent = msg;
+      done.hidden = false;
+      done.classList.toggle('share-fail', !ok);
+      clearTimeout(say._t);
+      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
+    };
+    if (navigator.share) {
+      try { await navigator.share(payload); return; }
+      // A cancelled share sheet is a choice, not a failure - say nothing.
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      say('Link copied.', true);
+      return;
+    } catch { /* fall through */ }
+    say(`Could not copy automatically - the link is ${payload.url}`, false);
+  }
+
   $('share').onclick = async () => {
     const url = 'https://chiwardboard.com/stuck.html';
     const text = `${fmt(D.citywide.total)} requests about Chicago's own ${kindList} have been open more than a year. ` +
       `The oldest has been waiting ${ago(oldest.days)}.`;
-    try {
-      if (navigator.share) { await navigator.share({ title: 'Open more than a year - ChiWardBoard', text, url }); return; }
-      await navigator.clipboard.writeText(`${text} ${url}`);
-      $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
-    } catch { /* user cancelled */ }
+    await shareOrCopy({ title: 'Open more than a year - ChiWardBoard', text, url }, $('share-done'));
   };
 
   // The payoff, and it only exists because the site kept watching. Empty on the

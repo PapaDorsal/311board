@@ -170,11 +170,23 @@
   }
 
   function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  const RECEIPT_COLS = 'sr_number, sr_type, street_address, created_date, closed_date';
+  const receiptWhere = () =>
+    `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
+    ` AND status='Completed' AND ward=${ward}`;
+
   function receiptUrlAll() {
-    const where = `created_date >= '${WIN.from}T00:00:00' AND created_date < '${WIN.to}T00:00:00'` +
-      ` AND status='Completed' AND ward=${ward}`;
-    const p = new URLSearchParams({ $select: 'sr_number,sr_type,street_address,created_date,closed_date', $where: where, $order: 'created_date DESC', $limit: '1000' });
+    const p = new URLSearchParams({ $select: RECEIPT_COLS.replace(/ /g, ''), $where: receiptWhere(), $order: 'created_date DESC', $limit: '1000' });
     return `${D.source.api}?${p}`;
+  }
+
+  // The same query as a table on the city's own portal. The API link returns
+  // raw JSON, which is the right thing for someone rebuilding the figure and
+  // the wrong thing for someone who just wants to read the addresses - so the
+  // readable one leads and the JSON is labelled for what it is.
+  function receiptUrlTable() {
+    const soql = `SELECT ${RECEIPT_COLS} WHERE ${receiptWhere()} ORDER BY created_date DESC`;
+    return `https://data.cityofchicago.org/d/v6vf-nfxy/explore/query/${encodeURIComponent(soql)}/page/filter`;
   }
 
   // Build the rows as data first, so sorting is a re-render rather than DOM surgery.
@@ -242,7 +254,11 @@
       });
     }
     $('card-body').innerHTML = list.map((r) => `<tr>
-      <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div></td>
+      <td><a href="${r.href}" style="text-decoration:none"><strong>${esc(r.plain)}</strong></a><div class="row-sub">${r.delta}</div>` +
+        // The two volume columns are hidden on a phone because five columns do
+        // not fit. Hiding them also hid what makes a "too few" ranking make
+        // sense, so on a phone they come back here, under the type name.
+        `<div class="row-vol">${r.hasData ? `${fmt(r.n)} completed${r.open === null ? '' : ` &middot; ${Math.round(r.open)}% still open`}` : 'no requests recorded'}</div></td>
       <td class="c-num">${cell(r, r.wardVal)}</td>
       <td class="c-num">${cell(r, r.cityVal)}</td>
       <td class="c-num"${r.rankIdx === null && r.hasData ? ' title="Too few of these in this ward to rank it"' : ''}>${r.rankIdx !== null ? `${r.rankIdx}/${r.rankOf}` : (r.hasData ? '<span class="unranked">too few</span>' : '-')}</td>
@@ -281,7 +297,8 @@
     $('table-src').innerHTML =
       `Figures computed from the City of Chicago&rsquo;s public ` +
       `<a href="${esc(D.source.portal)}" rel="noopener">311 Service Requests dataset</a>` +
-      ` (${PERIOD}). <a href="${esc(receiptUrlAll())}" rel="noopener">See this ward&rsquo;s completed requests</a>.`;
+      ` (${PERIOD}). <a href="${esc(receiptUrlTable())}" rel="noopener">See this ward&rsquo;s completed requests</a>` +
+      ` &middot; <a href="${esc(receiptUrlAll())}" rel="noopener">same query as JSON</a>.`;
   }
 
   function renderWindows() {
@@ -319,6 +336,11 @@
   // so naming the address names a place and not a neighbour. See the public-way
   // rule at the top of tools/build-stuck.mjs.
   const sv = (ll) => (ll ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${ll[0]},${ll[1]}` : null);
+  // Street View has no imagery for plenty of Chicago addresses - an alley, a
+  // new build, a stretch the car never drove - and the pano link then lands on
+  // "no imagery available here" with nothing to show. The map pin always
+  // resolves, so it goes alongside rather than instead.
+  const pin = (ll) => (ll ? `https://www.google.com/maps/search/?api=1&query=${ll[0]},${ll[1]}` : null);
   const ago = (d) => (d >= 730 ? `${(d / 365).toFixed(1)} years` : d >= 365 ? 'over a year' : `${d} days`);
   try {
     const skRes = await fetch('data/stuck.json');
@@ -330,14 +352,15 @@
           `<span class="fig">${fmt(mine.total)}</span> request${mine.total === 1 ? '' : 's'} on city property in Ward ${ward} ` +
           `${mine.total === 1 ? 'has' : 'have'} been open more than a year. The oldest ${mine.tickets.length === 1 ? 'one' : `${mine.tickets.length}`}:`;
         $('stuck-list').innerHTML = mine.tickets.map((t) => {
-          const pano = sv(t.ll);
+          const pano = sv(t.ll), mapPin = pin(t.ll);
           return `<li class="stuck-item">
             <div class="stuck-head"><strong>${esc(t.type)}</strong>${t.address ? ` &middot; ${esc(t.address)}` : ''}</div>
             <div class="stuck-meta">Reported ${esc(t.created)} &middot; open <span class="fig">${ago(t.days)}</span>` +
             `${t.checks > 1 ? ` &middot; still open at <span class="fig">${t.checks}</span> checks since ${esc(t.watchedSince)}` : ''}` +
             `${t.dept ? ` &middot; ${esc(t.dept.replace(/ - .*$/, ''))}` : ''}</div>
             <div class="stuck-meta"><span class="stuck-sr">${esc(t.sr)}</span>` +
-            `${pano ? ` &middot; <a href="${esc(pano)}" rel="noopener nofollow">see the spot</a>` : ''}</div>
+            `${pano ? ` &middot; <a href="${esc(pano)}" rel="noopener nofollow">see the spot</a>` : ''}` +
+      `${mapPin ? ` &middot; <a href="${esc(mapPin)}" rel="noopener nofollow">map</a>` : ''}</div>
           </li>`;
         }).join('');
         $('stuck-note').innerHTML =
@@ -385,6 +408,32 @@
 
   $('card').hidden = false;
 
+  // Share, with something visible every time. The old version swallowed a
+  // clipboard failure in a bare catch, so a browser that blocks the clipboard
+  // (or any non-secure context) looked identical to a successful copy: nothing
+  // happened at all. Now the control always says what it did, and if the copy
+  // is refused it shows the link so it can be taken by hand.
+  async function shareOrCopy(payload, done) {
+    const say = (msg, ok) => {
+      done.textContent = msg;
+      done.hidden = false;
+      done.classList.toggle('share-fail', !ok);
+      clearTimeout(say._t);
+      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
+    };
+    if (navigator.share) {
+      try { await navigator.share(payload); return; }
+      // A cancelled share sheet is a choice, not a failure - say nothing.
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      say('Link copied.', true);
+      return;
+    } catch { /* fall through */ }
+    say(`Could not copy automatically - the link is ${payload.url}`, false);
+  }
+
   $('share').onclick = async () => {
     // Always the per-ward page. location.href may be the legacy ward.html?w=43,
     // whose static meta is generic, so sharing that produced a preview reading
@@ -394,10 +443,6 @@
     const text = winKey === 'rolling'
       ? `Ward ${ward}'s 311 report card - ChiWardBoard`
       : `Ward ${ward}'s 311 report card for ${PERIOD} - ChiWardBoard`;
-    try {
-      if (navigator.share) { await navigator.share({ title: text, url }); return; }
-      await navigator.clipboard.writeText(url);
-      $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
-    } catch { /* user cancelled */ }
+    await shareOrCopy({ title: text, text, url }, $('share-done'));
   };
 })();

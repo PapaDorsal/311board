@@ -263,6 +263,9 @@ tr.thin .bar { background: var(--bar-thin); }
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
 }
 .share-btn:hover { background: var(--accent); color: var(--on-accent); }
+/* A failed copy has to look different from a successful one, and stay up long
+   enough to read the link it fell back to. */
+.share-done.share-fail { color: var(--chi-red); font-weight: 600; }
 .share-done { font-size: 13px; color: var(--ink-2); }
 .row-sub { font-size: 12px; color: var(--muted); }
 td .row-sub a, .row-sub { font-weight: 400; }
@@ -279,8 +282,12 @@ td.c-ward a:hover { color: var(--accent); }
    the same way the board did. Requests is the volume behind the figures - real
    context, but the least urgent of the five - so it is the one that goes, and
    the comparison the card exists for (this ward, citywide, rank) stays whole. */
+/* Off by default: above 620px these numbers are in their own columns. */
+.row-vol { display: none; }
 @media (max-width: 620px) {
   .card-table .c-vol { display: none; }
+  /* ...and back, inline, where those columns are not shown. */
+  .row-vol { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.3; margin-top: 1px; }
   .card-table table { table-layout: fixed; width: 100%; }
   .card-table td, .card-table th { padding-left: 6px; padding-right: 6px; }
   /* 60, not 68: one decimal made the longest duration four glyphs instead of
@@ -411,8 +418,13 @@ td.c-ward a:hover { color: var(--accent); }
 /* Auto layout sizes a column to its content, and these columns hold short
    numbers, so the header was the thing that wrapped - three lines under a
    one-line row of figures. Refusing to wrap makes the table widen the column
-   to fit the label instead. */
-#lb thead th .sort-btn > span:first-child { white-space: nowrap; }
+   to fit the label instead.
+   Only where the table can afford it. Below 620px the table is layout:fixed
+   with hard column widths, so nowrap cannot widen anything and the label just
+   overflows into the next column instead - which is what it did. */
+@media (min-width: 621px) {
+  #lb thead th .sort-btn > span:first-child { white-space: nowrap; }
+}
 #lb thead th.c-num .sort-btn { text-align: right; }
 #lb thead th.c-rank .sort-btn { text-align: left; }
 .sort-btn {
@@ -472,12 +484,18 @@ td.c-ward a:hover { color: var(--accent); }
   #lb th, #lb td { padding-left: 7px; padding-right: 7px; }
   /* all four fixed: mixing a percentage with fixed columns under
      table-layout:fixed overflowed by exactly the width of the fixed ones */
-  #lb .c-rank { width: 22px; }
+  /* 22px fitted "#"; "Rank" in that column stacked one letter per line. */
+  #lb .c-rank { width: 42px; }
   #lb .c-bar  { width: 62px; }
   #lb .c-num  { width: 72px; }
   /* REQUESTS is the widest header and was clipping; the heads shrink rather
      than the numbers, which are what the column is for */
   #lb th { font-size: 10.5px; letter-spacing: 0.02em; }
+  /* Wrap inside the column, never across it. overflow-wrap catches a single
+     word longer than the column ("Completed" at 22px) rather than letting it
+     spill over the neighbouring head. */
+  #lb thead th .sort-btn { padding-left: 5px; padding-right: 5px; }
+  #lb thead th .sort-btn > span:first-child { white-space: normal; overflow-wrap: anywhere; hyphens: auto; }
   td.c-ward > a { max-width: none; white-space: normal; }
   td.c-ward .row-hood { white-space: normal; }
   /* The bar is proportional, so in a column this narrow the fast wards render
@@ -546,3 +564,13 @@ td.c-ward a:hover { color: var(--accent); }
 .links li { font-size: 13px; margin: 0 0 2px; }
 .links a { color: var(--accent); text-decoration: none; }
 .links a:hover { text-decoration: underline; }
+
+/* Shown when a period has no board for the selected type. Amber rather than
+   red: nothing has gone wrong, the reader is just somewhere else than they
+   asked for and needs telling. */
+.switch-note {
+  margin: 0 0 12px; padding: 8px 11px; border-radius: 8px;
+  font-size: 13px; line-height: 1.35; color: var(--ink);
+  background: color-mix(in srgb, #b45309 10%, transparent);
+  border: 1px solid color-mix(in srgb, #b45309 34%, transparent);
+}
