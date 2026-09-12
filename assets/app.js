@@ -40,6 +40,9 @@
   }
   adoptData(winCache.get('rolling'));
 
+  // Whether this visitor has a pointer that can hover. Everything the map says
+  // about itself depends on the answer, and it is asked once.
+  const CAN_HOVER = matchMedia('(hover: hover) and (pointer: fine)').matches;
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = (n) => Number(n).toLocaleString('en-US');
   const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
@@ -183,9 +186,27 @@
   const size = (T, w) => (isBacklog(T) ? w.mature : w.n);
   const pctTxt = (v) => `${Math.round(v)}%`;
 
+  // A ward number means nothing to most readers, and the headline asks them to
+  // compare two of them. Two neighbourhood names is enough to place one without
+  // turning the sentence into a list.
+  const wardWithHoods = (w) => {
+    const n = hoods(w, 2);
+    return `Ward ${w}${n ? ` (${esc(n)})` : ''}`;
+  };
+
+  // What a ward is, and where the figures came from, directly under the claim.
+  function renderTrust() {
+    const el = $('hook-trust');
+    el.innerHTML = 'A ward is one of the 50 districts Chicago elects an alderperson '
+      + 'for, each about 55,000 residents. '
+      + `<a href="#method">How these numbers were counted</a> &middot; `
+      + `<a href="${esc(D.source.portal)}" rel="noopener">City of Chicago 311 records</a>`;
+    el.hidden = false;
+  }
+
   function renderHook(T) {
     const h = T.headline;
-    if (!h) { $('hook').hidden = true; return; }
+    if (!h) { $('hook').hidden = true; $('hook-trust').hidden = true; return; }
     const past = winKey !== 'rolling';
     // The official term used to close every one of these lines. It is there so
     // a reader can match a figure against the city's own records, which is a
@@ -197,8 +218,8 @@
       $('hook-line').textContent =
         `Ward ${h.worst.ward} has left ${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. Ward ${h.best.ward} has left ${pctTxt(h.best.pct)}.`;
       $('hook-sub').innerHTML =
-        `<span class="fig">${pctTxt(h.worst.pct)}</span> of requests still open in Ward ${h.worst.ward}, ` +
-        `<span class="fig">${pctTxt(h.best.pct)}</span> in Ward ${h.best.ward}, ` +
+        `<span class="fig">${pctTxt(h.worst.pct)}</span> of requests still open in ${wardWithHoods(h.worst.ward)}, ` +
+        `<span class="fig">${pctTxt(h.best.pct)}</span> in ${wardWithHoods(h.best.ward)}, ` +
         `<span class="fig">${pctTxt(T.citywide.pct)}</span> across the city. ` +
         `Counting only requests filed at least six months ago, because a new one is not late yet.`;
       $('hook').hidden = false;
@@ -216,19 +237,42 @@
       $('hook-sub').innerHTML = `Typical times ${past ? 'ran' : 'run'} <span class="fig">${d1(h.fastest.p50)}</span> to <span class="fig">${d1(h.slowest.p50)}</span> days across wards over ${PERIOD}.`;
     } else if (past) {
       $('hook-line').textContent = `In ${winKey}, Ward ${h.slowest.ward} took ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} took ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in ${wardWithHoods(h.slowest.ward)}, ` +
+        `<span class="fig">${d1(h.fastest.p50)}</span> in ${wardWithHoods(h.fastest.ward)} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
     } else {
       $('hook-line').textContent = `Ward ${h.slowest.ward} takes ${human(h.slowest.p50)} ${VERB[T.key] || `to close a ${T.plain} request`}. Ward ${h.fastest.ward} takes ${human(h.fastest.p50)}.`;
-      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in Ward ${h.slowest.ward}, ` +
-        `<span class="fig">${d1(h.fastest.p50)}</span> in Ward ${h.fastest.ward} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
+      $('hook-sub').innerHTML = `Typical days to close, ${PERIOD}: <span class="fig">${d1(h.slowest.p50)}</span> in ${wardWithHoods(h.slowest.ward)}, ` +
+        `<span class="fig">${d1(h.fastest.p50)}</span> in ${wardWithHoods(h.fastest.ward)} - a gap of <span class="fig">${d1(h.gapDays)}</span> days.`;
     }
+    renderTrust();
     $('hook').hidden = false;
   }
 
+  // Every type seen in any period loaded this session. Switching to 2024 used to
+  // drop a pill with no explanation: the row went from eleven to ten and sidewalk
+  // repairs was simply gone, which reads as a bug rather than as a fact about the
+  // data. A type the current period cannot rank is now shown disabled and says so,
+  // turning a disappearance into a statement.
+  //
+  // A visitor who lands directly on a past period only knows the types that period
+  // has, because nothing else has been loaded yet. That is the honest limit of
+  // doing this on the client, and it is the case nobody reported.
+  const knownTypes = new Map();
+  function noteTypes() {
+    for (const t of D.types || []) if (!knownTypes.has(t.key)) knownTypes.set(t.key, t.plain);
+  }
+  const winLabel = () => (winKey === 'rolling' ? 'the rolling 12 months' : winKey);
+
   function renderTypes() {
-    $('types').innerHTML = D.types.map((t) =>
-      `<button type="button" data-key="${t.key}" aria-pressed="${t.key === typeKey}">${esc(t.plain)}</button>`).join('');
+    noteTypes();
+    const have = new Map((D.types || []).map((t) => [t.key, t]));
+    $('types').innerHTML = [...knownTypes.entries()].map(([key, plain]) => {
+      const t = have.get(key);
+      if (t) return `<button type="button" data-key="${t.key}" aria-pressed="${t.key === typeKey}">${esc(t.plain)}</button>`;
+      return `<button type="button" class="type-off" disabled aria-disabled="true"`
+        + ` title="No ${esc(plain)} board for ${esc(winLabel())}: too few closed requests to rank."`
+        + `>${esc(plain)} <span class="type-why">not in ${esc(winLabel())}</span></button>`;
+    }).join('');
     $('types').hidden = false;
     $('windows').innerHTML = WINDOWS.map((w) =>
       `<button type="button" data-win="${w.key}" aria-pressed="${w.key === winKey}">${esc(w.pill)}</button>`).join('');
@@ -256,7 +300,9 @@
     // A click selects the ward here - card above the map, row lit in the table -
     // and the card carries the link to the full report card. Saying "click for
     // the report card" promised a page the click never opened.
-    $('map-hint').textContent = 'Hover any ward for its number. Click to pick it out in the table.';
+    $('map-hint').textContent = CAN_HOVER
+      ? 'Hover any ward for its number. Click to pick it out in the table.'
+      : 'Tap any ward for its number and neighborhoods, and to pick it out in the table.';
     const labels = new Map(GEO.features.map((f) => [f.properties.ward, f.properties.label]));
     const placedWardBoxes = [];
     $('map').innerHTML = [...wardPath.entries()].map(([ward, d]) => {
@@ -319,8 +365,12 @@
       `<span class="key"><span class="sw" style="background:var(--map-empty)"></span>under ${isBacklog(T) ? T.minWardN : D.minWardN} requests</span>`;
 
     const tip = $('map-tip'), box = $('map').parentElement;
-    $('map').onmousemove = (e) => {
-      const t = e.target.closest('path'); if (!t) { tip.hidden = true; return; }
+    // One builder for both input types. A touch user cannot hover, and this map
+    // puts 50 ward numbers in 350px, so the same panel a mouse gets on hover is
+    // what a finger gets on tap. The brief's reader is exactly the person who
+    // cannot pick their ward out of this shape, so the answer has to be on the
+    // map rather than a redirection to the address box.
+    const showTip = (t, clientX, clientY) => {
       const w = byWard.get(Number(t.dataset.ward));
       const aldName = ((D.aldermen || {})[Number(t.dataset.ward)] || {}).name;
       tip.innerHTML = (w
@@ -334,15 +384,28 @@
         : `<strong>Ward ${t.dataset.ward}</strong> - no data`) +
         (hoods(Number(t.dataset.ward)) ? `<br>${esc(hoods(Number(t.dataset.ward)))}` : '') +
         (aldName ? `<br>${esc(aldName)}` : '') +
-        `<br><span class="tip-cta">Source: City of Chicago 311 records. Click to select this ward.</span>`;
+        `<br><span class="tip-cta">Source: City of Chicago 311 records. ` +
+        `${CAN_HOVER ? 'Click' : 'Tap'} to pick this ward out in the table.</span>`;
       const r = box.getBoundingClientRect();
-      tip.style.left = Math.min(e.clientX - r.left + 12, r.width - 230) + 'px';
-      tip.style.top = (e.clientY - r.top + 14) + 'px';
+      // Keep the panel inside the map on a narrow screen, where a tap near the
+      // right edge would otherwise push it off.
+      const wide = Math.min(230, r.width - 16);
+      tip.style.left = Math.max(8, Math.min(clientX - r.left + 12, r.width - wide - 8)) + 'px';
+      tip.style.top = (clientY - r.top + 14) + 'px';
       tip.hidden = false;
     };
-    $('map').onmouseleave = () => { tip.hidden = true; };
+    $('map').onmousemove = (e) => {
+      if (!CAN_HOVER) return;
+      const t = e.target.closest('path');
+      if (!t) { tip.hidden = true; return; }
+      showTip(t, e.clientX, e.clientY);
+    };
+    $('map').onmouseleave = () => { if (CAN_HOVER) tip.hidden = true; };
     $('map').onclick = (e) => {
       const t = e.target.closest('path'); if (!t) return;
+      // On touch the tap has to reveal as well as select: it is the only way to
+      // read a ward number off this map.
+      if (!CAN_HOVER) showTip(t, e.clientX, e.clientY);
       setMyWard(Number(t.dataset.ward), null, true);
     };
   }
@@ -666,9 +729,41 @@
       setTimeout(() => { renderMine._retry = false; if (myWard) renderMine(note, false); }, 700);
     }
     box.hidden = false;
-    if (!jump) return;
-    const row = document.getElementById(`wrow-${myWard}`);
-    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Two things used to move the destination out from under this scroll. The card
+    // above the map is shown in the same pass, and the retry above re-renders it
+    // taller once the context files land, so a scroll started before either had
+    // settled aimed at where the row had been. And over a 4,000px table a smooth
+    // scroll is in flight long enough that its midpoint reads as the destination:
+    // a tap on ward 24 sat at rank 36 four hundred milliseconds in, on its way to
+    // rank 50, which is what the QA pass recorded as landing in the wrong place.
+    //
+    // So the jump is remembered rather than fired once, it waits for layout, and
+    // it re-aims on every later render until the card has stopped growing. It
+    // scrolls to the row element; nothing here reads the hash.
+    if (jump) jumpPending = true;
+    if (jumpPending) {
+      requestAnimationFrame(scrollToMyRow);
+      if (STUCK && BIKE) jumpPending = false;
+    }
+  }
+  let jumpPending = false;
+  function scrollToMyRow() {
+    const row = myWard && document.getElementById(`wrow-${myWard}`);
+    if (!row) return;
+    // Animate only when the page has stopped growing. A smooth scroll keeps
+    // running to the position it was given, so one started while the ward card is
+    // still filling out aims at where the row was and then overrides the
+    // correction: on a phone that landed 256px, four rows, short of the target.
+    // While anything above the table can still change height, correct instantly
+    // instead and animate nothing.
+    const settled = STUCK && BIKE;
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const smooth = settled && !still;
+    // Computed here rather than left to scrollIntoView, so the two paths agree and
+    // the instant one cannot inherit a stale target from an animation in flight.
+    const box = row.getBoundingClientRect();
+    const top = Math.max(0, box.top + window.scrollY - (window.innerHeight - box.height) / 2);
+    window.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
   }
   // Drop a previous result rather than leaving it to be read as the new one.
   // Drops the card only. The URL is written by setAddrState once the lookup has
@@ -851,8 +946,30 @@
       say('Link copied.', true);
       return;
     } catch { /* fall through */ }
-    say(`Could not copy automatically - the link is ${payload.url}`, false);
+    // Last resort, and not a failure. A browser that refuses the clipboard has
+    // not done anything wrong, so this offers the link in something the visitor
+    // can select and copy rather than printing it as loose text under a red
+    // error. The share sheet and the clipboard are tried first; only this is left.
+    const box = $('share-fallback');
+    if (box) {
+      box.value = payload.url;
+      box.hidden = false;
+      box.focus();
+      box.select();
+      say('Copy the link below.', true);
+      return;
+    }
+    say(`The link is ${payload.url}`, true);
   }
+
+  // "How these numbers were counted" points at a <details>. Scrolling to a closed
+  // one shows the reader a summary line and nothing they asked for.
+  addEventListener('click', (e) => {
+    const a = e.target.closest('a[href="#method"]');
+    if (!a) return;
+    const m = $('method');
+    if (m) { m.hidden = false; m.open = true; }
+  });
 
   $('share').onclick = async () => {
     const T = type();
@@ -875,7 +992,7 @@
   };
 
   $('types').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
+    const b = e.target.closest('button'); if (!b || b.disabled || !b.dataset.key) return;
     typeKey = b.dataset.key;
     history.replaceState(null, '', urlFor());
     renderAll();
@@ -953,7 +1070,10 @@
         `<strong>${esc(t.type)}</strong>${t.address ? ` &middot; ${esc(t.address)}` : ''}</div>
         <div class="stuck-meta">Reported ${esc(t.created)} &middot; open <span class="fig">${ago(t.days)}</span> &middot; ` +
         `<span class="stuck-sr">${esc(t.sr)}</span></div></li>`).join('');
-      $('stuck-note').innerHTML = `<a href="stuck.html">The longest waits in Chicago, and the ones that finally got fixed &rarr;</a>`;
+      // Not "and the ones that finally got fixed": stuck.html lists open requests
+      // and the method, and nothing else. data/stuck.json does carry a closed list,
+      // but no page renders it, so the promise was empty.
+      $('stuck-note').innerHTML = `<a href="stuck.html">The longest waits in Chicago, ward by ward &rarr;</a>`;
       $('stuck').hidden = false;
     } catch { /* the board stands on its own without it */ }
   })();

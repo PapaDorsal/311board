@@ -76,9 +76,13 @@
   const ald = (D.aldermen || {})[ward];
   $('ward-title').textContent = `Ward ${ward}`;
   function renderSub() {
+    // The period used to hang off the alderperson's name with a middot between
+    // them, which read as a term of office. It is the window the figures cover,
+    // and it can span more than one officeholder, so it is labelled and moved to
+    // its own line rather than sitting where a term would.
     $('ward-sub').innerHTML = (wHoods ? `<span class="hood-line">${esc(wHoods)}</span><br>` : '') +
       (ald && ald.name ? `Alderperson ${esc(ald.name)}` : 'Alderperson: see the city directory') +
-      ` &middot; ${PERIOD}`;
+      `<br><span class="data-period">Data period: ${PERIOD}</span>`;
   }
   renderSub();
 

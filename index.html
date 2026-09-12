@@ -51,6 +51,10 @@
   <section id="hook" class="hook" hidden>
     <p class="hook-line" id="hook-line"></p>
     <p class="hook-sub" id="hook-sub"></p>
+    <!-- The method is the credibility, so it sits with the claim rather than 900px
+         below it: what a ward is, and where the numbers came from. A reader meeting
+         a 58-to-2-day comparison for the first time needs both here. -->
+    <p class="hook-trust" id="hook-trust" hidden></p>
   </section>
 
   <section id="board" hidden>
@@ -93,6 +97,10 @@
           <div class="ward-actions">
             <button type="button" id="share" class="share-btn">Share this</button>
             <span class="share-done" id="share-done" hidden>Link copied.</span>
+            <!-- Shown only when the share sheet and the clipboard are both refused.
+                 A link the visitor can select beats a red error with loose text. -->
+            <input class="share-fallback" id="share-fallback" type="text" readonly hidden
+                   aria-label="Link to this board, select to copy">
           </div>
         </div>
         <p class="board-note" id="board-note"></p>

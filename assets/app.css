@@ -621,3 +621,36 @@ td.c-ward a:hover { color: var(--accent); }
 }
 .finder-ask button:hover { background: var(--accent); color: var(--on-accent); }
 .finder-ask button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* The method and the source, directly under the claim. Quiet enough not to
+   compete with the headline, present enough that a first-time reader meeting a
+   58-to-2-day comparison does not have to go looking for either. */
+.hook-trust {
+  color: var(--muted); margin: 8px 0 0; max-width: 78ch;
+  font-size: 13.5px; line-height: 1.45;
+}
+.hook-trust a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* A type the current period cannot rank. Still in the row, visibly not available,
+   and carrying the reason: the count dropping from eleven to ten with a pill
+   simply gone reads as a bug. */
+.types button.type-off {
+  opacity: .55; cursor: not-allowed; border-style: dashed;
+  background: transparent;
+}
+.types button.type-off .type-why {
+  font-weight: 500; font-size: 11px; color: var(--muted); white-space: nowrap;
+}
+
+/* The share link when the clipboard is refused. Selectable, and styled as an
+   input rather than as an error. */
+.share-fallback {
+  display: block; width: 100%; margin: 6px 0 0; box-sizing: border-box;
+  font: 12px var(--mono); color: var(--ink);
+  background: var(--page); border: 1px solid var(--grid); border-radius: 6px; padding: 5px 8px;
+}
+.share-fallback:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* The window the figures cover, on its own line. It used to sit after the
+   alderperson's name behind a middot, where it read as a term of office. */
+.data-period { color: var(--muted); font-size: 12.5px; }
