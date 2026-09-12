@@ -44,6 +44,12 @@
 }
 
 * { box-sizing: border-box; }
+/* The `hidden` attribute is only a default of `display: none`, so any `display`
+   in a stylesheet beats it and the element renders anyway. That is how a readonly
+   input meant only for a refused clipboard came to draw an empty full-width box
+   beside the board on every phone, and `.finder-ask` had quietly acquired the
+   same flaw. One rule, so no component has to remember to guard its own display. */
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 15.5px/1.55 var(--sans); }
 .wrap { max-width: 1160px; margin: 0 auto; padding: 34px 20px 64px; }
 @media (min-width: 1400px) { .wrap { max-width: 1360px; } }
@@ -275,10 +281,12 @@ tr.thin .bar { background: var(--bar-thin); }
   background: transparent; color: var(--accent); border: 1px solid var(--accent);
 }
 .share-btn:hover { background: var(--accent); color: var(--on-accent); }
-/* A failed copy has to look different from a successful one, and stay up long
-   enough to read the link it fell back to. */
+/* Only ever shown when the browser can copy neither way, holding the link to be
+   taken by hand. Deliberately carries no `display` of its own: a stylesheet
+   display beats the `hidden` attribute, which is exactly how the input this
+   replaces came to render as an empty box on every phone. */
 .share-done.share-fail { color: var(--chi-red); font-weight: 600; }
-.share-done { font-size: 13px; color: var(--ink-2); }
+.share-done { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
 .row-sub { font-size: 12px; color: var(--muted); }
 td .row-sub a, .row-sub { font-weight: 400; }
 td.c-ward a { text-decoration: none; color: inherit; }
@@ -642,14 +650,6 @@ td.c-ward a:hover { color: var(--accent); }
   font-weight: 500; font-size: 11px; color: var(--muted); white-space: nowrap;
 }
 
-/* The share link when the clipboard is refused. Selectable, and styled as an
-   input rather than as an error. */
-.share-fallback {
-  display: block; width: 100%; margin: 6px 0 0; box-sizing: border-box;
-  font: 12px var(--mono); color: var(--ink);
-  background: var(--page); border: 1px solid var(--grid); border-radius: 6px; padding: 5px 8px;
-}
-.share-fallback:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* The window the figures cover, on its own line. It used to sit after the
    alderperson's name behind a middot, where it read as a term of office. */

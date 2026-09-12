@@ -923,43 +923,53 @@
     setAddrState(r.state, r);
   };
 
-  // Share, with something visible every time. The old version swallowed a
-  // clipboard failure in a bare catch, so a browser that blocks the clipboard
-  // (or any non-secure context) looked identical to a successful copy: nothing
-  // happened at all. Now the control always says what it did, and if the copy
-  // is refused it shows the link so it can be taken by hand.
-  async function shareOrCopy(payload, done) {
-    const say = (msg, ok) => {
-      done.textContent = msg;
-      done.hidden = false;
-      done.classList.toggle('share-fail', !ok);
-      clearTimeout(say._t);
-      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
+  // "Share this" copies the link, and the button's own label is the receipt.
+  //
+  // It used to open the share sheet first and fall back to a readonly input
+  // holding the link. That input carried `display: block` in the stylesheet,
+  // which beats its own `hidden` attribute, so it rendered on every page load as
+  // an empty full-width box next to the board: a dead form field that invited a
+  // tap and did nothing. The input is gone, and with it the only thing on the
+  // page that could render while hidden.
+  async function copyLink(btn, url) {
+    // Remembered once, so a second click while the label still reads "Copied"
+    // cannot make "Copied" the button's permanent name.
+    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+    const say = (msg) => {
+      btn.textContent = msg;
+      clearTimeout(copyLink._t);
+      copyLink._t = setTimeout(() => { btn.textContent = btn.dataset.label; }, 2000);
     };
-    if (navigator.share) {
-      try { await navigator.share(payload); return; }
-      // A cancelled share sheet is a choice, not a failure - say nothing.
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
     try {
-      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
-      say('Link copied.', true);
+      await navigator.clipboard.writeText(url);
+      say('Copied');
       return;
+    } catch { /* older browser, or a context that refuses the async clipboard */ }
+    // The fallback every browser without navigator.clipboard still has. The
+    // textarea exists for one tick, off-screen, and is removed either way, so
+    // nothing is left behind to render.
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      if (ok) { say('Copied'); return; }
     } catch { /* fall through */ }
-    // Last resort, and not a failure. A browser that refuses the clipboard has
-    // not done anything wrong, so this offers the link in something the visitor
-    // can select and copy rather than printing it as loose text under a red
-    // error. The share sheet and the clipboard are tried first; only this is left.
-    const box = $('share-fallback');
-    if (box) {
-      box.value = payload.url;
-      box.hidden = false;
-      box.focus();
-      box.select();
-      say('Copy the link below.', true);
-      return;
+    // Nothing here can copy for them, so say that rather than claim success, and
+    // put the link where it can be selected by hand. This span has no display of
+    // its own, so `hidden` actually hides it.
+    const done = $('share-done');
+    if (done) {
+      done.textContent = url;
+      done.hidden = false;
+      clearTimeout(copyLink._d);
+      copyLink._d = setTimeout(() => { done.hidden = true; }, 12000);
     }
-    say(`The link is ${payload.url}`, true);
+    say('Copy the link');
   }
 
   // "How these numbers were counted" points at a <details>. Scrolling to a closed
@@ -971,25 +981,9 @@
     if (m) { m.hidden = false; m.open = true; }
   });
 
-  $('share').onclick = async () => {
-    const T = type();
-    // The same hash the address bar carries, so a shared 2024 view opens as 2024.
-    const url = `${location.origin}${location.pathname}${hashFor()}`;
-    const h = T.headline;
-    // Whole days in a text message: the table's one decimal is right for a
-    // column you are comparing down, but it makes a sentence look like a readout.
-    // Both figures carry the unit: "Ward 14: 5" left the reader asking 5 what.
-    // The contrast leads, because the gap is the story, not either number alone.
-    const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
-    const what = VERB[T.key] || `to close a ${T.plain} request`;
-    const text = isBacklog(T)
-      ? (h ? `Ward ${h.worst.ward} has left ${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. Ward ${h.best.ward} has left ${pctTxt(h.best.pct)}. Same city.`
-           : `Chicago's ${T.plain}, ranked by ward.`)
-      : h && h.slowest.p50 >= 1.5
-      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. That is how long Chicago takes ${what}, depending on where you live.`
-      : `Chicago's ${T.plain}, ranked by ward.`;
-    await shareOrCopy({ title: 'ChiWardBoard', text, url }, $('share-done'));
-  };
+  // The current URL, so a share carries the type, the period and any ward the
+  // visitor has selected rather than a generic link to the front page.
+  $('share').onclick = () => copyLink($('share'), location.href);
 
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled || !b.dataset.key) return;

@@ -190,44 +190,123 @@ await check('2 the trust line sits above the map, not below the board', { width:
   if (!(r.trust < r.map)) return `trust line at ${r.trust}, map at ${r.map}`;
 });
 
-// ---- 5: a refused share is not an error ----
-await check('5 a blocked clipboard offers a selectable link, not an error', { width: 1280, height: 900 }, async (p) => {
+// ---- 5: the share control copies, and says so on itself ----
+await check('5 the share control renders nothing empty beside it', { touch: true, width: 390, height: 844 }, async (p) => {
+  // The regression this replaces: a readonly input carrying display:block in the
+  // stylesheet, which beats its own hidden attribute, so it drew an empty
+  // full-width box next to the board on every load.
+  const stray = await p.evaluate(() => {
+    const row = document.getElementById('share').parentElement;
+    return [...row.querySelectorAll('*')]
+      .filter((el) => el !== document.getElementById('share'))
+      .filter((el) => {
+        const b = el.getBoundingClientRect();
+        return b.width > 0 && b.height > 0 && !el.textContent.trim();
+      })
+      .map((el) => `${el.tagName}#${el.id || '(no id)'} ${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`);
+  });
+  if (stray.length) return `empty visible elements beside the button: ${stray.join(', ')}`;
+});
+await check('5 nothing hidden beside the share button can render anyway', { touch: true, width: 390, height: 844 }, async (p) => {
+  // The general form of the same bug: an element carrying `hidden` whose
+  // stylesheet gives it a display, so the attribute does nothing.
+  const bad = await p.evaluate(() => [...document.querySelectorAll('[hidden]')]
+    .filter((el) => getComputedStyle(el).display !== 'none')
+    .map((el) => `${el.tagName}#${el.id || '(no id)'} display:${getComputedStyle(el).display}`));
+  if (bad.length) return `hidden but still displayed: ${bad.join(', ')}`;
+});
+await check('5 clicking share copies the current URL and says Copied', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
-    // Neither path available: no share sheet, and a clipboard that refuses.
-    delete navigator.share;
+    window.__copied = null;
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
-      value: { writeText: () => Promise.reject(new Error('blocked')) },
+      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
     });
   });
+  const before = await p.textContent('#share');
   await p.click('#share');
-  await p.waitForTimeout(400);
-  const r = await p.evaluate(() => {
-    const box = document.getElementById('share-fallback');
-    const done = document.getElementById('share-done');
-    return { shown: !box.hidden, value: box.value, tag: box.tagName,
-      failStyled: done.classList.contains('share-fail'), says: done.textContent };
-  });
-  if (!r.shown) return 'nothing was offered';
-  if (r.tag !== 'INPUT') return `offered a ${r.tag}, not a selectable input`;
-  if (!/^https?:\/\//.test(r.value)) return `input held "${r.value}"`;
-  if (r.failStyled) return `still rendered as an error state, saying: ${r.says}`;
+  await p.waitForTimeout(200);
+  const r = await p.evaluate(() => ({ copied: window.__copied, label: document.getElementById('share').textContent }));
+  if (r.copied !== p.url && !/^https?:\/\//.test(r.copied || '')) return `copied "${r.copied}"`;
+  if (r.label !== 'Copied') return `label read "${r.label}", wanted "Copied"`;
+  if (before === 'Copied') return 'the label was already "Copied" before the click';
 });
-await check('5 a working clipboard still just says it copied', { width: 1280, height: 900 }, async (p) => {
+await check('5 the copied URL is the current one, ward and all', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
-    delete navigator.share;
+    window.__copied = null;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
+    });
+  });
+  await p.click('#map path[data-ward="24"]');
+  await p.waitForTimeout(1200);
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  const copied = await p.evaluate(() => window.__copied);
+  if (!/[?&]ward=24\b/.test(copied || '')) return `copied "${copied}", which does not carry the selected ward`;
+});
+await check('5 the label goes back after two seconds', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true, value: { writeText: () => Promise.resolve() },
     });
   });
+  const before = await p.textContent('#share');
   await p.click('#share');
-  await p.waitForTimeout(400);
-  const r = await p.evaluate(() => ({
-    fallback: !document.getElementById('share-fallback').hidden,
-    says: document.getElementById('share-done').textContent,
-  }));
-  if (r.fallback) return 'the fallback input appeared even though the copy worked';
-  if (!/copied/i.test(r.says)) return `said: ${r.says}`;
+  await p.waitForTimeout(200);
+  if ((await p.textContent('#share')) !== 'Copied') return 'never said Copied';
+  await p.waitForTimeout(2200);
+  const after = await p.textContent('#share');
+  if (after !== before) return `label came back as "${after}", wanted "${before}"`;
+});
+await check('5 a second click does not make Copied the permanent label', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true, value: { writeText: () => Promise.resolve() },
+    });
+  });
+  const before = await p.textContent('#share');
+  await p.click('#share');
+  await p.waitForTimeout(150);
+  await p.click('#share');       // while the label still reads "Copied"
+  await p.waitForTimeout(2400);
+  const after = await p.textContent('#share');
+  if (after !== before) return `label settled on "${after}", wanted "${before}"`;
+});
+await check('5 a browser with no clipboard still copies', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    // No async clipboard at all, the way an older browser or an insecure context
+    // presents. The execCommand path has to carry it.
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    window.__exec = null;
+    document.execCommand = (cmd) => { window.__exec = cmd; return true; };
+  });
+  await p.click('#share');
+  await p.waitForTimeout(300);
+  const r = await p.evaluate(() => ({ exec: window.__exec, label: document.getElementById('share').textContent,
+    leftovers: document.querySelectorAll('textarea').length }));
+  if (r.exec !== 'copy') return `execCommand was called with ${r.exec}`;
+  if (r.label !== 'Copied') return `label read "${r.label}"`;
+  if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
+});
+await check('5 when nothing can copy, the link is offered instead of a false Copied', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    document.execCommand = () => false;
+  });
+  await p.click('#share');
+  await p.waitForTimeout(300);
+  const r = await p.evaluate(() => {
+    const done = document.getElementById('share-done');
+    const b = done.getBoundingClientRect();
+    return { label: document.getElementById('share').textContent, shown: b.width > 0 && b.height > 0,
+      text: done.textContent, leftovers: document.querySelectorAll('textarea').length };
+  });
+  if (r.label === 'Copied') return 'claimed Copied when nothing was copied';
+  if (!r.shown) return `nothing was offered; the button said "${r.label}"`;
+  if (!/^https?:\/\//.test(r.text)) return `offered "${r.text}"`;
+  if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
 });
 
 // ---- 6: the link does not promise what the destination lacks ----
