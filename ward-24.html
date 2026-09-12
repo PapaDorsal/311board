@@ -78,6 +78,15 @@
         <p class="office-note">Or call <a href="tel:311">311</a>. Your ward office can also file one, and chase a request that has gone quiet.</p>
       </div>
     </section>
+    <!-- Two of the six columns are hidden on a narrow screen, which also hides
+         their sort controls. This picker drives the same sort state, so every
+         column is sortable on a phone even when its head is not on screen.
+         Populated from the table's own headers, so it cannot drift from them. -->
+    <div class="sort-mobile" id="sort-mobile" hidden>
+      <label for="sort-pick">Sort by</label>
+      <select id="sort-pick"></select>
+      <button type="button" id="sort-dir" class="sort-dir" aria-label="Sort direction"></button>
+    </div>
     <div class="table-scroll card-table" style="margin-top:14px">
       <table>
         <thead>
