@@ -18,7 +18,7 @@ methodology a visitor sees is on `about.html` and, per type, on the board.
 | `ward-1.html` .. `ward-50.html` | Generated from `ward.html` so link previews name the ward. Do not edit by hand. |
 | `assets/app.css` | One stylesheet, light and dark. |
 | `assets/og.png`, `assets/og/ward-N.png` | Share cards. The per-ward cards carry no figures on purpose, and everything sits inside a centred 600px safe box so a square-cropping feed (Reddit) cannot slice the ward number off. See `tools/build-ward-og.mjs`. |
-| `data/leaderboard.json` | The rolling 12-month snapshot. `leaderboard-2024.json` and `-2025.json` are the calendar years. |
+| `data/leaderboard.json` | The rolling 12-month snapshot. `leaderboard-2024.json` and `-2025.json` are the calendar years. All three carry the same `minWardN` (100) and `minHeadlineN` (200); rebuild all three together when either floor changes, or the older boards render "undefined" where the newer field is read. |
 | `data/wards.geojson`, `data/streets.geojson` | Ward outlines and arterial streets for the map. |
 | `data/ward-neighborhoods.json` | Which community areas each ward's requests come from. |
 | `data/bike-context.json` | Per-ward bike crashes and bike route mileage. Context on ward pages, never ranked. |

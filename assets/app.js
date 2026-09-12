@@ -129,6 +129,10 @@
   if (hm && WINDOWS.some((w) => w.key === hm[2])) { typeKey = hm[1]; winKey = hm[2]; }
   if (!D.types.some((t) => t.key === typeKey)) typeKey = D.featured;
   const hashFor = () => (winKey === 'rolling' ? `#${typeKey}` : `#${typeKey}-${winKey}`);
+  // A ward page reads its own period from #<winKey>, so a link made while 2024
+  // is selected has to carry it - otherwise the report card answers with the
+  // rolling year and silently contradicts the row that was just clicked.
+  const wardHref = (w) => `ward-${w}.html${winKey === 'rolling' ? '' : `#${winKey}`}`;
   let myWard = null;
 
   // Not every window carries every type: a backlog type is dropped from any
@@ -138,9 +142,30 @@
   function type() {
     return D.types.find((t) => t.key === typeKey) || D.types.find((t) => t.key === D.featured) || D.types[0];
   }
+  // Not every type exists in every period - a backlog type is dropped from any
+  // snapshot whose lookback would cross the May 2023 ward remap, so there is no
+  // 2024 sidewalk board. Falling back to the featured type is right; doing it
+  // without a word is not, because the switcher just loses the button the reader
+  // was standing on and the board answers about something else.
+  let switchedFrom = null;
   function reconcileType() {
+    const want = typeKey;
     const t = type();
-    if (t && t.key !== typeKey) { typeKey = t.key; history.replaceState(null, '', hashFor()); }
+    if (t && t.key !== typeKey) {
+      const gone = (D.types || []).find((x) => x.key === want);
+      switchedFrom = { from: gone ? gone.plain : want.replace(/-/g, ' '), to: t.plain, win: winKey };
+      typeKey = t.key;
+      history.replaceState(null, '', hashFor());
+    } else switchedFrom = null;
+  }
+
+  function renderSwitchNote() {
+    const el = $('switch-note');
+    if (!el) return;
+    if (!switchedFrom) { el.hidden = true; el.textContent = ''; return; }
+    const label = (WINDOWS.find((w) => w.key === switchedFrom.win) || {}).pill || switchedFrom.win;
+    el.textContent = `No ${switchedFrom.from} board for ${label} - that one needs a longer run of records than ${label} on its own. Showing ${switchedFrom.to} instead.`;
+    el.hidden = false;
   }
 
   // A backlog type is ranked on what the city has not finished rather than on
@@ -415,6 +440,26 @@
     return `<g class="streets" aria-hidden="true">${lines.join('')}${labels.join('')}</g>`;
   }
 
+  // Board sort state. Defaults to the ranking itself, ascending - rank 1 first,
+  // which is the order the board is built in.
+  let lbSortKey = 'rank', lbSortDir = 'asc';
+
+  function paintSortHeads() {
+    document.querySelectorAll('#lb thead th').forEach((th) => {
+      const k = th.dataset.sort;
+      const active = k === lbSortKey;
+      th.setAttribute('aria-sort', active ? (lbSortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+      const ind = th.querySelector('.sort-ind');
+      if (ind) ind.textContent = active ? (lbSortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+      const btn = th.querySelector('.sort-btn');
+      if (btn) {
+        const label = (btn.querySelector('span') || {}).textContent || '';
+        btn.setAttribute('aria-label',
+          `${label}: ${active ? (lbSortDir === 'asc' ? 'sorted low to high' : 'sorted high to low') : 'not sorted'}. Activate to sort.`);
+      }
+    });
+  }
+
   function renderTable(T) {
     const back = isBacklog(T);
     $('board-title').textContent = `All 50 wards, ranked`;
@@ -431,10 +476,35 @@
     // 60%. The earlier pair named a filtering step nobody had asked about and a
     // count that read like a verdict.
     $('th-bar').textContent = back ? 'Share unfinished' : 'Typical days';
-    $('th-tail').textContent = back ? 'Requests' : 'Closed in a week';
+    // "Closed in a week" broke to three lines in this column whatever width it
+    // was given - the table is auto-layout and ignores the hint. Shortened here
+    // and spelled out in the gloss under the table instead.
+    $('th-tail').textContent = back ? 'Requests' : 'In a week';
     $('th-n').textContent = back ? 'Unfinished' : 'Completed';
+    // Rank is fixed to the board's own order (fastest first, or most unfinished
+    // first) and assigned before any display sort, so re-sorting by ward or by a
+    // column reorders the rows without renumbering the ranking.
     let rank = 0;
-    $('lb-body').innerHTML = T.wards.map((w) => {
+    const ranked = T.wards.map((w) => ({ w, rank: w.thin ? null : ++rank }));
+    const dir = lbSortDir === 'asc' ? 1 : -1;
+    const KEY = {
+      rank: (r) => (r.rank === null ? Infinity : r.rank),
+      ward: (r) => r.w.ward,
+      bar:  (r) => (val(T, r.w) === null || val(T, r.w) === undefined ? Infinity : val(T, r.w)),
+      tail: (r) => (back ? r.w.mature : r.w.week),
+      n:    (r) => (back ? r.w.open : r.w.n),
+    };
+    const get = KEY[lbSortKey] || KEY.rank;
+    ranked.sort((a, b) => {
+      // Unranked wards stay at the bottom whichever way a column is sorted.
+      if (a.rank === null && b.rank !== null) return 1;
+      if (b.rank === null && a.rank !== null) return -1;
+      const x = get(a), y = get(b);
+      if (x === Infinity && y !== Infinity) return 1;
+      if (y === Infinity && x !== Infinity) return -1;
+      return (x - y) * dir;
+    });
+    $('lb-body').innerHTML = ranked.map(({ w, rank: wRank }) => {
       const v = val(T, w);
       const pct = Math.max(1.5, ((v || 0) / (maxV || 1)) * 100);
       const tag = w.thin ? ` <span class="thin-tag">too few to rank</span>` : '';
@@ -448,8 +518,8 @@
         ? ` <span class="open-tag">${Math.round(w.openShare)}% still open</span>` : '';
       const ald = (D.aldermen || {})[w.ward];
       return `<tr id="wrow-${w.ward}" class="${w.thin ? 'thin' : ''}${w.ward === myWard ? ' mine-row' : ''}">
-        <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${w.thin ? '' : ++rank}</td>
-        <td class="c-ward"><a href="ward-${w.ward}.html">Ward ${w.ward}${tag}${openTag}` +
+        <td class="c-rank"${w.thin ? ' title="Not ranked: too few of these requests to compare"' : ''}>${wRank === null ? '' : wRank}</td>
+        <td class="c-ward"><a href="${wardHref(w.ward)}">Ward ${w.ward}${tag}${openTag}` +
         // No alderperson name here. It made every row three lines tall, and fifty
         // of those was most of the page; the name is on the ward's own page,
         // next to the contact details that make it useful.
@@ -460,10 +530,21 @@
       </tr>`;
     }).join('');
     $('table-gloss').textContent = back
-      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those are still not closed. Click any ward for its full report card.'
-      : 'Typical days = the middle request: half close faster, half slower. Closed in a week = the share shut within seven days. Requests still open count toward both. Click any ward for its full report card.';
+      ? 'Requests = how many were filed long enough ago to be judged. Unfinished = how many of those are still not closed. Click any column head to sort, or any ward for its full report card.'
+      : 'Typical days = the middle request: half close faster, half slower. In a week = the share of requests closed within seven days. Requests still open count toward both. Click any column head to sort, or any ward for its full report card.';
+    paintSortHeads();
     $('board').hidden = false;
   }
+
+  // Buttons, not click handlers on th, so the headers work by keyboard too.
+  document.querySelectorAll('#lb thead th .sort-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const k = btn.closest('th').dataset.sort;
+      if (lbSortKey === k) lbSortDir = lbSortDir === 'asc' ? 'desc' : 'asc';
+      else { lbSortKey = k; lbSortDir = 'asc'; }
+      renderTable(type());
+    });
+  });
 
   function renderMethod(T) {
     if (isBacklog(T)) {
@@ -520,7 +601,7 @@
 
   function renderAll() {
     const T = type();
-    renderHook(T); renderTypes(); renderMap(T); renderTable(T); renderMethod(T);
+    renderHook(T); renderTypes(); renderSwitchNote(); renderMap(T); renderTable(T); renderMethod(T);
     $('finder').hidden = false;
     renderMine();
   }
@@ -560,7 +641,7 @@
       (hoods(myWard) ? ` <span class="hood-inline">${esc(hoods(myWard))}</span>` : '');
     box.innerHTML = `<h3>${heading}${note ? ` <small style="font-weight:500">(${esc(note)})</small>` : ''}</h3>` +
       (ald && ald.name ? `<p>Alderperson ${esc(ald.name)}` : `<p>`) +
-      ` &middot; <a href="ward-${myWard}.html">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
+      ` &middot; <a href="${wardHref(myWard)}">full report card, all ${D.types.length} categories, office contact &rarr;</a></p>` + (w
       ? (isBacklog(T)
         ? `<p>For ${esc(T.plain)}: <span class="fig">${pctTxt(w.pct)}</span> still unfinished, <span class="fig">${fmt(w.open)}</span> of <span class="fig">${fmt(w.mature)}</span> requests` +
           (idx >= 0 ? ` - <strong>${ordinal(idx + 1)}</strong> worst of the ${rankedW.length} ranked wards.` : ` - too few to rank.`) + `</p>`
@@ -584,6 +665,15 @@
     const row = document.getElementById(`wrow-${myWard}`);
     if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
+  // Drop a previous result rather than leaving it to be read as the new one.
+  function clearMyWard() {
+    myWard = null;
+    document.querySelectorAll('#map path').forEach((p) => p.classList.remove('sel'));
+    document.querySelectorAll('#lb-body tr').forEach((r) => r.classList.remove('mine-row'));
+    const box = $('mine');
+    if (box) { box.innerHTML = ''; box.hidden = true; }
+  }
+
   function setMyWard(ward, note, jump) {
     myWard = ward;
     document.querySelectorAll('#map path').forEach((p) => p.classList.toggle('sel', Number(p.dataset.ward) === ward));
@@ -663,9 +753,26 @@
     return n + suf;
   }
 
+  // People paste what their phone's autocomplete gives them, which is the whole
+  // postal address. Strip a trailing city/state/ZIP so "1060 W Addison St,
+  // Chicago, IL 60613" resolves the same as "1060 W Addison St".
+  const TAIL = [/^\d{5}(-\d{4})?$/, /^IL$/, /^ILLINOIS$/, /^USA?$/, /^UNITED$/, /^STATES$/];
+  function stripPostalTail(parts) {
+    let p = parts.slice();
+    for (;;) {
+      const last = p[p.length - 1];
+      if (p.length > 2 && last && TAIL.some((re) => re.test(last))) { p.pop(); continue; }
+      // "CHICAGO" only when dropping it still leaves a street to match on, so
+      // "123 W Chicago" (the avenue) is not eaten by the city name.
+      if (p.length > 2 && last === 'CHICAGO') { p.pop(); continue; }
+      return p;
+    }
+  }
+
   function parseAddress(raw) {
-    const parts = raw.toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
+    let parts = raw.toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
       .replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    parts = stripPostalTail(parts);
     if (!parts.length) return null;
     const num = /^(\d+)/.exec(parts.shift());
     if (!num) return null;
@@ -755,12 +862,44 @@
     if (!raw) return;
     finderErr('Looking up…');
     const r = await lookupAddress(raw);
-    if (r.err) { finderErr(r.err); return; }
+    if (r.err) {
+      // The previous card said "from the address you typed", which after a
+      // failed second search read as the answer to the second search.
+      clearMyWard();
+      finderErr(r.err);
+      return;
+    }
     setMyWard(r.ward, 'from the address you typed');
     finderErr(r.corrected
       ? `Read that as ${r.corrected}. Matched to the block, in your browser - the address was not sent anywhere.`
       : 'Matched to the block, in your browser - the address was not sent anywhere.');
   };
+
+  // Share, with something visible every time. The old version swallowed a
+  // clipboard failure in a bare catch, so a browser that blocks the clipboard
+  // (or any non-secure context) looked identical to a successful copy: nothing
+  // happened at all. Now the control always says what it did, and if the copy
+  // is refused it shows the link so it can be taken by hand.
+  async function shareOrCopy(payload, done) {
+    const say = (msg, ok) => {
+      done.textContent = msg;
+      done.hidden = false;
+      done.classList.toggle('share-fail', !ok);
+      clearTimeout(say._t);
+      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
+    };
+    if (navigator.share) {
+      try { await navigator.share(payload); return; }
+      // A cancelled share sheet is a choice, not a failure - say nothing.
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    try {
+      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      say('Link copied.', true);
+      return;
+    } catch { /* fall through */ }
+    say(`Could not copy automatically - the link is ${payload.url}`, false);
+  }
 
   $('share').onclick = async () => {
     const T = type();
@@ -779,11 +918,7 @@
       : h && h.slowest.p50 >= 1.5
       ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. That is how long Chicago takes ${what}, depending on where you live.`
       : `Chicago's ${T.plain}, ranked by ward.`;
-    try {
-      if (navigator.share) { await navigator.share({ title: 'ChiWardBoard', text, url }); return; }
-      await navigator.clipboard.writeText(`${text} ${url}`);
-      $('share-done').hidden = false; setTimeout(() => { $('share-done').hidden = true; }, 2500);
-    } catch { /* user cancelled */ }
+    await shareOrCopy({ title: 'ChiWardBoard', text, url }, $('share-done'));
   };
 
   $('types').addEventListener('click', (e) => {
