@@ -240,6 +240,7 @@
     open: (r) => (r.open === null ? -1 : r.open),
   };
 
+  let syncMobileSort = () => {};
   function renderRows() {
     let list = rows.slice();
     if (sortKey) {
@@ -280,6 +281,7 @@
           `${btn.dataset.label}: ${active ? (sortDir === 'asc' ? 'sorted low to high' : 'sorted high to low') : 'not sorted'}. Activate to sort.`);
       }
     });
+    syncMobileSort();
   }
 
   // Buttons, not click handlers on th, so the headers are reachable and operable by keyboard.
@@ -291,6 +293,40 @@
       renderRows();
     });
   });
+
+  // The same sort, reachable on a phone. Two of the six columns are hidden
+  // below 620px, and hiding a column hides its sort control with it - so
+  // "completed" and "still open" could be neither seen nor sorted there. The
+  // options are read off the table's own headers so this cannot drift from them.
+  (function mobileSort() {
+    const pick = $('sort-pick'), dirBtn = $('sort-dir'), box = $('sort-mobile');
+    if (!pick || !dirBtn || !box) return;
+    pick.innerHTML = '<option value="">Board order</option>' +
+      [...document.querySelectorAll('#card thead th')].map((th) => {
+        const label = th.querySelector('.sort-btn').textContent.replace(/[\u25B2\u25BC]/g, '').trim();
+        return `<option value="${th.dataset.sort}">${esc(label)}</option>`;
+      }).join('');
+    const paint = () => {
+      pick.value = sortKey || '';
+      dirBtn.textContent = sortDir === 'asc' ? '\u25B2' : '\u25BC';
+      dirBtn.disabled = !sortKey;
+      dirBtn.setAttribute('aria-label',
+        sortKey ? `Sorted ${sortDir === 'asc' ? 'low to high' : 'high to low'}. Activate to reverse.` : 'Sort direction');
+      box.hidden = false;
+    };
+    pick.addEventListener('change', () => {
+      sortKey = pick.value || null;
+      if (sortKey) sortDir = 'asc';
+      renderRows();
+    });
+    dirBtn.addEventListener('click', () => {
+      if (!sortKey) return;
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      renderRows();
+    });
+    syncMobileSort = paint;
+    paint();
+  })();
 
   // Provenance, once, under the table instead of a column of repeated links.
   function renderSrc() {

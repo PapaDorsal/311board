@@ -574,3 +574,27 @@ td.c-ward a:hover { color: var(--accent); }
   background: color-mix(in srgb, #b45309 10%, transparent);
   border: 1px solid color-mix(in srgb, #b45309 34%, transparent);
 }
+
+/* Sort picker for the ward card, phone only. Above 620px every column head is
+   on screen and is its own control, so this would be a second way to do the
+   same thing. */
+.sort-mobile { display: none; }
+@media (max-width: 620px) {
+  .sort-mobile {
+    display: flex; align-items: center; gap: 8px; margin: 14px 0 -4px;
+    font-size: 12px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 700;
+  }
+  .sort-mobile select {
+    flex: 1 1 auto; min-width: 0; font: inherit; text-transform: none;
+    letter-spacing: 0; font-weight: 500; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 8px;
+  }
+  .sort-dir {
+    flex: 0 0 auto; width: 34px; height: 34px; cursor: pointer;
+    font: 600 14px var(--sans); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  }
+  .sort-dir:focus-visible, .sort-mobile select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+}
