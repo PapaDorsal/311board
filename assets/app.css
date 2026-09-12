@@ -55,10 +55,22 @@ a { color: inherit; }
 .flag .stripe { fill: var(--chi-blue); }
 .flag .stars path { fill: var(--chi-red); }
 .wordmark h1 {
-  font-family: var(--display); font-weight: 800; font-size: clamp(22px, calc(9.8vw - 8px), 48px); letter-spacing: 0.015em;
+  /* 8.4vw, down from the 9.8 this used to be: the row was sized to fill the
+     width exactly, so adding the .com suffix pushed the masthead past the
+     viewport. The binding width is not phones but the 560-660px range, where
+     the flag is still growing with vw and the nav has not yet moved beside it;
+     a 320-900px sweep at 10px steps keeps at least 15px of slack there. */
+  font-family: var(--display); font-weight: 800; font-size: clamp(19px, calc(8.4vw - 8px), 48px); letter-spacing: 0.015em;
   margin: 0; text-transform: uppercase;
 }
 .wm-accent { color: var(--accent); }
+/* The domain, small and quiet, so a screenshot of the page carries the address
+   it came from. Subordinate on purpose: it is a signpost, not part of the name,
+   and it must never compete with the wordmark it hangs off. */
+.wm-tld {
+  font-size: 0.4em; font-weight: 700; color: var(--muted);
+  letter-spacing: 0.04em; margin-left: 0.08em;
+}
 .tagline { color: var(--ink-2); margin: 6px 0 0; font-size: 16.5px; font-weight: 500; }
 
 /* hook */
@@ -598,3 +610,14 @@ td.c-ward a:hover { color: var(--accent); }
   }
   .sort-dir:focus-visible, .sort-mobile select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
+
+/* The "did you mean" step. Deliberately not styled like the ward card: it is a
+   question, and it must not read as an answer the page has already given. */
+.finder-ask { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; }
+.finder-ask button {
+  font: 600 12.5px var(--sans); cursor: pointer; text-align: left;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--accent); border-radius: 6px; padding: 6px 10px;
+}
+.finder-ask button:hover { background: var(--accent); color: var(--on-accent); }
+.finder-ask button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

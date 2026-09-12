@@ -129,6 +129,11 @@
   if (hm && WINDOWS.some((w) => w.key === hm[2])) { typeKey = hm[1]; winKey = hm[2]; }
   if (!D.types.some((t) => t.key === typeKey)) typeKey = D.featured;
   const hashFor = () => (winKey === 'rolling' ? `#${typeKey}` : `#${typeKey}-${winKey}`);
+  // A located ward rides in the URL so that Back and reload keep it, and so the
+  // result is shareable. Only the ward number goes in: the typed address stays
+  // out on purpose, because a query string is sent to the server on the next
+  // navigation and this page promises a typed address never leaves the browser.
+  const urlFor = () => `${location.pathname}${myWard ? `?ward=${myWard}` : ''}${hashFor()}`;
   // A ward page reads its own period from #<winKey>, so a link made while 2024
   // is selected has to carry it - otherwise the report card answers with the
   // rolling year and silently contradicts the row that was just clicked.
@@ -155,7 +160,7 @@
       const gone = (D.types || []).find((x) => x.key === want);
       switchedFrom = { from: gone ? gone.plain : want.replace(/-/g, ' '), to: t.plain, win: winKey };
       typeKey = t.key;
-      history.replaceState(null, '', hashFor());
+      history.replaceState(null, '', urlFor());
     } else switchedFrom = null;
   }
 
@@ -666,6 +671,9 @@
     if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   // Drop a previous result rather than leaving it to be read as the new one.
+  // Drops the card only. The URL is written by setAddrState once the lookup has
+  // settled, because clearing on the way through RESOLVING would overwrite the
+  // history entry that still holds the previous ward and make Back skip it.
   function clearMyWard() {
     myWard = null;
     document.querySelectorAll('#map path').forEach((p) => p.classList.remove('sel'));
@@ -674,10 +682,15 @@
     if (box) { box.innerHTML = ''; box.hidden = true; }
   }
 
-  function setMyWard(ward, note, jump) {
+  // `push` adds a history entry, and only a fresh lookup sets it: restoring from
+  // the URL must not push the entry it just came from, or Back stops working.
+  function setMyWard(ward, note, jump, push) {
+    const changed = myWard !== ward;
     myWard = ward;
     document.querySelectorAll('#map path').forEach((p) => p.classList.toggle('sel', Number(p.dataset.ward) === ward));
     document.querySelectorAll('#lb-body tr').forEach((r) => r.classList.toggle('mine-row', r.id === `wrow-${ward}`));
+    if (push && changed) history.pushState(null, '', urlFor());
+    else history.replaceState(null, '', urlFor());
     renderMine(note, jump);
   }
 
@@ -697,182 +710,122 @@
     return null;
   }
 
+  // Routed through the same state machine as the address box. Two writers to one
+  // note is the bug class this whole section exists to close: a denied location
+  // used to print its message beside a still-visible card from an earlier search.
   $('finder-gps').onclick = () => {
-    if (!navigator.geolocation) { finderErr('Your browser has no location support.'); return; }
+    if (!navigator.geolocation) {
+      setAddrState(S.NOT_FOUND, { message: 'Your browser has no location support.' });
+      return;
+    }
+    setAddrState(S.RESOLVING);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const w = wardAt(pos.coords.longitude, pos.coords.latitude);
-        if (w) setMyWard(w, 'from your location');
-        else finderErr('That location is outside the Chicago ward map.');
+        if (w) {
+          setAddrState(S.CONFIRMED, { ward: w, from: 'from your location',
+            message: 'Matched to the ward map, in your browser - your location was not sent anywhere.' });
+        } else {
+          setAddrState(S.NOT_FOUND, { message: 'That location is outside the Chicago ward map.' });
+        }
       },
-      () => finderErr('Location was blocked - try the address box instead.'),
+      () => setAddrState(S.NOT_FOUND, { message: 'Location was blocked - try the address box instead.' }),
       { timeout: 12000 });
   };
 
-  function finderErr(msg) { $('finder-note').textContent = msg; }
-
   // ---- address lookup ----
-  // Resolved entirely in the browser against data/address-index.json, so a typed
+  // Resolved entirely in the browser against data/address-points.json, so a typed
   // address is never sent anywhere - the same promise the location button makes.
-  // The index maps hundred-blocks to wards, which is why a house number with no
-  // 311 record of its own still resolves: its block almost certainly has one.
+  // Every ward in that file came from a point-in-polygon test on a real parcel
+  // centroid against the unsimplified ward boundaries, done at build time by
+  // tools/build-address-points.mjs. A block face the city has no parcel on is not
+  // an address, which is what stopped this lookup answering confidently for
+  // addresses past the end of a street or outside the city.
+  //
+  // Fetched on first lookup rather than at load: most visitors read the board and
+  // never type an address, and they should not pay for this file.
+  //
+  // The matching itself lives in assets/address.js so that tools/test-address.mjs
+  // can check it without a browser. This is the part of the site that can tell a
+  // resident the wrong ward, so it is the part that needs checks of its own.
   let AX = null, axFail = false;
   async function addressIndex() {
     if (AX || axFail) return AX;
     try {
-      const r = await fetch('data/address-index.json');
+      const r = await fetch('data/address-points.json');
       if (!r.ok) throw new Error('http ' + r.status);
-      AX = await r.json();
-      AX.names = [...new Set(Object.keys(AX.streets).map((k) => k.split('|')[1]))];
-      AX.bare = new Set(Object.keys(AX.streets).map((k) => k.slice(0, k.lastIndexOf('|'))));
+      AX = ChiAddress.prepare(await r.json());
     } catch { axFail = true; }
     return AX;
   }
 
-  // The city writes street types and directions in its own shorthand. Accept the
-  // long forms people actually type and fold them onto it.
-  const DIRS = { NORTH: 'N', SOUTH: 'S', EAST: 'E', WEST: 'W', N: 'N', S: 'S', E: 'E', W: 'W' };
-  const TYPES = {
-    STREET: 'ST', ST: 'ST', AVENUE: 'AVE', AVE: 'AVE', AV: 'AVE', BOULEVARD: 'BLVD', BLVD: 'BLVD',
-    ROAD: 'RD', RD: 'RD', DRIVE: 'DR', DR: 'DR', PLACE: 'PL', PL: 'PL', COURT: 'CT', CT: 'CT',
-    LANE: 'LN', LN: 'LN', PARKWAY: 'PKWY', PKWY: 'PKWY', TERRACE: 'TER', TER: 'TER',
-    SQUARE: 'SQ', SQ: 'SQ', HIGHWAY: 'HWY', HWY: 'HWY', EXPRESSWAY: 'EXPY', EXPY: 'EXPY',
-    CRESCENT: 'CRES', CRES: 'CRES', ROW: 'ROW', PLAZA: 'PLZ', PLZ: 'PLZ', WAY: 'WAY',
-  };
-  // 53, 53rd and THIRD all mean the same numbered street to a Chicagoan.
-  const WORDNUM = {
-    FIRST: '1', SECOND: '2', THIRD: '3', FOURTH: '4', FIFTH: '5', SIXTH: '6',
-    SEVENTH: '7', EIGHTH: '8', NINTH: '9', TENTH: '10',
-  };
-  function numberedStreet(word) {
-    const w = WORDNUM[word] || word;
-    const m = /^(\d+)(ST|ND|RD|TH)?$/.exec(w);
-    if (!m) return null;
-    const n = Number(m[1]), v = n % 100;
-    const suf = ['TH', 'ST', 'ND', 'RD'][(v - 20) % 10] || ['TH', 'ST', 'ND', 'RD'][v] || 'TH';
-    return n + suf;
-  }
-
-  // People paste what their phone's autocomplete gives them, which is the whole
-  // postal address. Strip a trailing city/state/ZIP so "1060 W Addison St,
-  // Chicago, IL 60613" resolves the same as "1060 W Addison St".
-  const TAIL = [/^\d{5}(-\d{4})?$/, /^IL$/, /^ILLINOIS$/, /^USA?$/, /^UNITED$/, /^STATES$/];
-  function stripPostalTail(parts) {
-    let p = parts.slice();
-    for (;;) {
-      const last = p[p.length - 1];
-      if (p.length > 2 && last && TAIL.some((re) => re.test(last))) { p.pop(); continue; }
-      // "CHICAGO" only when dropping it still leaves a street to match on, so
-      // "123 W Chicago" (the avenue) is not eaten by the city name.
-      if (p.length > 2 && last === 'CHICAGO') { p.pop(); continue; }
-      return p;
+  // ---- result state ----
+  // EMPTY / RESOLVING / CONFIRMED / UNCERTAIN / NOT_FOUND. Every render path maps
+  // to exactly one, and this function is the only thing that writes the note, the
+  // suggestion list and the ward card. The defects here were all two of those
+  // three disagreeing: a card from the previous search still reading "from the
+  // address you typed" underneath a failed or emptied one.
+  //
+  // Only CONFIRMED carries a ward. An uncertain match is a question for the
+  // resident, never an answer rendered on their behalf.
+  const S = ChiAddress.STATES;
+  // The resting copy under the box, restored whenever there is nothing to report.
+  const FINDER_HINT = 'Location stays in your browser. Or just click a ward on the map.';
+  let addrState = S.EMPTY;
+  function setAddrState(state, data) {
+    const d = data || {};
+    addrState = state;
+    const note = $('finder-note'), ask = $('finder-ask');
+    ask.hidden = true; ask.innerHTML = '';
+    // A result card must never outlive its input.
+    if (state !== S.CONFIRMED) clearMyWard();
+    // Every settled state leaves the URL describing what is on screen. RESOLVING
+    // is skipped: it is passing through, and writing from here would drop the
+    // ward out of the entry Back needs to return to. CONFIRMED writes its own,
+    // through setMyWard, because only it knows whether to push or replace.
+    if (state !== S.RESOLVING && state !== S.CONFIRMED) history.replaceState(null, '', urlFor());
+    if (state === S.EMPTY) { note.textContent = d.message || FINDER_HINT; return; }
+    if (state === S.RESOLVING) { note.textContent = 'Looking up' + '…'; return; }
+    if (state === S.CONFIRMED) {
+      setMyWard(d.ward, d.from || 'from the address you typed', false, d.push !== false);
+      note.textContent = d.message
+        || `Matched ${d.matched} to the block, in your browser - the address was not sent anywhere.`;
+      return;
     }
-  }
-
-  function parseAddress(raw) {
-    let parts = raw.toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
-      .replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
-    parts = stripPostalTail(parts);
-    if (!parts.length) return null;
-    const num = /^(\d+)/.exec(parts.shift());
-    if (!num) return null;
-    let dir = '';
-    if (parts.length > 1 && DIRS[parts[0]]) dir = DIRS[parts.shift()];
-    let type = '';
-    if (parts.length > 1 && TYPES[parts[parts.length - 1]]) type = TYPES[parts.pop()];
-    // a trailing direction ("2100 W NORTH AVE" vs "500 N MAIN N") is part of the name
-    if (!parts.length) return null;
-    const name = parts.map((p, i) => (i === parts.length - 1 ? (numberedStreet(p) || p) : p)).join(' ');
-    return { number: Number(num[1]), dir, type, name: numberedStreet(name) || name };
-  }
-
-  // Small edit distance, capped: enough to forgive a slip or a doubled letter,
-  // not enough to turn one real street into a different real street.
-  function within(a, b, max) {
-    if (Math.abs(a.length - b.length) > max) return false;
-    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-    for (let i = 1; i <= a.length; i++) {
-      const cur = [i]; let best = i;
-      for (let j = 1; j <= b.length; j++) {
-        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-        best = Math.min(best, cur[j]);
-      }
-      if (best > max) return false;
-      prev = cur;
+    if (state === S.UNCERTAIN) {
+      // Offer, never substitute. Picking one is the resident's to do.
+      note.textContent = d.candidates.length === 1
+        ? 'That is not a street the city lists. Did you mean this?'
+        : 'That is not a street the city lists. Did you mean one of these?';
+      ask.innerHTML = d.candidates.map((c) =>
+        `<button type="button" data-ward="${c.ward}" data-label="${esc(c.label)}">${esc(c.label)}</button>`).join('');
+      ask.hidden = false;
+      return;
     }
-    return prev[b.length] <= max;
+    note.textContent = d.message;
   }
 
-  // Candidate keys, most specific first: exactly what was typed, then the same
-  // street without the type, then without the direction. A wrong "Ave" for a
-  // "Blvd" should not beat the visitor for it.
-  function keysFor(a, name) {
-    const ks = [];
-    for (const t of [a.type, ''].filter((v, i, s) => s.indexOf(v) === i))
-      for (const d of [a.dir, ''].filter((v, i, s) => s.indexOf(v) === i))
-        ks.push(`${d}|${name}|${t}`);
-    return ks;
-  }
-  // Sides of the street are indexed separately, because a ward boundary often
-  // runs down the middle of one. Prefer the side the house number is actually on
-  // and fall back to the other, which is right except on a boundary street.
-  function sidesFor(number) { return number % 2 ? ['O', 'E'] : ['E', 'O']; }
-
-  // Runs are [blockStart, ward, blockStart, ward, ...] ascending; the ward for a
-  // block is the one whose run starts at or before it.
-  function wardOnStreet(runs, block) {
-    let lo = 0, hi = runs.length / 2 - 1, hit = -1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (runs[mid * 2] <= block) { hit = mid; lo = mid + 1; } else { hi = mid - 1; }
-    }
-    return hit < 0 ? null : runs[hit * 2 + 1];
-  }
-
-  async function lookupAddress(raw) {
-    const ix = await addressIndex();
-    if (!ix) return { err: 'The address index did not load. Use your location, or click a ward on the map.' };
-    const a = parseAddress(raw);
-    if (!a) return { err: 'Type a house number and street, like "1060 W Addison St".' };
-    const block = Math.floor(a.number / 100);
-
-    let names = [a.name], corrected = null;
-    if (!keysFor(a, a.name).some((k) => ix.bare.has(k))) {
-      // nothing under that spelling: find the closest real street name instead
-      const max = a.name.length <= 5 ? 1 : 2;
-      const near = ix.names.filter((n) => n !== a.name && within(a.name, n, max));
-      if (near.length) { names = near; corrected = near.length === 1 ? near[0] : null; }
-    }
-    for (const name of names) {
-      for (const k of keysFor(a, name)) {
-        for (const side of sidesFor(a.number)) {
-          const runs = ix.streets[`${k}|${side}`];
-          if (!runs) continue;
-          const w = wardOnStreet(runs, block);
-          if (w) return { ward: w, corrected: name === a.name ? null : corrected };
-        }
-      }
-    }
-    return { err: `No Chicago block matches "${raw}". Check the street name, or use your location.` };
-  }
+  $('finder-ask').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    // Put the confirmed spelling in the box, so the input and the card agree.
+    $('finder-input').value = b.dataset.label;
+    setAddrState(S.CONFIRMED, { ward: Number(b.dataset.ward), matched: b.dataset.label });
+  });
 
   $('finder-form').onsubmit = async (e) => {
     e.preventDefault();
     const raw = $('finder-input').value.trim();
-    if (!raw) return;
-    finderErr('Looking up…');
-    const r = await lookupAddress(raw);
-    if (r.err) {
-      // The previous card said "from the address you typed", which after a
-      // failed second search read as the answer to the second search.
-      clearMyWard();
-      finderErr(r.err);
+    // An empty box is a state, not a no-op. The bare return this replaces left the
+    // previous ward card on screen, still labelled as the answer to an address the
+    // visitor had just deleted.
+    if (!raw) {
+      setAddrState(S.EMPTY, { message: 'Enter an address to look up. The box is empty.' });
+      $('finder-input').focus();
       return;
     }
-    setMyWard(r.ward, 'from the address you typed');
-    finderErr(r.corrected
-      ? `Read that as ${r.corrected}. Matched to the block, in your browser - the address was not sent anywhere.`
-      : 'Matched to the block, in your browser - the address was not sent anywhere.');
+    setAddrState(S.RESOLVING);
+    const r = ChiAddress.lookup(raw, await addressIndex());
+    setAddrState(r.state, r);
   };
 
   // Share, with something visible every time. The old version swallowed a
@@ -924,7 +877,7 @@
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     typeKey = b.dataset.key;
-    history.replaceState(null, '', hashFor());
+    history.replaceState(null, '', urlFor());
     renderAll();
   });
 
@@ -941,7 +894,7 @@
     winKey = w.key;
     adoptData(winCache.get(w.key));
     reconcileType();
-    history.replaceState(null, '', hashFor());
+    history.replaceState(null, '', urlFor());
     renderFoot();
     renderAll();
   });
@@ -1024,4 +977,26 @@
   }
 
   renderAll();
+
+  // ---- ward from the URL ----
+  // Restoring here is what makes Back and reload work: the ward is read out of
+  // the query string on every entry to the page, including the ones the browser
+  // serves from history. `push` is false so restoring never adds the entry it
+  // just came from.
+  const wardFromUrl = () => {
+    const v = Number(new URLSearchParams(location.search).get('ward'));
+    return Number.isInteger(v) && v >= 1 && v <= 50 ? v : null;
+  };
+  function syncWardFromUrl() {
+    const w = wardFromUrl();
+    if (w === myWard) return;
+    if (w) {
+      setAddrState(S.CONFIRMED, { ward: w, from: 'from this link', push: false,
+        message: 'Ward ' + w + ' came from this link. Look up an address to change it.' });
+    } else {
+      setAddrState(S.EMPTY);
+    }
+  }
+  syncWardFromUrl();
+  addEventListener('popstate', syncWardFromUrl);
 })();

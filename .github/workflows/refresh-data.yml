@@ -93,6 +93,16 @@ jobs:
             if(!(d.citywide.laneMiles>100)) throw new Error("implausible lane mileage: "+d.citywide.laneMiles);
             console.log("bike context ok:",d.citywide.crashes,"crashes,",d.citywide.laneMiles,"mi");'
 
+      # The address lookup. Parcels change slowly and ward boundaries only at a
+      # remap, so this is refreshed rather than watched. It is allowed to fail
+      # without costing the 311 refresh; the script keeps the previous file unless
+      # the new one builds and still answers a known address. The guard lives in a
+      # script rather than here so tools/test-refresh-guard.sh can prove it works
+      # instead of us finding out during a real failure.
+      - name: Refresh the address points
+        continue-on-error: true
+        run: tools/refresh-address-points.sh
+
       # Ward page titles carry neighbourhood and alderperson names from the
       # snapshot, so they are regenerated whenever the data is.
       - name: Regenerate the per-ward pages
