@@ -96,11 +96,9 @@
           <h2 class="pane-title" id="board-title"></h2>
           <div class="ward-actions">
             <button type="button" id="share" class="share-btn">Share this</button>
-            <span class="share-done" id="share-done" hidden>Link copied.</span>
-            <!-- Shown only when the share sheet and the clipboard are both refused.
-                 A link the visitor can select beats a red error with loose text. -->
-            <input class="share-fallback" id="share-fallback" type="text" readonly hidden
-                   aria-label="Link to this board, select to copy">
+            <!-- Carries the link only when the browser can copy neither way. The
+                 button's own label is the receipt for the ordinary case. -->
+            <span class="share-done" id="share-done" hidden></span>
           </div>
         </div>
         <p class="board-note" id="board-note"></p>
