@@ -1040,7 +1040,14 @@
           `and correcting for that needs ridership figures nobody publishes. ` +
           `Blocked lanes are not here at all - 311 has no category for a vehicle parked in one. ` +
           `<a href="https://www.bikelaneuprising.com/submit" rel="noopener">Bike Lane Uprising collects those reports</a>. ` +
-          `From the city's <a href="${esc(BIKE.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BIKE.sources.routes.portal)}" rel="noopener">bike route</a> datasets.`;
+          `From the city's <a href="${esc(BIKE.sources.crashes.portal)}" rel="noopener">traffic crash</a> and <a href="${esc(BIKE.sources.routes.portal)}" rel="noopener">bike route</a> datasets. ` +
+          // The one distinction this site's route mileage cannot make. The city's
+          // bike route dataset splits protected from unprotected and stops there,
+          // so a quiet residential street and a stripe of paint beside moving
+          // traffic count the same here. Someone else does that work per ward, so
+          // point at it rather than imply the gap is not there.
+          `For more on the infrastructure itself - shared routes, and the difference between a calm street and a painted lane - ` +
+          `Chicagoans Who Bike maintains a ward map at <a href="https://chiwho.bike/map" rel="noopener">https://chiwho.bike/map</a>`;
         $('bike').hidden = false;
       } catch { /* the board stands on its own without it */ }
     }
