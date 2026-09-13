@@ -195,6 +195,92 @@ check('only CONFIRMED ever carries a ward', () => {
   }
 });
 
+// ---- a unit on the end of an autofilled address ----
+// Autofill hands over the whole mailing address, so in a multi-unit building it
+// arrives with a unit attached. None of it narrows the ward: no boundary runs
+// through a building.
+check('an apartment number does not stop an address resolving', () => {
+  const base = look('1060 W Addison St');
+  for (const form of ['Apt 3B', 'Unit 2', '#2', '# 2', 'Ste 400', 'Apartment 3',
+    'Fl 2', 'Rm 5', 'Bsmt', 'Rear', '3B']) {
+    const r = look(`1060 W Addison St ${form}`);
+    if (r.state !== S.CONFIRMED) return `"${form}" gave ${r.state}`;
+    if (r.ward !== base.ward) return `"${form}" gave ward ${r.ward}, the address alone gives ${base.ward}`;
+  }
+});
+check('a unit survives the rest of a pasted postal address', () => {
+  const r = look('1060 W Addison St, Apt 3B, Chicago, IL 60613');
+  if (r.state !== S.CONFIRMED || r.ward !== 44) return `${r.state} ${r.ward || ''}`;
+});
+check('what matched is shown without the unit', () => {
+  const r = look('1060 W Addison St Apt 3B');
+  if (r.matched !== '1060 W Addison St') return `matched "${r.matched}"`;
+});
+check('a unit does not lower the bar on a wrong suffix', () => {
+  // W Addison is filed as a St. Cutting the unit must not turn a question about
+  // the suffix into a confident answer.
+  const r = look('1060 W Addison Ave Apt 3B');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+});
+check('a unit does not rescue an address outside the city', () => {
+  const r = look('13900 S Torrence Ave Apt 2');
+  if (r.state === S.CONFIRMED) return `CONFIRMED ward ${r.ward}`;
+});
+check('a street whose name is a type word survives a unit', () => {
+  // Twelve of this city's streets are Avenue B through Avenue O. Cutting at the
+  // first type word would leave "Avenue" and lose the letter.
+  const base = look('10501 S Avenue N'), unit = look('10501 S Avenue N Apt 2');
+  if (base.state !== S.CONFIRMED) return `the address alone gave ${base.state}`;
+  if (unit.state !== S.CONFIRMED) return `with a unit it gave ${unit.state}`;
+  if (unit.ward !== base.ward) return `ward ${unit.ward} with a unit, ${base.ward} without`;
+});
+check('a street whose name is a unit word still resolves', () => {
+  // Wacker Lower and Front are real street names. Neither Lower nor Front is
+  // treated as a unit marker for exactly that reason.
+  for (const n of ['LOWER', 'FRONT']) {
+    const ix2 = ix;
+    if (!ix2.names.some((x) => x.split(' ').includes(n))) return `${n} is no longer a street name in the index`;
+  }
+  const r = C.parseAddress('400 N Front St');
+  if (r.name !== 'FRONT') return `parsed the name as "${r.name}"`;
+});
+
+// ---- a direction after the street type is a suffix, not noise ----
+check('a suffix direction is read, not discarded', () => {
+  const a = C.parseAddress('10802 S Doty Ave W');
+  if (a.suf !== 'W') return `parsed suffix "${a.suf}"`;
+  if (a.name !== 'DOTY') return `parsed name "${a.name}"`;
+});
+check('a suffixed street resolves on its own suffix', () => {
+  const r = look('5001 N Ravenswood Ave E');
+  if (r.state !== S.CONFIRMED) return `state ${r.state}`;
+  if (r.ward !== 40) return `ward ${r.ward}, wanted 40`;
+});
+check('without the suffix, a street that needs one asks', () => {
+  // N Ravenswood Ave and N Ravenswood Ave E are the roadways either side of the
+  // Metra embankment, and on the 5000 block they are in different wards.
+  const r = look('5001 N Ravenswood Ave');
+  if (r.state !== S.UNCERTAIN) return `state ${r.state}, wanted UNCERTAIN`;
+  const wards = (r.candidates || []).map((c) => c.ward);
+  if (!(wards.includes(40) && wards.includes(47))) return `offered wards ${wards.join(', ')}`;
+});
+check('a unit is cut but the suffix beside it is kept', () => {
+  const bare = look('10802 S Doty Ave W'), unit = look('10802 S Doty Ave W Apt 2');
+  if (unit.state !== S.CONFIRMED) return `with a unit it gave ${unit.state}`;
+  if (unit.ward !== bare.ward) return `ward ${unit.ward} with a unit, ${bare.ward} without`;
+});
+check('a trailing direction is never taken for a unit', () => {
+  // The shape that matters: no unit marker, a type, then a direction. Cutting it
+  // would answer for the wrong roadway.
+  if (C.stripUnit('5001 N Ravenswood Ave E') !== null) {
+    return `stripUnit cut it down to "${C.stripUnit('5001 N Ravenswood Ave E')}"`;
+  }
+});
+check('a name ending in a direction word is still a name', () => {
+  const a = C.parseAddress('2100 W North Ave');
+  if (a.name !== 'NORTH' || a.suf !== '') return `parsed ${JSON.stringify(a)}`;
+});
+
 // ---- the class the point index exists to close ----
 // These three were confident wrong answers for as long as the ward came from a
 // text index: its runs recorded where a ward's stretch of a street began and

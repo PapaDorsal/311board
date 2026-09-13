@@ -88,6 +88,55 @@ var ChiAddress = (function () {
     }
   }
 
+  // Autofill hands over the whole mailing address, and in a multi-unit building
+  // that means a unit on the end: "1060 W Addison St Apt 3B", "Unit 2", "#2", or
+  // a bare "3B" after the street type. None of it narrows the ward, because no
+  // ward boundary runs through a building.
+  //
+  // Deliberately not part of parseAddress. Cutting tokens off every address would
+  // put real street names at risk: twelve of this city's streets are Avenue B
+  // through Avenue O, where the type word is the name, and Wacker Lower and Front
+  // are streets whose names are unit words. Every word below was checked against
+  // the 1,422 street names in the index and appears in none of them; Lower and
+  // Front are left out for exactly that reason.
+  //
+  // So this runs only after a lookup has already failed, and its answer is taken
+  // only when it is better. Nothing that resolves today can be changed by it.
+  var UNIT_WORDS = {
+    APT: 1, APARTMENT: 1, UNIT: 1, STE: 1, SUITE: 1, RM: 1, ROOM: 1, FL: 1,
+    FLOOR: 1, BLDG: 1, BUILDING: 1, BSMT: 1, BASEMENT: 1, PH: 1, LOT: 1, SPC: 1,
+    TRLR: 1, DEPT: 1, NO: 1, REAR: 1, FRNT: 1, GARDEN: 1, GDN: 1,
+  };
+  function stripUnit(raw) {
+    var parts = String(raw).toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
+      .replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+    parts = stripPostalTail(parts);
+    if (parts.length < 3) return null;
+    var rest = parts.slice(1);
+    var cut = -1;
+    // A named marker, or anything starting with a hash. Never at rest[0], which
+    // is the direction or the first word of the name.
+    for (var i = 1; i < rest.length; i++) {
+      if (UNIT_WORDS[rest[i]] || rest[i].charAt(0) === '#') { cut = i; break; }
+    }
+    if (cut < 0) {
+      // No marker, so the other shape: a street type with something after it.
+      // A direction there is the street's suffix, not a unit, and parseAddress
+      // reads it: N Ravenswood Ave E is a different roadway from N Ravenswood
+      // Ave, in a different ward on the 5000 block. Cutting it manufactured a
+      // confident answer for the wrong side of the embankment.
+      for (var j = 1; j < rest.length - 1; j++) {
+        if (!TYPES[rest[j]]) continue;
+        if (j + 1 === rest.length - 1 && DIRS[rest[j + 1]]) break;
+        cut = j + 1;
+        break;
+      }
+    }
+    if (cut < 1) return null;
+    var kept = [parts[0]].concat(rest.slice(0, cut));
+    return kept.length === parts.length ? null : kept.join(' ');
+  }
+
   function parseAddress(raw) {
     var parts = String(raw).toUpperCase().replace(/[.,]/g, ' ').replace(/['`]/g, '')
       .replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
@@ -97,11 +146,21 @@ var ChiAddress = (function () {
     if (!num) return null;
     var dir = '';
     if (parts.length > 1 && DIRS[parts[0]]) dir = DIRS[parts.shift()];
+    // A direction sitting after the street type is a suffix, and it is part of the
+    // address rather than noise on the end of it: N Ravenswood Ave E and N
+    // Ravenswood Ave are the two roadways either side of the Metra embankment, and
+    // on the 5000 block they are in different wards. Read before the type is taken
+    // off, and only when a name would still be left, so "2100 W North Ave" keeps
+    // North as its name.
+    var suf = '';
+    if (parts.length > 2 && DIRS[parts[parts.length - 1]] && TYPES[parts[parts.length - 2]]) {
+      suf = DIRS[parts.pop()];
+    }
     var type = '';
     if (parts.length > 1 && TYPES[parts[parts.length - 1]]) type = TYPES[parts.pop()];
-    // a trailing direction ("2100 W NORTH AVE" vs "500 N MAIN N") is part of the name
     if (!parts.length) return null;
-    return { number: Number(num[1]), dir: dir, type: type, name: normalizeName(parts.join(' ')) };
+    return { number: Number(num[1]), dir: dir, type: type, suf: suf,
+      name: normalizeName(parts.join(' ')) };
   }
 
   // Small edit distance, capped: enough to forgive a slip or a doubled letter,
@@ -233,7 +292,9 @@ var ChiAddress = (function () {
       var d = p[0], t = p[1], sf = p[2];
       if (a.dir && d !== a.dir) continue;
       if (a.type && t !== a.type) continue;
-      var isExact = (!a.type || t === a.type) && (!a.dir || d === a.dir);
+      if (a.suf && sf !== a.suf) continue;
+      var isExact = (!a.type || t === a.type) && (!a.dir || d === a.dir)
+        && (!a.suf || sf === a.suf);
       // The side the house number is on decides it. The other side of the street
       // is consulted only when this one has no parcel at all, and never
       // confidently: a ward boundary commonly runs down the middle of a street,
@@ -263,7 +324,7 @@ var ChiAddress = (function () {
   // The same widening, but ignoring what the visitor wrote, so a wrong suffix or
   // direction still has something to offer.
   function resolveLoose(ix, a, name) {
-    return resolve(ix, { number: a.number, dir: '', type: '', name: name }, name);
+    return resolve(ix, { number: a.number, dir: '', type: '', suf: '', name: name }, name);
   }
 
   function titleCase(s) {
@@ -307,7 +368,25 @@ var ChiAddress = (function () {
   // The one entry point. Returns exactly one of the five states, and the only
   // state that carries a ward is CONFIRMED: an uncertain match is a question for
   // the resident, never an answer rendered on their behalf.
+  //
+  // A first pass on exactly what was typed, then, only if that did not confirm, a
+  // second on the same address with any unit cut off. The better of the two wins,
+  // so a unit can rescue an address but never spoil one, and the confidence rules
+  // are the same on both passes: the second is a different string, not a lower bar.
+  var RANK = {};
+  RANK[STATES.NOT_FOUND] = 0;
+  RANK[STATES.UNCERTAIN] = 1;
+  RANK[STATES.CONFIRMED] = 2;
   function lookup(raw, ix) {
+    var first = lookupExact(raw, ix);
+    if (first.state === STATES.CONFIRMED) return first;
+    var trimmed = stripUnit(raw);
+    if (!trimmed) return first;
+    var second = lookupExact(trimmed, ix);
+    return RANK[second.state] > RANK[first.state] ? second : first;
+  }
+
+  function lookupExact(raw, ix) {
     if (!ix) {
       return { state: STATES.NOT_FOUND,
         message: 'The address data did not load. Use your location, or click a ward on the map.' };
@@ -380,6 +459,7 @@ var ChiAddress = (function () {
   return {
     STATES: STATES, lookup: lookup, prepare: prepare, parseAddress: parseAddress,
     normalizeName: normalizeName, within: within, titleCase: titleCase,
+    stripUnit: stripUnit,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = ChiAddress;
