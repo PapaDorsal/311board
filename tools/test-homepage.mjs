@@ -190,123 +190,175 @@ await check('2 the trust line sits above the map, not below the board', { width:
   if (!(r.trust < r.map)) return `trust line at ${r.trust}, map at ${r.map}`;
 });
 
-// ---- 5: the share control copies, and says so on itself ----
-await check('5 the share control renders nothing empty beside it', { touch: true, width: 390, height: 844 }, async (p) => {
-  // The regression this replaces: a readonly input carrying display:block in the
-  // stylesheet, which beats its own hidden attribute, so it drew an empty
-  // full-width box next to the board on every load.
-  const stray = await p.evaluate(() => {
-    const row = document.getElementById('share').parentElement;
-    return [...row.querySelectorAll('*')]
-      .filter((el) => el !== document.getElementById('share'))
-      .filter((el) => {
-        const b = el.getBoundingClientRect();
-        return b.width > 0 && b.height > 0 && !el.textContent.trim();
-      })
-      .map((el) => `${el.tagName}#${el.id || '(no id)'} ${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`);
-  });
-  if (stray.length) return `empty visible elements beside the button: ${stray.join(', ')}`;
-});
-await check('5 nothing hidden beside the share button can render anyway', { touch: true, width: 390, height: 844 }, async (p) => {
-  // The general form of the same bug: an element carrying `hidden` whose
-  // stylesheet gives it a display, so the attribute does nothing.
-  const bad = await p.evaluate(() => [...document.querySelectorAll('[hidden]')]
-    .filter((el) => getComputedStyle(el).display !== 'none')
-    .map((el) => `${el.tagName}#${el.id || '(no id)'} display:${getComputedStyle(el).display}`));
-  if (bad.length) return `hidden but still displayed: ${bad.join(', ')}`;
-});
-await check('5 clicking share copies the current URL and says Copied', { width: 1280, height: 900 }, async (p) => {
+// ---- the share control hands over a written post ----
+// The point of the button is that picking X or Bluesky lands a message someone
+// would read, not a bare URL they have to explain.
+const withShare = { width: 1280, height: 900 };
+async function shared(p, prep) {
   await p.evaluate(() => {
-    window.__copied = null;
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
-    });
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  if (prep) await prep(p);
+  await p.click('#share');
+  await p.waitForTimeout(250);
+  return p.evaluate(() => window.__shared);
+}
+await check('share hands the sheet a sentence, not just a link', withShare, async (p) => {
+  const s = await shared(p);
+  if (!s) return 'the share sheet was never opened';
+  if (!s.text || s.text.length < 40) return `text was "${s.text}"`;
+  if (s.text === s.url) return 'the text is just the link';
+  if (!/\d/.test(s.text)) return `no figure in the post: "${s.text}"`;
+});
+await check('the post carries the hashtag', withShare, async (p) => {
+  const s = await shared(p);
+  if (!/#Chicago\b/.test(s.text)) return `text was "${s.text}"`;
+});
+await check('the post and its link fit in a tweet', withShare, async (p) => {
+  const s = await shared(p);
+  const n = (s.text + ' ' + s.url).length;
+  if (n > 280) return `${n} characters`;
+});
+await check('every type and period shares a figure and names its period', withShare, async (p) => {
+  // The sweep that found three things at once: past periods sharing their
+  // figures in the present tense as though they were current, the low-spread
+  // types sharing a type name and no number at all, and a sub-day median
+  // rendered as "0 days". Every combination the toggles can reach is checked,
+  // because the default one was fine while twenty-one others were not.
+  await p.evaluate(() => {
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  const wins = await p.evaluate(() =>
+    [...document.querySelectorAll('#windows button')].map((b) => b.dataset.win));
+  const bad = [];
+  for (const win of wins) {
+    await p.click(`#windows button[data-win="${win}"]`);
+    await p.waitForTimeout(1200);
+    const types = await p.evaluate(() => [...document.querySelectorAll('#types button')]
+      .filter((b) => !b.disabled).map((b) => b.dataset.key));
+    if (!types.length) { bad.push(`${win}: no types available`); continue; }
+    for (const t of types) {
+      await p.click(`#types button[data-key="${t}"]`);
+      await p.waitForTimeout(350);
+      await p.click('#share');
+      await p.waitForTimeout(120);
+      const s = await p.evaluate(() => window.__shared);
+      const where = `${win}/${t}`;
+      if (!s) { bad.push(`${where}: nothing shared`); continue; }
+      if (!/\d/.test(s.text)) bad.push(`${where}: no figure, "${s.text}"`);
+      if (win !== 'rolling' && !s.text.includes(win)) bad.push(`${where}: does not say ${win}, "${s.text}"`);
+      if (win === 'rolling' && /\b20\d\d\b/.test(s.text)) bad.push(`${where}: names a year, "${s.text}"`);
+      // Not \b0 days\b: the word boundary sits after the dot in "1.0 days" too.
+      if (/(?:^|[^\d.])0 days\b/.test(s.text)) bad.push(`${where}: says "0 days", "${s.text}"`);
+      if (!/#Chicago\b/.test(s.text)) bad.push(`${where}: no hashtag`);
+      if ((s.text + ' ' + s.url).length > 280) bad.push(`${where}: ${(s.text + ' ' + s.url).length} chars`);
+    }
+  }
+  if (bad.length) return bad.slice(0, 8).join('\n      ') + (bad.length > 8 ? `\n      (+${bad.length - 8} more)` : '');
+});
+await check('a past period is written in the past tense', withShare, async (p) => {
+  await p.evaluate(() => {
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  const past = await p.evaluate(() => [...document.querySelectorAll('#windows button')]
+    .map((b) => b.dataset.win).find((w) => w !== 'rolling'));
+  await p.click(`#windows button[data-win="${past}"]`);
+  await p.waitForTimeout(1400);
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  const s = await p.evaluate(() => window.__shared);
+  if (/\bChicago takes\b|\bhas left\b/.test(s.text)) return `present tense on ${past}: "${s.text}"`;
+  if (!s.text.includes(past)) return `does not name ${past}: "${s.text}"`;
+});
+await check('the shared link carries the selected ward', withShare, async (p) => {
+  const s = await shared(p, async (q) => {
+    await q.click('#map path[data-ward="24"]');
+    await q.waitForTimeout(1200);
+  });
+  if (!/[?&]ward=24\b/.test(s.url)) return `url was ${s.url}`;
+});
+await check('a dismissed share sheet says nothing', withShare, async (p) => {
+  await p.evaluate(() => {
+    navigator.share = () => Promise.reject(Object.assign(new Error('x'), { name: 'AbortError' }));
   });
   const before = await p.textContent('#share');
   await p.click('#share');
-  await p.waitForTimeout(200);
-  const r = await p.evaluate(() => ({ copied: window.__copied, label: document.getElementById('share').textContent }));
-  if (r.copied !== p.url && !/^https?:\/\//.test(r.copied || '')) return `copied "${r.copied}"`;
-  if (r.label !== 'Copied') return `label read "${r.label}", wanted "Copied"`;
-  if (before === 'Copied') return 'the label was already "Copied" before the click';
+  await p.waitForTimeout(300);
+  const after = await p.textContent('#share');
+  if (after !== before) return `the label changed to "${after}"`;
+  const done = await p.evaluate(() => !document.getElementById('share-done').hidden);
+  if (done) return 'the fallback line appeared after a dismissal';
 });
-await check('5 the copied URL is the current one, ward and all', { width: 1280, height: 900 }, async (p) => {
+await check('with no share sheet, the same sentence goes to the clipboard', withShare, async (p) => {
   await p.evaluate(() => {
+    delete navigator.share;
     window.__copied = null;
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
     });
   });
-  await p.click('#map path[data-ward="24"]');
-  await p.waitForTimeout(1200);
   await p.click('#share');
-  await p.waitForTimeout(200);
-  const copied = await p.evaluate(() => window.__copied);
-  if (!/[?&]ward=24\b/.test(copied || '')) return `copied "${copied}", which does not carry the selected ward`;
+  await p.waitForTimeout(300);
+  const r = await p.evaluate(() => ({ copied: window.__copied, label: document.getElementById('share').textContent }));
+  if (!r.copied) return 'nothing was copied';
+  if (!/#Chicago\b/.test(r.copied)) return `copied "${r.copied}"`;
+  if (!/^https?:\/\//m.test(r.copied.split(' ').pop())) return `no link in "${r.copied}"`;
+  if (r.label !== 'Copied') return `label read "${r.label}"`;
 });
-await check('5 the label goes back after two seconds', { width: 1280, height: 900 }, async (p) => {
+await check('the label goes back after two seconds', withShare, async (p) => {
   await p.evaluate(() => {
+    delete navigator.share;
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true, value: { writeText: () => Promise.resolve() },
     });
   });
   const before = await p.textContent('#share');
   await p.click('#share');
-  await p.waitForTimeout(200);
+  await p.waitForTimeout(250);
   if ((await p.textContent('#share')) !== 'Copied') return 'never said Copied';
   await p.waitForTimeout(2200);
-  const after = await p.textContent('#share');
-  if (after !== before) return `label came back as "${after}", wanted "${before}"`;
+  if ((await p.textContent('#share')) !== before) return `label came back as "${await p.textContent('#share')}"`;
 });
-await check('5 a second click does not make Copied the permanent label', { width: 1280, height: 900 }, async (p) => {
+await check('a browser with no clipboard still copies, leaving nothing behind', withShare, async (p) => {
   await p.evaluate(() => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true, value: { writeText: () => Promise.resolve() },
-    });
-  });
-  const before = await p.textContent('#share');
-  await p.click('#share');
-  await p.waitForTimeout(150);
-  await p.click('#share');       // while the label still reads "Copied"
-  await p.waitForTimeout(2400);
-  const after = await p.textContent('#share');
-  if (after !== before) return `label settled on "${after}", wanted "${before}"`;
-});
-await check('5 a browser with no clipboard still copies', { width: 1280, height: 900 }, async (p) => {
-  await p.evaluate(() => {
-    // No async clipboard at all, the way an older browser or an insecure context
-    // presents. The execCommand path has to carry it.
+    delete navigator.share;
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
     window.__exec = null;
-    document.execCommand = (cmd) => { window.__exec = cmd; return true; };
+    document.execCommand = (c) => { window.__exec = c; return true; };
   });
   await p.click('#share');
   await p.waitForTimeout(300);
   const r = await p.evaluate(() => ({ exec: window.__exec, label: document.getElementById('share').textContent,
     leftovers: document.querySelectorAll('textarea').length }));
-  if (r.exec !== 'copy') return `execCommand was called with ${r.exec}`;
+  if (r.exec !== 'copy') return `execCommand called with ${r.exec}`;
   if (r.label !== 'Copied') return `label read "${r.label}"`;
   if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
 });
-await check('5 when nothing can copy, the link is offered instead of a false Copied', { width: 1280, height: 900 }, async (p) => {
+await check('when nothing can copy, the text is offered instead of a false Copied', withShare, async (p) => {
   await p.evaluate(() => {
+    delete navigator.share;
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
     document.execCommand = () => false;
   });
   await p.click('#share');
   await p.waitForTimeout(300);
   const r = await p.evaluate(() => {
-    const done = document.getElementById('share-done');
-    const b = done.getBoundingClientRect();
-    return { label: document.getElementById('share').textContent, shown: b.width > 0 && b.height > 0,
-      text: done.textContent, leftovers: document.querySelectorAll('textarea').length };
+    const d = document.getElementById('share-done'), b = d.getBoundingClientRect();
+    return { label: document.getElementById('share').textContent, shown: b.width > 0 && b.height > 0, text: d.textContent };
   });
   if (r.label === 'Copied') return 'claimed Copied when nothing was copied';
   if (!r.shown) return `nothing was offered; the button said "${r.label}"`;
-  if (!/^https?:\/\//.test(r.text)) return `offered "${r.text}"`;
-  if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
+  if (!/#Chicago\b/.test(r.text)) return `offered "${r.text}"`;
+});
+await check('nothing hidden anywhere on the page can render anyway', { touch: true, width: 390, height: 844 }, async (p) => {
+  const bad = await p.evaluate(() => [...document.querySelectorAll('[hidden]')]
+    .filter((el) => getComputedStyle(el).display !== 'none')
+    .map((el) => `${el.tagName}#${el.id || '(no id)'} display:${getComputedStyle(el).display}`));
+  if (bad.length) return `hidden but still displayed: ${bad.join(', ')}`;
 });
 
 // ---- 6: the link does not promise what the destination lacks ----
@@ -407,6 +459,88 @@ await wardCheck('7 no middot joins the name to the dates', async (p) => {
   });
   if (/\u00b7/.test(t)) return `text before the period: "${t}"`;
 });
+
+// ---- the ward pages share a figure, and name the right end of the ranking ----
+// Rank 1 is the fastest ward on a speed type and the worst ward on a backlog
+// type, so the same index means opposite things. Ward 42 sits 47th of 50 on
+// street lights, which is 4th slowest, not 47th slowest.
+// A fresh context per call on purpose: navigating the same page to the same URL
+// with only the hash changed is a same-document navigation, so the script never
+// re-runs and every period looks identical to the one before it.
+async function wardShare(n, hash) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p = await ctx.newPage();
+  await p.route('**', (r) => (r.request().url().startsWith(BASE) ? r.continue() : r.abort()));
+  await p.addInitScript(() => {
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  await p.goto(`${BASE}/ward-${n}.html${hash || ''}`, { waitUntil: 'domcontentloaded' });
+  await p.waitForSelector('#share', { timeout: 20000 });
+  await p.waitForTimeout(900);
+  await p.click('#share');
+  await p.waitForTimeout(250);
+  const s = await p.evaluate(() => window.__shared);
+  await ctx.close();
+  return s;
+}
+await (async () => {
+  const name = 'a ward share names the ward, a figure and where it ranks';
+  try {
+    const s = await wardShare(42);
+    const why = !s ? 'the share sheet was never opened'
+      : !/^Ward 42\b/.test(s.text) ? `text was "${s.text}"`
+      : !/\d/.test(s.text) ? `no figure: "${s.text}"`
+      : !/(fastest|slowest|worst|lowest) of \d+ wards/.test(s.text) ? `no ranking: "${s.text}"`
+      : !/#Chicago\b/.test(s.text) ? `no hashtag: "${s.text}"`
+      : (s.text + ' ' + s.url).length > 280 ? `${(s.text + ' ' + s.url).length} characters`
+      : !/ward-42\.html/.test(s.url) ? `url was ${s.url}` : null;
+    if (why) { console.log(`FAIL  ${name}\n      ${why}`); failed++; } else console.log(`ok    ${name}`);
+  } catch (e) { console.log(`ERROR ${name}\n      ${e.message}`); failed++; }
+})();
+await (async () => {
+  // The claim has to survive being recomputed from the snapshot it came from.
+  const name = 'every ward share agrees with the snapshot it came from';
+  try {
+    const req2 = createRequire(import.meta.url);
+    const D = req2('../data/leaderboard.json');
+    const wrong = [];
+    for (const w of [1, 9, 11, 24, 42, 50]) {
+      const s = await wardShare(w);
+      const m = s && s.text.match(/(?:waits about ([\d.<]+) days for (.+?)|has left (\d+)% of its (.+?) unfinished), (\d+)(?:st|nd|rd|th) (fastest|slowest|worst|lowest) of (\d+) wards/);
+      if (!m) { wrong.push(`ward ${w}: unparsed "${s && s.text}"`); continue; }
+      const plain = m[2] || m[4], n = Number(m[5]), word = m[6], of = Number(m[7]);
+      const T = D.types.find((t) => t.plain === plain);
+      if (!T) { wrong.push(`ward ${w}: no type "${plain}"`); continue; }
+      const el = T.wards.filter((x) => !x.thin);
+      const idx = el.findIndex((x) => x.ward === w) + 1;
+      const want = T.metric === 'backlog'
+        ? (idx <= of - idx + 1 ? { n: idx, word: 'worst' } : { n: of - idx + 1, word: 'lowest' })
+        : (idx <= of - idx + 1 ? { n: idx, word: 'fastest' } : { n: of - idx + 1, word: 'slowest' });
+      if (el.length !== of) wrong.push(`ward ${w}: says ${of} wards, snapshot has ${el.length}`);
+      else if (n !== want.n || word !== want.word) {
+        wrong.push(`ward ${w}: claims ${n} ${word} for ${plain}, snapshot says ${want.n} ${want.word}`);
+      }
+    }
+    if (wrong.length) { console.log(`FAIL  ${name}\n      ${wrong.join('\n      ')}`); failed++; }
+    else console.log(`ok    ${name}`);
+  } catch (e) { console.log(`ERROR ${name}\n      ${e.message}`); failed++; }
+})();
+
+await (async () => {
+  const name = 'a ward share on a past period says so, in the past tense';
+  try {
+    const now = await wardShare(42);
+    const then = await wardShare(42, '#2024');
+    const why = !then ? 'nothing shared'
+      : !/^In 2024,/.test(then.text) ? `does not open with the period: "${then.text}"`
+      : /\bwaits\b|\bhas left\b/.test(then.text) ? `present tense: "${then.text}"`
+      : !/#2024$/.test(then.url) ? `url was ${then.url}`
+      : then.text === now.text ? 'identical to the rolling share, so the period never took'
+      : null;
+    if (why) { console.log(`FAIL  ${name}\n      ${why}`); failed++; } else console.log(`ok    ${name}`);
+  } catch (e) { console.log(`ERROR ${name}\n      ${e.message}`); failed++; }
+})();
 
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall passed');

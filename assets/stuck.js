@@ -72,32 +72,13 @@
   // (or any non-secure context) looked identical to a successful copy: nothing
   // happened at all. Now the control always says what it did, and if the copy
   // is refused it shows the link so it can be taken by hand.
-  async function shareOrCopy(payload, done) {
-    const say = (msg, ok) => {
-      done.textContent = msg;
-      done.hidden = false;
-      done.classList.toggle('share-fail', !ok);
-      clearTimeout(say._t);
-      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
-    };
-    if (navigator.share) {
-      try { await navigator.share(payload); return; }
-      // A cancelled share sheet is a choice, not a failure - say nothing.
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
-    try {
-      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
-      say('Link copied.', true);
-      return;
-    } catch { /* fall through */ }
-    say(`Could not copy automatically - the link is ${payload.url}`, false);
-  }
-
-  $('share').onclick = async () => {
+  $('share').onclick = () => {
     const url = 'https://chiwardboard.com/stuck.html';
     const text = `${fmt(D.citywide.total)} requests about Chicago's own ${kindList} have been open more than a year. ` +
       `The oldest has been waiting ${ago(oldest.days)}.`;
-    await shareOrCopy({ title: 'Open more than a year - ChiWardBoard', text, url }, $('share-done'));
+    ChiShare.shareOrCopy($('share'), {
+      title: 'Open more than a year - ChiWardBoard', text: `${text} ${ChiShare.TAG}`, url,
+    }, $('share-done'));
   };
 
   // The payoff, and it only exists because the site kept watching. Empty on the
