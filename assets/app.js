@@ -923,55 +923,6 @@
     setAddrState(r.state, r);
   };
 
-  // "Share this" copies the link, and the button's own label is the receipt.
-  //
-  // It used to open the share sheet first and fall back to a readonly input
-  // holding the link. That input carried `display: block` in the stylesheet,
-  // which beats its own `hidden` attribute, so it rendered on every page load as
-  // an empty full-width box next to the board: a dead form field that invited a
-  // tap and did nothing. The input is gone, and with it the only thing on the
-  // page that could render while hidden.
-  async function copyLink(btn, url) {
-    // Remembered once, so a second click while the label still reads "Copied"
-    // cannot make "Copied" the button's permanent name.
-    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
-    const say = (msg) => {
-      btn.textContent = msg;
-      clearTimeout(copyLink._t);
-      copyLink._t = setTimeout(() => { btn.textContent = btn.dataset.label; }, 2000);
-    };
-    try {
-      await navigator.clipboard.writeText(url);
-      say('Copied');
-      return;
-    } catch { /* older browser, or a context that refuses the async clipboard */ }
-    // The fallback every browser without navigator.clipboard still has. The
-    // textarea exists for one tick, off-screen, and is removed either way, so
-    // nothing is left behind to render.
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      ta.setAttribute('readonly', '');
-      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      if (ok) { say('Copied'); return; }
-    } catch { /* fall through */ }
-    // Nothing here can copy for them, so say that rather than claim success, and
-    // put the link where it can be selected by hand. This span has no display of
-    // its own, so `hidden` actually hides it.
-    const done = $('share-done');
-    if (done) {
-      done.textContent = url;
-      done.hidden = false;
-      clearTimeout(copyLink._d);
-      copyLink._d = setTimeout(() => { done.hidden = true; }, 12000);
-    }
-    say('Copy the link');
-  }
-
   // "How these numbers were counted" points at a <details>. Scrolling to a closed
   // one shows the reader a summary line and nothing they asked for.
   addEventListener('click', (e) => {
@@ -981,9 +932,31 @@
     if (m) { m.hidden = false; m.open = true; }
   });
 
-  // The current URL, so a share carries the type, the period and any ward the
-  // visitor has selected rather than a generic link to the front page.
-  $('share').onclick = () => copyLink($('share'), location.href);
+  // A written post, not a link. What makes this worth sharing is the gap between
+  // two wards, so the sentence leads with it and the link follows.
+  //
+  // Whole days in a sentence: the table's one decimal is right for a column you
+  // read down, but it makes a post look like a readout. Both figures carry the
+  // unit, because "Ward 14: 5" leaves the reader asking five what.
+  $('share').onclick = () => {
+    const T = type();
+    const h = T.headline;
+    const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
+    const what = VERB[T.key] || `to close a ${T.plain} request`;
+    const text = isBacklog(T)
+      ? (h ? `Ward ${h.worst.ward} has left ${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. `
+           + `Ward ${h.best.ward} has left ${pctTxt(h.best.pct)}. Same city.`
+           : `Chicago's ${T.plain}, ranked by ward.`)
+      : h && h.slowest.p50 >= 1.5
+      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. `
+        + `That is how long Chicago takes ${what}, depending on where you live.`
+      : `Chicago's ${T.plain}, ranked by ward.`;
+    // location.href, so the share carries the type, the period and any ward the
+    // visitor has selected rather than a generic link to the front page.
+    ChiShare.shareOrCopy($('share'), {
+      title: 'ChiWardBoard', text: `${text} ${ChiShare.TAG}`, url: location.href,
+    }, $('share-done'));
+  };
 
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled || !b.dataset.key) return;

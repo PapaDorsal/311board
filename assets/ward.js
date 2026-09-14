@@ -453,36 +453,46 @@
   // (or any non-secure context) looked identical to a successful copy: nothing
   // happened at all. Now the control always says what it did, and if the copy
   // is refused it shows the link so it can be taken by hand.
-  async function shareOrCopy(payload, done) {
-    const say = (msg, ok) => {
-      done.textContent = msg;
-      done.hidden = false;
-      done.classList.toggle('share-fail', !ok);
-      clearTimeout(say._t);
-      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
-    };
-    if (navigator.share) {
-      try { await navigator.share(payload); return; }
-      // A cancelled share sheet is a choice, not a failure - say nothing.
-      catch (e) { if (e && e.name === 'AbortError') return; }
-    }
-    try {
-      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
-      say('Link copied.', true);
-      return;
-    } catch { /* fall through */ }
-    say(`Could not copy automatically - the link is ${payload.url}`, false);
-  }
-
-  $('share').onclick = async () => {
+  $('share').onclick = () => {
     // Always the per-ward page. location.href may be the legacy ward.html?w=43,
     // whose static meta is generic, so sharing that produced a preview reading
     // "Ward report card" with no ward in it - the whole point of the per-ward
     // pages was to stop that.
     const url = winKey === 'rolling' ? wUrl : `${wUrl}#${winKey}`;
-    const text = winKey === 'rolling'
-      ? `Ward ${ward}'s 311 report card - ChiWardBoard`
-      : `Ward ${ward}'s 311 report card for ${PERIOD} - ChiWardBoard`;
-    await shareOrCopy({ title: text, text, url }, $('share-done'));
+
+    // This used to share "Ward 42's 311 report card - ChiWardBoard", which is a
+    // label rather than a post: it named the page and said nothing about the
+    // ward. A share is worth making when it carries a figure, so it leads with
+    // where this ward actually stands.
+    //
+    // The type it stands furthest from the middle on, at either end. Leading
+    // always with the worst would make every ward's share a complaint, and a
+    // ward that is fastest in the city at something has earned the sentence as
+    // much as one that is slowest. Where nothing is ranked, it names the place.
+    //
+    // Which end takes care: rank 1 is the fastest ward on a speed type and the
+    // worst ward on a backlog type, so the same index means opposite things and
+    // the wording has to be derived rather than assumed. Ward 42 sits 47th of 50
+    // on street lights, which is 4th slowest, not 47th slowest.
+    const ranked = rows.filter((r) => r.rankIdx !== null && r.wardVal !== null);
+    const edge = (r) => Math.min(r.rankIdx, r.rankOf - r.rankIdx + 1);
+    const pick = ranked.slice().sort((a, b) => edge(a) - edge(b))[0];
+    const place = `Ward ${ward}${wHoods ? ` (${wHoods.split(', ').slice(0, 2).join(', ')})` : ''}`;
+    let text;
+    if (!pick) {
+      text = `${place}: how long the city takes on 311 requests here, over ${PERIOD}.`;
+    } else {
+      const fromTop = pick.rankIdx;
+      const fromBottom = pick.rankOf - pick.rankIdx + 1;
+      const nearTop = fromTop <= fromBottom;
+      text = pick.back
+        ? `${place} has left ${Math.round(pick.wardVal)}% of its ${pick.plain} unfinished, `
+          + `${ordinal(nearTop ? fromTop : fromBottom)} ${nearTop ? 'worst' : 'lowest'} of ${pick.rankOf} wards.`
+        : `${place} waits about ${d2(pick.wardVal)} days for ${pick.plain}, `
+          + `${ordinal(nearTop ? fromTop : fromBottom)} ${nearTop ? 'fastest' : 'slowest'} of ${pick.rankOf} wards.`;
+    }
+    ChiShare.shareOrCopy($('share'), {
+      title: `Ward ${ward} - ChiWardBoard`, text: `${text} ${ChiShare.TAG}`, url,
+    }, $('share-done'));
   };
 })();
