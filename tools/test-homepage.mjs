@@ -220,6 +220,59 @@ await check('the post and its link fit in a tweet', withShare, async (p) => {
   const n = (s.text + ' ' + s.url).length;
   if (n > 280) return `${n} characters`;
 });
+await check('every type and period shares a figure and names its period', withShare, async (p) => {
+  // The sweep that found three things at once: past periods sharing their
+  // figures in the present tense as though they were current, the low-spread
+  // types sharing a type name and no number at all, and a sub-day median
+  // rendered as "0 days". Every combination the toggles can reach is checked,
+  // because the default one was fine while twenty-one others were not.
+  await p.evaluate(() => {
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  const wins = await p.evaluate(() =>
+    [...document.querySelectorAll('#windows button')].map((b) => b.dataset.win));
+  const bad = [];
+  for (const win of wins) {
+    await p.click(`#windows button[data-win="${win}"]`);
+    await p.waitForTimeout(1200);
+    const types = await p.evaluate(() => [...document.querySelectorAll('#types button')]
+      .filter((b) => !b.disabled).map((b) => b.dataset.key));
+    if (!types.length) { bad.push(`${win}: no types available`); continue; }
+    for (const t of types) {
+      await p.click(`#types button[data-key="${t}"]`);
+      await p.waitForTimeout(350);
+      await p.click('#share');
+      await p.waitForTimeout(120);
+      const s = await p.evaluate(() => window.__shared);
+      const where = `${win}/${t}`;
+      if (!s) { bad.push(`${where}: nothing shared`); continue; }
+      if (!/\d/.test(s.text)) bad.push(`${where}: no figure, "${s.text}"`);
+      if (win !== 'rolling' && !s.text.includes(win)) bad.push(`${where}: does not say ${win}, "${s.text}"`);
+      if (win === 'rolling' && /\b20\d\d\b/.test(s.text)) bad.push(`${where}: names a year, "${s.text}"`);
+      // Not \b0 days\b: the word boundary sits after the dot in "1.0 days" too.
+      if (/(?:^|[^\d.])0 days\b/.test(s.text)) bad.push(`${where}: says "0 days", "${s.text}"`);
+      if (!/#Chicago\b/.test(s.text)) bad.push(`${where}: no hashtag`);
+      if ((s.text + ' ' + s.url).length > 280) bad.push(`${where}: ${(s.text + ' ' + s.url).length} chars`);
+    }
+  }
+  if (bad.length) return bad.slice(0, 8).join('\n      ') + (bad.length > 8 ? `\n      (+${bad.length - 8} more)` : '');
+});
+await check('a past period is written in the past tense', withShare, async (p) => {
+  await p.evaluate(() => {
+    window.__shared = null;
+    navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
+  });
+  const past = await p.evaluate(() => [...document.querySelectorAll('#windows button')]
+    .map((b) => b.dataset.win).find((w) => w !== 'rolling'));
+  await p.click(`#windows button[data-win="${past}"]`);
+  await p.waitForTimeout(1400);
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  const s = await p.evaluate(() => window.__shared);
+  if (/\bChicago takes\b|\bhas left\b/.test(s.text)) return `present tense on ${past}: "${s.text}"`;
+  if (!s.text.includes(past)) return `does not name ${past}: "${s.text}"`;
+});
 await check('the shared link carries the selected ward', withShare, async (p) => {
   const s = await shared(p, async (q) => {
     await q.click('#map path[data-ward="24"]');
@@ -411,7 +464,10 @@ await wardCheck('7 no middot joins the name to the dates', async (p) => {
 // Rank 1 is the fastest ward on a speed type and the worst ward on a backlog
 // type, so the same index means opposite things. Ward 42 sits 47th of 50 on
 // street lights, which is 4th slowest, not 47th slowest.
-async function wardShare(n) {
+// A fresh context per call on purpose: navigating the same page to the same URL
+// with only the hash changed is a same-document navigation, so the script never
+// re-runs and every period looks identical to the one before it.
+async function wardShare(n, hash) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const p = await ctx.newPage();
   await p.route('**', (r) => (r.request().url().startsWith(BASE) ? r.continue() : r.abort()));
@@ -419,7 +475,7 @@ async function wardShare(n) {
     window.__shared = null;
     navigator.share = (d) => { window.__shared = d; return Promise.resolve(); };
   });
-  await p.goto(`${BASE}/ward-${n}.html`, { waitUntil: 'domcontentloaded' });
+  await p.goto(`${BASE}/ward-${n}.html${hash || ''}`, { waitUntil: 'domcontentloaded' });
   await p.waitForSelector('#share', { timeout: 20000 });
   await p.waitForTimeout(900);
   await p.click('#share');
@@ -468,6 +524,21 @@ await (async () => {
     }
     if (wrong.length) { console.log(`FAIL  ${name}\n      ${wrong.join('\n      ')}`); failed++; }
     else console.log(`ok    ${name}`);
+  } catch (e) { console.log(`ERROR ${name}\n      ${e.message}`); failed++; }
+})();
+
+await (async () => {
+  const name = 'a ward share on a past period says so, in the past tense';
+  try {
+    const now = await wardShare(42);
+    const then = await wardShare(42, '#2024');
+    const why = !then ? 'nothing shared'
+      : !/^In 2024,/.test(then.text) ? `does not open with the period: "${then.text}"`
+      : /\bwaits\b|\bhas left\b/.test(then.text) ? `present tense: "${then.text}"`
+      : !/#2024$/.test(then.url) ? `url was ${then.url}`
+      : then.text === now.text ? 'identical to the rolling share, so the period never took'
+      : null;
+    if (why) { console.log(`FAIL  ${name}\n      ${why}`); failed++; } else console.log(`ok    ${name}`);
   } catch (e) { console.log(`ERROR ${name}\n      ${e.message}`); failed++; }
 })();
 

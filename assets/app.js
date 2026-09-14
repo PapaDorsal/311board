@@ -941,16 +941,46 @@
   $('share').onclick = () => {
     const T = type();
     const h = T.headline;
-    const days = (v) => { const d = Math.round(Number(v)); return `${d} ${d === 1 ? 'day' : 'days'}`; };
+    // A share made while a past year is showing has to say so. The headline on
+    // the page already does; the post did not, so toggling to 2024 and sharing
+    // put 2024 figures in the present tense, as though they were current.
+    const past = winKey !== 'rolling';
+    // Whole days in a sentence: the table's one decimal is right for a column you
+    // read down, but it makes a post look like a readout. A median under half a
+    // day rounds to zero, and "0 days in Ward 3" reads as a broken number rather
+    // than as the fastest ward in the city.
+    const days = (v) => {
+      const n = Number(v);
+      if (n < 0.5) return 'under a day';
+      const d = Math.round(n);
+      return `${d} ${d === 1 ? 'day' : 'days'}`;
+    };
+    const sentence = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const what = VERB[T.key] || `to close a ${T.plain} request`;
-    const text = isBacklog(T)
-      ? (h ? `Ward ${h.worst.ward} has left ${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. `
-           + `Ward ${h.best.ward} has left ${pctTxt(h.best.pct)}. Same city.`
-           : `Chicago's ${T.plain}, ranked by ward.`)
-      : h && h.slowest.p50 >= 1.5
-      ? `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. ${days(h.fastest.p50)} in Ward ${h.fastest.ward}. `
-        + `That is how long Chicago takes ${what}, depending on where you live.`
-      : `Chicago's ${T.plain}, ranked by ward.`;
+    let text;
+    if (isBacklog(T)) {
+      text = h
+        ? `${past ? `In ${winKey}, ` : ''}Ward ${h.worst.ward} ${past ? 'had' : 'has'} left `
+          + `${pctTxt(h.worst.pct)} of its ${T.plain} unfinished. `
+          + `Ward ${h.best.ward} ${past ? 'had' : 'has'} left ${pctTxt(h.best.pct)}. Same city.`
+        : `Chicago's ${T.plain}, ranked by ward${past ? ` in ${winKey}` : ''}.`;
+    } else if (h && h.slowest.p50 >= 1.5) {
+      text = `${days(h.slowest.p50)} in Ward ${h.slowest.ward}. `
+        + `${sentence(days(h.fastest.p50))} in Ward ${h.fastest.ward}. `
+        + `That is how long Chicago ${past ? 'took' : 'takes'} ${what}`
+        + `${past ? ` in ${winKey}` : ''}, depending on where you live.`;
+    } else if (h) {
+      // Every ward inside a day of every other. There is no gap to lead with, so
+      // the ceiling is the figure: this used to share the type name and nothing
+      // else. Stated as a ceiling rather than a range because the fastest ward
+      // rounds to 0.0 on these types, and "from 0.0 days" reads as a broken
+      // number rather than as same-day work.
+      text = `${past ? `In ${winKey}, no` : 'No'} Chicago ward `
+        + `${past ? 'took' : 'takes'} more than ${d1(h.slowest.p50)} days `
+        + `for ${T.plain}.`;
+    } else {
+      text = `Chicago's ${T.plain}, ranked by ward${past ? ` in ${winKey}` : ''}.`;
+    }
     // location.href, so the share carries the type, the period and any ward the
     // visitor has selected rather than a generic link to the front page.
     ChiShare.shareOrCopy($('share'), {

@@ -485,10 +485,14 @@
       const fromTop = pick.rankIdx;
       const fromBottom = pick.rankOf - pick.rankIdx + 1;
       const nearTop = fromTop <= fromBottom;
+      // Same rule as the board: a share made while a past year is showing says so,
+      // and says it in the past tense, rather than passing old figures off as now.
+      const past = winKey !== 'rolling';
+      const lead = past ? `In ${winKey}, ${place}` : place;
       text = pick.back
-        ? `${place} has left ${Math.round(pick.wardVal)}% of its ${pick.plain} unfinished, `
+        ? `${lead} ${past ? 'had' : 'has'} left ${Math.round(pick.wardVal)}% of its ${pick.plain} unfinished, `
           + `${ordinal(nearTop ? fromTop : fromBottom)} ${nearTop ? 'worst' : 'lowest'} of ${pick.rankOf} wards.`
-        : `${place} waits about ${d2(pick.wardVal)} days for ${pick.plain}, `
+        : `${lead} ${past ? 'waited' : 'waits'} about ${d2(pick.wardVal)} days for ${pick.plain}, `
           + `${ordinal(nearTop ? fromTop : fromBottom)} ${nearTop ? 'fastest' : 'slowest'} of ${pick.rankOf} wards.`;
     }
     ChiShare.shareOrCopy($('share'), {
