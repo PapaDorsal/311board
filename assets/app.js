@@ -16,6 +16,10 @@
   const GEO = await geoRes.json();
   // Neighbourhood context is a nicety; the board still works without it.
   const NB = nbRes.ok ? (await nbRes.json()).wards : {};
+  // Built once from data already on the page, not a second fetch. Empty when
+  // NB failed to load, so a neighborhood search just finds nothing rather
+  // than throwing.
+  const NBX = ChiNeighborhoods.buildIndex(NB);
   // Street context is optional garnish; the map still works if it fails to load.
   const ST = stRes.ok ? (await stRes.json()).features : [];
   const hoods = (w, max) => ((NB[w] || {}).names || []).slice(0, max || 3).join(', ');
@@ -889,11 +893,20 @@
     }
     if (state === S.UNCERTAIN) {
       // Offer, never substitute. Picking one is the resident's to do.
-      note.textContent = d.candidates.length === 1
-        ? 'That is not a street the city lists. Did you mean this?'
-        : 'That is not a street the city lists. Did you mean one of these?';
+      if (d.kind === 'neighborhood') {
+        // A community area is not a point, so even the one candidate for a
+        // neighborhood that sits mostly in a single ward is still an offer,
+        // never a confirmed match - the share behind it is not a boundary.
+        note.textContent = d.candidates.length === 1
+          ? `${d.neighborhood} is mostly one ward, by 311 request volume. Is this it?`
+          : `${d.neighborhood} spans more than one ward, by 311 request volume. Which one?`;
+      } else {
+        note.textContent = d.candidates.length === 1
+          ? 'That is not a street the city lists. Did you mean this?'
+          : 'That is not a street the city lists. Did you mean one of these?';
+      }
       ask.innerHTML = d.candidates.map((c) =>
-        `<button type="button" data-ward="${c.ward}" data-label="${esc(c.label)}">${esc(c.label)}</button>`).join('');
+        `<button type="button" data-ward="${c.ward}" data-label="${esc(c.label)}" data-kind="${d.kind || ''}" data-neighborhood="${esc(d.neighborhood || '')}">${esc(c.label)}</button>`).join('');
       ask.hidden = false;
       return;
     }
@@ -902,6 +915,14 @@
 
   $('finder-ask').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.kind === 'neighborhood') {
+      // The box keeps the neighborhood name typed, not the ward label picked -
+      // "Uptown" stays "Uptown", the same way a confirmed street stays itself.
+      $('finder-input').value = b.dataset.neighborhood;
+      setAddrState(S.CONFIRMED, { ward: Number(b.dataset.ward), from: `for ${b.dataset.neighborhood}`,
+        message: `${b.dataset.neighborhood} is mostly Ward ${b.dataset.ward}, by 311 request volume - a neighborhood is not a precise boundary, so this is an estimate.` });
+      return;
+    }
     // Put the confirmed spelling in the box, so the input and the card agree.
     $('finder-input').value = b.dataset.label;
     setAddrState(S.CONFIRMED, { ward: Number(b.dataset.ward), matched: b.dataset.label });
@@ -919,7 +940,24 @@
       return;
     }
     setAddrState(S.RESOLVING);
-    const r = ChiAddress.lookup(raw, await addressIndex());
+    let r = ChiAddress.lookup(raw, await addressIndex());
+    // A community area is a different kind of place than a street, so it is
+    // tried only once the address resolver has already said no. It never
+    // shadows a real address, and it never turns a misspelled street into a
+    // neighborhood guess: this only fires on NOT_FOUND, not on UNCERTAIN.
+    if (r.state === S.NOT_FOUND) {
+      const hood = ChiNeighborhoods.lookup(raw, NBX);
+      if (hood) {
+        r = { state: S.UNCERTAIN, kind: 'neighborhood', neighborhood: hood.name,
+          candidates: hood.wards.map((w) => ({ ward: w.ward, label: `Ward ${w.ward}` })) };
+      } else if (!/\d/.test(raw)) {
+        // No digit at all is the shape of a neighborhood guess, not a
+        // mistyped address, so say a neighborhood was tried too. A string
+        // with a house number in it keeps the resolver's own message: it
+        // already has something more specific to say about it.
+        r = { ...r, message: `No Chicago street or neighborhood matches "${raw}". Check the spelling, or use your location.` };
+      }
+    }
     setAddrState(r.state, r);
   };
 
