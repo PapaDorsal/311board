@@ -216,6 +216,70 @@ await check('P3 a junk ward param is ignored', async (p) => {
   }
 });
 
+// ---- neighborhood lookup ----
+// The community-area name lookup in assets/neighborhoods.js, exercised the way
+// a resident would use it: type a name instead of a house number. The lookup
+// itself has its own checks in tools/test-neighborhoods.mjs; these are the ones
+// that need the DOM the resolver's UNCERTAIN candidates render into.
+await check('a neighborhood in one ward is offered, not confirmed outright', async (p) => {
+  await look(p, 'Hyde Park');
+  const c = await card(p);
+  if (c.shown) return `card was shown before a candidate was picked: ${c.text.slice(0, 80)}`;
+  const opts = await asks(p);
+  if (opts.length !== 1) return `offered ${opts.length} candidates, wanted 1: ${opts.join(', ')}`;
+  if (opts[0] !== 'Ward 5') return `offered "${opts[0]}", wanted "Ward 5"`;
+  if (!/Hyde Park/.test(await note(p))) return `note read: ${await note(p)}`;
+});
+await check('picking that candidate gives its ward, and keeps the neighborhood name typed', async (p) => {
+  await look(p, 'Hyde Park');
+  await p.click('#finder-ask button:has-text("Ward 5")');
+  const c = await card(p);
+  if (!c.shown) return 'no card after confirming';
+  if (!/Your ward: 5\b/.test(c.text)) return `card read: ${c.text.slice(0, 80)}`;
+  if (await p.inputValue('#finder-input') !== 'Hyde Park') {
+    return `box read "${await p.inputValue('#finder-input')}", wanted "Hyde Park"`;
+  }
+});
+await check('a neighborhood spanning wards offers all of them', async (p) => {
+  await look(p, 'Uptown');
+  const opts = await asks(p);
+  if (opts.slice().sort().join(',') !== 'Ward 46,Ward 48') return `offered ${opts.join(', ')}`;
+  const c = await card(p);
+  if (c.shown) return `card was shown before a ward was picked: ${c.text.slice(0, 80)}`;
+});
+await check('case and spacing do not stop a neighborhood match', async (p) => {
+  await look(p, '  uptown  ');
+  const opts = await asks(p);
+  if (!opts.length) return `no candidates offered; note read: ${await note(p)}`;
+});
+await check('an aliased colloquial name resolves through the curated table', async (p) => {
+  await look(p, 'Pilsen');
+  const c = await card(p);
+  if (c.shown) return `card was shown before a ward was picked: ${c.text.slice(0, 80)}`;
+  const opts = await asks(p);
+  if (opts.join(',') !== 'Ward 25') return `offered ${opts.join(', ') || '(nothing)'}, wanted Ward 25`;
+  if (!/Pilsen/.test(await note(p))) return `note did not name Pilsen: ${await note(p)}`;
+});
+await check('an unaliased colloquial name still finds nothing, not a wrong ward', async (p) => {
+  await look(p, 'Sauganash');
+  const c = await card(p);
+  if (c.shown) return `card was shown reading: ${c.text.slice(0, 80)}`;
+  const opts = await asks(p);
+  if (opts.length) return `offered ${opts.join(', ')} for a name outside the source data and the alias table`;
+  if (!/neighborhood/i.test(await note(p))) return `note did not mention neighborhoods: ${await note(p)}`;
+});
+await check('a real address still resolves the same as before this existed', async (p) => {
+  await look(p, '1060 W Addison St');
+  const c = await card(p);
+  if (!c.shown) return 'no card';
+  if (!/Your ward: 44\b/.test(c.text)) return `card read: ${c.text.slice(0, 80)}`;
+});
+await check('a misspelled street still offers street candidates, not a neighborhood guess', async (p) => {
+  await look(p, '1060 W Adison St');
+  const opts = await asks(p);
+  if (!opts.includes('1060 W Addison St')) return `offered ${opts.join(', ')}`;
+});
+
 await browser.close();
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

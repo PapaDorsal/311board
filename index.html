@@ -64,7 +64,7 @@
         <button type="button" id="finder-gps" class="gps-btn" title="Checked against the ward map in your browser; your location is never sent anywhere">Use my location</button>
         <form id="finder-form" class="addr-form">
           <label class="finder-label" for="finder-input">or look up an address</label>
-          <input id="finder-input" type="search" placeholder="1060 W Addison St" autocomplete="street-address">
+          <input id="finder-input" type="search" placeholder="1060 W Addison St or Uptown" autocomplete="street-address">
           <button type="submit" class="addr-go">Go</button>
         </form>
         <p class="finder-note" id="finder-note" role="status">Location stays in your browser. Or just click a ward on the map.</p>
@@ -216,6 +216,7 @@
   <noscript><p class="board-note">This page renders a data snapshot with JavaScript. The raw snapshot is at <a href="data/leaderboard.json">data/leaderboard.json</a>.</p></noscript>
 </main>
 <script src="assets/address.js"></script>
+<script src="assets/neighborhoods.js"></script>
 <script src="assets/app.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
