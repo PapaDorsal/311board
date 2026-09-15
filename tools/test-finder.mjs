@@ -252,12 +252,20 @@ await check('case and spacing do not stop a neighborhood match', async (p) => {
   const opts = await asks(p);
   if (!opts.length) return `no candidates offered; note read: ${await note(p)}`;
 });
-await check('a colloquial name outside the official 77 finds nothing, not a wrong ward', async (p) => {
+await check('an aliased colloquial name resolves through the curated table', async (p) => {
   await look(p, 'Pilsen');
+  const c = await card(p);
+  if (c.shown) return `card was shown before a ward was picked: ${c.text.slice(0, 80)}`;
+  const opts = await asks(p);
+  if (opts.join(',') !== 'Ward 25') return `offered ${opts.join(', ') || '(nothing)'}, wanted Ward 25`;
+  if (!/Pilsen/.test(await note(p))) return `note did not name Pilsen: ${await note(p)}`;
+});
+await check('an unaliased colloquial name still finds nothing, not a wrong ward', async (p) => {
+  await look(p, 'Sauganash');
   const c = await card(p);
   if (c.shown) return `card was shown reading: ${c.text.slice(0, 80)}`;
   const opts = await asks(p);
-  if (opts.length) return `offered ${opts.join(', ')} for a name outside the source data`;
+  if (opts.length) return `offered ${opts.join(', ')} for a name outside the source data and the alias table`;
   if (!/neighborhood/i.test(await note(p))) return `note did not mention neighborhoods: ${await note(p)}`;
 });
 await check('a real address still resolves the same as before this existed', async (p) => {

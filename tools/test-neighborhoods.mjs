@@ -38,16 +38,53 @@ const IX = ChiNeighborhoods.buildIndex(NB);
 }
 
 {
-  // Known, documented gap: colloquial names outside the official 77 community
-  // areas are not aliased here. This is not a bug to fix quietly - it is the
-  // boundary of what this file promises, and a check exists so a future change
-  // does not accidentally start guessing.
-  check('a colloquial name outside the official list finds nothing', !ChiNeighborhoods.lookup('Pilsen', IX));
-  check('a colloquial name outside the official list finds nothing (Bronzeville)', !ChiNeighborhoods.lookup('Bronzeville', IX));
+  // A colloquial name in the curated alias table resolves through it to the
+  // official community area's own wards - no new ward assignment invented,
+  // just a name translated before the same lookup runs.
+  const r = ChiNeighborhoods.lookup('Pilsen', IX);
+  check('an aliased colloquial name is found', !!r);
+  check('the display name is the typed colloquial one, not the official one', r && r.name === 'Pilsen', r && r.name);
+  check('Pilsen resolves to Ward 25, same as Lower West Side', r && r.wards.map((w) => w.ward).join(',') === '25', r && JSON.stringify(r.wards));
+  check('Pilsen matches through the same alias case-insensitively', !!ChiNeighborhoods.lookup('pilsen', IX));
+}
+
+{
+  // A colloquial name spanning more than one official area unions their
+  // wards rather than picking one arbitrarily.
+  const r = ChiNeighborhoods.lookup('Bronzeville', IX);
+  check('a multi-target alias is found', !!r);
+  const direct = [
+    ...ChiNeighborhoods.lookup('Grand Boulevard', IX).wards,
+    ...ChiNeighborhoods.lookup('Douglas', IX).wards,
+  ];
+  const expected = [...new Set(direct.map((w) => w.ward))].sort((a, b) => a - b);
+  const got = r ? [...new Set(r.wards.map((w) => w.ward))].sort((a, b) => a - b) : [];
+  check('Bronzeville is the union of Grand Boulevard and Douglas wards', JSON.stringify(got) === JSON.stringify(expected), `got ${got}, wanted ${expected}`);
+}
+
+{
+  // Still a documented boundary, not a promise to guess: a real Chicago
+  // micro-neighborhood left out of the curated table on purpose, so this
+  // check fails loudly if ALIASES is ever grown by guessing instead of by
+  // checking a real map.
+  check('an unaliased colloquial name still finds nothing (Sauganash)', !ChiNeighborhoods.lookup('Sauganash', IX));
   check('gibberish finds nothing', !ChiNeighborhoods.lookup('Xyzzy Heights', IX));
   check('an address string finds nothing', !ChiNeighborhoods.lookup('1060 W Addison St', IX));
   check('an empty string finds nothing', !ChiNeighborhoods.lookup('', IX));
   check('a bare number finds nothing', !ChiNeighborhoods.lookup('46', IX));
+}
+
+{
+  // Every alias target is spelled exactly as the source data spells it, and
+  // resolves to at least one real ward - catches a typo in ALIASES itself
+  // rather than letting one silently degrade to "finds nothing".
+  const broken = [];
+  Object.keys(ChiNeighborhoods.ALIASES).forEach((key) => {
+    const alias = ChiNeighborhoods.ALIASES[key];
+    const resolved = alias.targets.filter((t) => IX[ChiNeighborhoods.normalize(t)]);
+    if (!resolved.length) broken.push(alias.display + ': none of ' + alias.targets.join(', ') + ' are in the source data');
+  });
+  check('every alias resolves to at least one real official name', broken.length === 0, broken.join(' | '));
 }
 
 {
