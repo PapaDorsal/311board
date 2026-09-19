@@ -1,7 +1,8 @@
 // Build-time data snapshot for chiwardboard.
 // Fetches the year's rows for each profiled request type live from Socrata and
 // writes data/leaderboard.json. Every number the page shows comes from this run.
-// Rows the city flags as duplicates are excluded from every timed figure.
+// Rows the city flags as duplicates are excluded from every timed figure, as
+// are Mass Entry rows, which are batch-keyed and carry no elapsed time at all.
 // Usage: node tools/build-data.mjs
 const BASE = 'https://data.cityofchicago.org/resource/v6vf-nfxy.json';
 // Rolling 12 months ending at the most recent COMPLETE month, so the board never
@@ -161,7 +162,7 @@ async function profile({ key, official, plain }) {
   }, `${key}:statuses`);
 
   const rows = await fetchAll({
-    $select: ':id, ward, created_date, closed_date, status, duplicate',
+    $select: ':id, ward, created_date, closed_date, status, duplicate, origin',
     $where: `${Y} AND sr_type='${esc(official)}'`,
   }, `${key}:rows`);
   // The extract is only as current as the newest row in it. Open requests are
@@ -172,13 +173,37 @@ async function profile({ key, official, plain }) {
   const byWard = new Map();
   const all = [];
   let dropNotCompleted = 0, dropNoWard = 0, dropBadDate = 0, dropNeg = 0, dupRows = 0, sameSecond = 0, timed = 0;
-  let openRows = 0, canceledRows = 0;
+  let openRows = 0, canceledRows = 0, massEntry = 0;
   for (const r of rows) {
     // Duplicates are excluded from every figure. A duplicate report is the same
     // physical problem reported twice, so counting it twice both inflates volume
     // and re-times one repair as if it were two. The city excludes them in its
     // own Open311 tooling; including them made us the outlier.
     if (r.duplicate === true || r.duplicate === 'true') { dupRows++; continue; }
+    // Mass Entry rows are excluded from every timed figure, because they carry
+    // no elapsed time to measure.
+    //
+    // THE BUG THIS FIXES, found by a resident of the 33rd who walked his ward
+    // reporting graffiti and did not believe our number: the board published
+    // Ward 33 graffiti at a median of ZERO days, and twelve wards in all at
+    // exactly zero. The city files 44 percent of graffiti records through an intake
+    // channel called Mass Entry, and every one of them is stamped closed 5 to
+    // 13 seconds after it is opened. Both timestamps are the moment the record
+    // was keyed in, not the moment anyone reported or fixed anything. Counting
+    // them as "closed in 0.00 days" dragged the median to zero for any ward
+    // with enough of them, and the ward-to-ward variation in how many there are
+    // (18 to 67 percent) was ranking the wards.
+    //
+    // Excluded, not censored: a censored observation still says the true wait
+    // is AT LEAST this long, and at t=0 that claim is empty. These rows say
+    // nothing about waiting at all, so they leave the timed population the way
+    // a duplicate does.
+    //
+    // Measured over the published window, this channel appears in graffiti and
+    // in no other profiled type, but the rule is written against the field
+    // rather than against graffiti: if the city starts batch-entering potholes
+    // tomorrow, this catches it without anyone noticing first.
+    if (String(r.origin || '') === 'Mass Entry') { massEntry++; continue; }
     const st = String(r.status || '');
     const done = /^completed/i.test(st);
     const c = Date.parse(r.created_date);
@@ -192,7 +217,7 @@ async function profile({ key, official, plain }) {
     if (done) {
       const d = Date.parse(r.closed_date);
       if (!Number.isFinite(d)) { dropBadDate++; continue; }
-      if (d === c) sameSecond++;
+      if (d - c < 60000) sameSecond++;
       days = (d - c) / 86400000; event = true;
       if (days < 0) { dropNeg++; continue; }
     } else if (/^open/i.test(st)) {
@@ -283,8 +308,15 @@ async function profile({ key, official, plain }) {
       duplicates: Number(totals[0].dupes),
       statuses: Object.fromEntries(statuses.map(s => [s.status, Number(s.c)])),
     },
-    exclusions: { duplicates: dupRows, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
-    diagnostics: { sameSecondCloses: sameSecond, duplicateFlagged: dupRows, rowsTimed: timed,
+    exclusions: { duplicates: dupRows, massEntry, notCompleted: dropNotCompleted, nullOrZeroWard: dropNoWard, unparseableDates: dropBadDate, negativeDurations: dropNeg },
+    // subMinuteCloses replaces a sameSecondCloses counter that tested for an
+    // exact millisecond match. It was written to catch closures too fast to be
+    // real work and it read zero on every type, including the one where 44
+    // percent of rows closed within 13 seconds - an exact-equality test for a
+    // thing that is never exactly equal. Measured in seconds now, over the rows
+    // that survive exclusion, so anything still landing here is a channel we
+    // have not accounted for.
+    diagnostics: { subMinuteCloses: sameSecond, massEntryExcluded: massEntry, duplicateFlagged: dupRows, rowsTimed: timed,
                    stillOpen: openRows, canceled: canceledRows, censored: openRows + canceledRows },
     citywide: { p50: r2(kmQuantile(all, 0.5)), p75: r2(kmQuantile(all, 0.75)), p90: r2(kmQuantile(all, 0.9)),
                 week: Math.round(kmClosedWithin(all, 7)) },
@@ -310,15 +342,21 @@ async function profileBacklog({ key, official, plain }) {
     return null;
   }
   const where = `created_date >= '${from}T00:00:00' AND created_date < '${WINDOW_TO}T00:00:00' AND sr_type='${esc(official)}'`;
-  const rows = await fetchAll({ $select: ':id, ward, created_date, status, duplicate', $where: where }, `${key}:rows`);
+  const rows = await fetchAll({ $select: ':id, ward, created_date, status, duplicate, origin', $where: where }, `${key}:rows`);
   const asOfRow = await q({ $select: 'max(last_modified_date) as t' }, `${key}:asof`);
   const AS_OF = Date.parse(asOfRow[0].t);
   const cutoff = AS_OF - MATURITY_DAYS * 86400000;
 
   const byWard = new Map();
-  let filed = 0, mature = 0, open = 0, dupRows = 0, dropNoWard = 0, tooNew = 0;
+  let filed = 0, mature = 0, open = 0, dupRows = 0, dropNoWard = 0, tooNew = 0, massEntry = 0;
   for (const r of rows) {
     if (r.duplicate === true || r.duplicate === 'true') { dupRows++; continue; }
+    // Same exclusion as the timed path, for the same reason. A backlog share
+    // asks what the city has not finished; a batch-entered row arrives already
+    // closed and would pad the denominator with work nobody waited on. No
+    // profiled backlog type carries this channel today - the rule is here so
+    // the two paths cannot disagree if one ever does.
+    if (String(r.origin || '') === 'Mass Entry') { massEntry++; continue; }
     const c = Date.parse(r.created_date);
     if (!Number.isFinite(c)) continue;
     const w = Number(r.ward);
@@ -357,7 +395,7 @@ async function profileBacklog({ key, official, plain }) {
     key, official, plain, metric: 'backlog',
     window: { from, to: WINDOW_TO, maturityDays: MATURITY_DAYS },
     minWardN: MIN_BACKLOG_N,
-    totals: { filed, mature, open, tooNew, duplicates: dupRows, nullOrZeroWard: dropNoWard },
+    totals: { filed, mature, open, tooNew, duplicates: dupRows, massEntry, nullOrZeroWard: dropNoWard },
     citywide: { pct: r2(100 * open / mature), mature, open },
     headline, wards,
   };
