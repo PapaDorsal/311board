@@ -185,8 +185,8 @@ async function profile({ key, official, plain }) {
     //
     // THE BUG THIS FIXES, found by a resident of the 33rd who walked his ward
     // reporting graffiti and did not believe our number: the board published
-    // Ward 33 graffiti at a median of ZERO days, and five wards at exactly
-    // zero. The city files 44 percent of graffiti records through an intake
+    // Ward 33 graffiti at a median of ZERO days, and twelve wards in all at
+    // exactly zero. The city files 44 percent of graffiti records through an intake
     // channel called Mass Entry, and every one of them is stamped closed 5 to
     // 13 seconds after it is opened. Both timestamps are the moment the record
     // was keyed in, not the moment anyone reported or fixed anything. Counting
