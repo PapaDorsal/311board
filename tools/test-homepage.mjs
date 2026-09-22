@@ -215,98 +215,100 @@ await check('5 nothing hidden beside the share button can render anyway', { touc
     .map((el) => `${el.tagName}#${el.id || '(no id)'} display:${getComputedStyle(el).display}`));
   if (bad.length) return `hidden but still displayed: ${bad.join(', ')}`;
 });
-await check('5 clicking share copies the current URL and says Copied', { width: 1280, height: 900 }, async (p) => {
+await check('5 clicking share opens the native share sheet with a written line and the link', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
-    window.__copied = null;
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
-    });
+    window.__shared = null;
+    navigator.share = (payload) => { window.__shared = payload; return Promise.resolve(); };
   });
-  const before = await p.textContent('#share');
   await p.click('#share');
   await p.waitForTimeout(200);
-  const r = await p.evaluate(() => ({ copied: window.__copied, label: document.getElementById('share').textContent }));
-  if (r.copied !== p.url && !/^https?:\/\//.test(r.copied || '')) return `copied "${r.copied}"`;
-  if (r.label !== 'Copied') return `label read "${r.label}", wanted "Copied"`;
-  if (before === 'Copied') return 'the label was already "Copied" before the click';
+  const shared = await p.evaluate(() => window.__shared);
+  if (!shared) return 'navigator.share was never called';
+  if (shared.url !== p.url()) return `shared url "${shared.url}", page was at "${p.url()}"`;
+  if (!shared.text || shared.text === shared.url) return `text was "${shared.text}", not a written line`;
+  if (!/ChiWardBoard/.test(shared.text)) return `text did not name the site: "${shared.text}"`;
 });
-await check('5 the copied URL is the current one, ward and all', { width: 1280, height: 900 }, async (p) => {
+await check('5 the shared text matches what the headline says on screen', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
-    window.__copied = null;
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
-    });
+    window.__shared = null;
+    navigator.share = (payload) => { window.__shared = payload; return Promise.resolve(); };
+  });
+  const hookLine = (await p.textContent('#hook-line')).trim();
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  const shared = await p.evaluate(() => window.__shared);
+  if (!shared.text.includes(hookLine)) return `shared "${shared.text}", screen read "${hookLine}"`;
+});
+await check('5 the shared link is the current one, ward and all', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    window.__shared = null;
+    navigator.share = (payload) => { window.__shared = payload; return Promise.resolve(); };
   });
   await p.click('#map path[data-ward="24"]');
   await p.waitForTimeout(1200);
   await p.click('#share');
   await p.waitForTimeout(200);
-  const copied = await p.evaluate(() => window.__copied);
-  if (!/[?&]ward=24\b/.test(copied || '')) return `copied "${copied}", which does not carry the selected ward`;
+  const shared = await p.evaluate(() => window.__shared);
+  if (!/[?&]ward=24\b/.test(shared.url || '')) return `shared "${shared.url}", which does not carry the selected ward`;
 });
-await check('5 the label goes back after two seconds', { width: 1280, height: 900 }, async (p) => {
+await check('5 a cancelled share sheet says nothing', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true, value: { writeText: () => Promise.resolve() },
-    });
-  });
-  const before = await p.textContent('#share');
-  await p.click('#share');
-  await p.waitForTimeout(200);
-  if ((await p.textContent('#share')) !== 'Copied') return 'never said Copied';
-  await p.waitForTimeout(2200);
-  const after = await p.textContent('#share');
-  if (after !== before) return `label came back as "${after}", wanted "${before}"`;
-});
-await check('5 a second click does not make Copied the permanent label', { width: 1280, height: 900 }, async (p) => {
-  await p.evaluate(() => {
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true, value: { writeText: () => Promise.resolve() },
-    });
-  });
-  const before = await p.textContent('#share');
-  await p.click('#share');
-  await p.waitForTimeout(150);
-  await p.click('#share');       // while the label still reads "Copied"
-  await p.waitForTimeout(2400);
-  const after = await p.textContent('#share');
-  if (after !== before) return `label settled on "${after}", wanted "${before}"`;
-});
-await check('5 a browser with no clipboard still copies', { width: 1280, height: 900 }, async (p) => {
-  await p.evaluate(() => {
-    // No async clipboard at all, the way an older browser or an insecure context
-    // presents. The execCommand path has to carry it.
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
-    window.__exec = null;
-    document.execCommand = (cmd) => { window.__exec = cmd; return true; };
+    navigator.share = () => Promise.reject(Object.assign(new Error('cancelled'), { name: 'AbortError' }));
   });
   await p.click('#share');
   await p.waitForTimeout(300);
-  const r = await p.evaluate(() => ({ exec: window.__exec, label: document.getElementById('share').textContent,
-    leftovers: document.querySelectorAll('textarea').length }));
-  if (r.exec !== 'copy') return `execCommand was called with ${r.exec}`;
-  if (r.label !== 'Copied') return `label read "${r.label}"`;
-  if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
+  const shown = await p.evaluate(() => !document.getElementById('share-done').hidden);
+  if (shown) return 'a cancelled share sheet still showed a message';
 });
-await check('5 when nothing can copy, the link is offered instead of a false Copied', { width: 1280, height: 900 }, async (p) => {
+await check('5 without navigator.share, it copies the written line and the link together', { width: 1280, height: 900 }, async (p) => {
   await p.evaluate(() => {
+    delete navigator.__proto__.share;
+    window.__copied = null;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } },
+    });
+  });
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  const r = await p.evaluate(() => ({ copied: window.__copied, done: document.getElementById('share-done').textContent,
+    hidden: document.getElementById('share-done').hidden, buttonLabel: document.getElementById('share').textContent }));
+  if (!r.copied || !r.copied.includes(p.url())) return `copied "${r.copied}"`;
+  if (!/ChiWardBoard/.test(r.copied)) return `copied text carried no written line: "${r.copied}"`;
+  if (r.hidden) return 'no receipt was shown for the copy';
+  if (!/copied/i.test(r.done)) return `receipt read "${r.done}"`;
+  // The button's own label is untouched now - the receipt is #share-done, the
+  // same contract the per-ward share button already used.
+  if (r.buttonLabel !== 'Share this') return `button label changed to "${r.buttonLabel}"`;
+});
+await check('5 the copy receipt clears itself', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    delete navigator.__proto__.share;
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true, value: { writeText: () => Promise.resolve() },
+    });
+  });
+  await p.click('#share');
+  await p.waitForTimeout(200);
+  if (await p.evaluate(() => document.getElementById('share-done').hidden)) return 'no receipt appeared';
+  await p.waitForTimeout(2700);
+  if (!(await p.evaluate(() => document.getElementById('share-done').hidden))) return 'the receipt never went away';
+});
+await check('5 when nothing can copy, the link is offered instead of a false receipt', { width: 1280, height: 900 }, async (p) => {
+  await p.evaluate(() => {
+    delete navigator.__proto__.share;
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
-    document.execCommand = () => false;
   });
   await p.click('#share');
   await p.waitForTimeout(300);
   const r = await p.evaluate(() => {
     const done = document.getElementById('share-done');
     const b = done.getBoundingClientRect();
-    return { label: document.getElementById('share').textContent, shown: b.width > 0 && b.height > 0,
-      text: done.textContent, leftovers: document.querySelectorAll('textarea').length };
+    return { shown: b.width > 0 && b.height > 0, text: done.textContent, failed: done.classList.contains('share-fail') };
   });
-  if (r.label === 'Copied') return 'claimed Copied when nothing was copied';
-  if (!r.shown) return `nothing was offered; the button said "${r.label}"`;
-  if (!/^https?:\/\//.test(r.text)) return `offered "${r.text}"`;
-  if (r.leftovers !== 0) return `${r.leftovers} textarea(s) left in the page`;
+  if (!r.shown) return 'nothing was offered when the copy could not happen';
+  if (!r.failed) return `not flagged as a failure: "${r.text}"`;
+  if (!/^https?:\/\//.test(r.text.replace(/^.*is /, ''))) return `offered "${r.text}"`;
 });
 
 // ---- 6: the link does not promise what the destination lacks ----
