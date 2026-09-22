@@ -923,53 +923,43 @@
     setAddrState(r.state, r);
   };
 
-  // "Share this" copies the link, and the button's own label is the receipt.
+  // "Share this" opens the device's real share sheet - Messages, X, Bluesky,
+  // whatever is installed - with a written line and the link together, not the
+  // bare URL. A link with no text is what X and Bluesky both render as a plain
+  // card with no message, which is the thing this replaces.
+  //
+  // ward.js has done this for the per-ward card since it shipped. The homepage
+  // never did: this used to just copy location.href, unconditionally, with no
+  // navigator.share attempt at all and no text - the two share buttons on the
+  // site behaved differently for no reason. This brings the homepage up to the
+  // same contract ward.js already has, reusing its markup: the same #share-done
+  // span, hidden by the same [hidden] rule in app.css.
   //
   // It used to open the share sheet first and fall back to a readonly input
   // holding the link. That input carried `display: block` in the stylesheet,
   // which beats its own `hidden` attribute, so it rendered on every page load as
   // an empty full-width box next to the board: a dead form field that invited a
-  // tap and did nothing. The input is gone, and with it the only thing on the
-  // page that could render while hidden.
-  async function copyLink(btn, url) {
-    // Remembered once, so a second click while the label still reads "Copied"
-    // cannot make "Copied" the button's permanent name.
-    if (!btn.dataset.label) btn.dataset.label = btn.textContent;
-    const say = (msg) => {
-      btn.textContent = msg;
-      clearTimeout(copyLink._t);
-      copyLink._t = setTimeout(() => { btn.textContent = btn.dataset.label; }, 2000);
+  // tap and did nothing. The input is gone; #share-done has no display of its
+  // own, so `hidden` actually hides it.
+  async function shareOrCopy(payload, done) {
+    const say = (msg, ok) => {
+      done.textContent = msg;
+      done.hidden = false;
+      done.classList.toggle('share-fail', !ok);
+      clearTimeout(say._t);
+      say._t = setTimeout(() => { done.hidden = true; }, ok ? 2500 : 12000);
     };
+    if (navigator.share) {
+      try { await navigator.share(payload); return; }
+      // A cancelled share sheet is a choice, not a failure - say nothing.
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
     try {
-      await navigator.clipboard.writeText(url);
-      say('Copied');
+      await navigator.clipboard.writeText(`${payload.text} ${payload.url}`);
+      say('Link copied.', true);
       return;
     } catch { /* older browser, or a context that refuses the async clipboard */ }
-    // The fallback every browser without navigator.clipboard still has. The
-    // textarea exists for one tick, off-screen, and is removed either way, so
-    // nothing is left behind to render.
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = url;
-      ta.setAttribute('readonly', '');
-      ta.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      if (ok) { say('Copied'); return; }
-    } catch { /* fall through */ }
-    // Nothing here can copy for them, so say that rather than claim success, and
-    // put the link where it can be selected by hand. This span has no display of
-    // its own, so `hidden` actually hides it.
-    const done = $('share-done');
-    if (done) {
-      done.textContent = url;
-      done.hidden = false;
-      clearTimeout(copyLink._d);
-      copyLink._d = setTimeout(() => { done.hidden = true; }, 12000);
-    }
-    say('Copy the link');
+    say(`Could not copy automatically - the link is ${payload.url}`, false);
   }
 
   // "How these numbers were counted" points at a <details>. Scrolling to a closed
@@ -981,9 +971,26 @@
     if (m) { m.hidden = false; m.open = true; }
   });
 
+  // The written line is whatever the page is already saying out loud: the
+  // headline sentence renderHook just set, toggle-aware for free - it already
+  // reads differently for a rolling window vs. 2024, for speed vs. backlog, for
+  // a type where every ward is fast. Reusing it means this can never drift from
+  // what a share sends to what the screen shows, because they are the same text.
+  // The one gap is a type too thin to have a headline at all ($('hook') hidden),
+  // which gets a plain fallback naming the type instead.
+  function shareText() {
+    const hookLine = $('hook-line');
+    if (!$('hook').hidden && hookLine && hookLine.textContent.trim()) return hookLine.textContent.trim();
+    const t = type();
+    return `Chicago's ${t ? t.plain : '311 requests'}, ranked by ward.`;
+  }
+
   // The current URL, so a share carries the type, the period and any ward the
   // visitor has selected rather than a generic link to the front page.
-  $('share').onclick = () => copyLink($('share'), location.href);
+  $('share').onclick = async () => {
+    const text = `${shareText()} - ChiWardBoard`;
+    await shareOrCopy({ title: text, text, url: location.href }, $('share-done'));
+  };
 
   $('types').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b || b.disabled || !b.dataset.key) return;
